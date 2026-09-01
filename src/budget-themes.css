@@ -1,0 +1,651 @@
+/* =========================================================================
+   THEMING
+   Components use a fixed set of Tailwind tokens (bg-white, text-slate-*,
+   bg-emerald-*, etc). A theme is just a remap of those tokens, scoped by the
+   `data-theme` attribute on <html> (set in index.html before render). "Clean"
+   leaves Tailwind mostly as-is (a modern light app); "Cyberpunk" remaps to the
+   neon-on-black palette.
+   ========================================================================= */
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Align digits in columns — a small but universal finance-app polish. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hide the scrollbar on the horizontal top-nav (it still scrolls). */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.cp-mono {
+  font-family: 'Share Tech Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.02em;
+}
+/* Clean & Midnight want elegant tabular figures, not the techy mono. */
+html[data-theme='clean'] .cp-mono,
+html[data-theme='midnight'] .cp-mono {
+  font-family: 'Sora', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ---- Interaction polish (all themes): smooth, tactile, grown-up feel ---- */
+button,
+a,
+[role='button'],
+input,
+select,
+textarea {
+  transition: background-color 0.16s ease, color 0.16s ease,
+    border-color 0.16s ease, box-shadow 0.18s ease, transform 0.12s ease,
+    opacity 0.16s ease;
+}
+button:not(:disabled):active {
+  transform: translateY(1px);
+}
+/* Cards lift slightly on hover (desktop) for a more alive, modern feel. */
+@media (hover: hover) {
+  .shadow {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+}
+
+/* =========================================================================
+   CLEAN  (ivory editorial — warm ivory, ink text, serif headings, a thin
+   antique-gold thread. Restraint over colour: elegant, airy, expensive.)
+   ========================================================================= */
+html[data-theme='clean'] body {
+  color: #2a261f;
+  background-color: #ece9e0;
+  font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+  letter-spacing: -0.006em;
+}
+/* Serif display headings — the single biggest lift toward "elegant". */
+html[data-theme='clean'] h1,
+html[data-theme='clean'] h2,
+html[data-theme='clean'] h3 {
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  color: #19150f;
+  letter-spacing: -0.005em;
+  font-weight: 500;
+}
+/* Elegant cards: defined warm border, generous radius, soft layered shadow. */
+html[data-theme='clean'] .bg-white {
+  border: 1px solid #dcd5c5;
+}
+/* Crisp, defined warm borders (cards, dividers, the segmented toggle). */
+html[data-theme='clean'] .border-slate-300 { border-color: #cfc7b5; }
+html[data-theme='clean'] .border-slate-200,
+html[data-theme='clean'] .border-slate-100 { border-color: #ddd6c7; }
+/* The app sits on bg-slate-100 — a warm neutral so the white cards lift off it. */
+html[data-theme='clean'] .bg-slate-100 {
+  background-color: #e6e2d7;
+}
+/* Selection ring (e.g. chosen theme card) — antique gold. */
+html[data-theme='clean'] .ring-emerald-500 {
+  --tw-ring-color: #a4842f;
+}
+html[data-theme='clean'] .rounded-2xl {
+  border-radius: 1.25rem;
+}
+html[data-theme='clean'] .shadow {
+  box-shadow: 0 1px 2px rgba(48, 40, 24, 0.06), 0 8px 24px rgba(48, 40, 24, 0.09);
+}
+html[data-theme='clean'] .shadow-xl {
+  box-shadow: 0 28px 52px rgba(48, 40, 24, 0.13);
+}
+/* Hero number sits on the warm cream panel — crisp deep ink. */
+html[data-theme='clean'] .cp-glow-cyan {
+  color: #1a160f;
+  text-shadow: none;
+}
+/* Primary surfaces: deep warm ink (monochrome elegance, no brown/colour). */
+html[data-theme='clean'] .bg-emerald-700,
+html[data-theme='clean'] .bg-emerald-600,
+html[data-theme='clean'] .bg-emerald-500 {
+  background-color: #221e17;
+}
+/* The hero "safe to spend" band. */
+html[data-theme='clean'] .bg-emerald-800,
+html[data-theme='clean'] .bg-emerald-900 {
+  background-color: #1b1710;
+}
+html[data-theme='clean'] .bg-emerald-50 {
+  background-color: #faf7f0;
+}
+/* Accent text/links: antique gold — a quiet metallic, used sparingly. */
+html[data-theme='clean'] .text-emerald-700,
+html[data-theme='clean'] .text-emerald-800 {
+  color: #8a6c1f;
+}
+html[data-theme='clean'] .text-emerald-900 {
+  color: #6f561a;
+}
+html[data-theme='clean'] .border-emerald-200,
+html[data-theme='clean'] .border-emerald-500 {
+  border-color: rgba(164, 132, 47, 0.4);
+}
+html[data-theme='clean'] .hover\:bg-emerald-800:hover {
+  background-color: #322c22;
+}
+html[data-theme='clean'] input[type='checkbox'],
+html[data-theme='clean'] input[type='radio'] {
+  accent-color: #a4842f;
+}
+html[data-theme='clean'] input:focus,
+html[data-theme='clean'] select:focus,
+html[data-theme='clean'] textarea:focus {
+  outline: none;
+  border-color: #a4842f;
+  box-shadow: 0 0 0 2px rgba(164, 132, 47, 0.22);
+}
+html[data-theme='clean'] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+html[data-theme='clean'] ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 8px;
+}
+
+/* =========================================================================
+   CYBERPUNK  (neon-on-black)
+   ========================================================================= */
+html[data-theme='cyberpunk'] {
+  --cp-bg: #07070e;
+  --cp-panel-1: rgba(22, 27, 46, 0.92);
+  --cp-panel-2: rgba(11, 13, 24, 0.92);
+  --cp-cyan: #22d3ee;
+  --cp-cyan-dim: rgba(34, 211, 238, 0.18);
+  --cp-magenta: #ff3bd4;
+  --cp-text: #e6f0ff;
+  --cp-text-2: #c2d0ec;
+  --cp-text-3: #94a3c4;
+  --cp-text-4: #6b7a9c;
+  --cp-red: #ff5d73;
+  --cp-amber: #fbbf24;
+  --cp-line: rgba(120, 160, 255, 0.16);
+  --cp-line-soft: rgba(120, 160, 255, 0.09);
+}
+
+html[data-theme='cyberpunk'] body {
+  color: var(--cp-text);
+  background-color: var(--cp-bg);
+  background-image:
+    radial-gradient(900px 500px at 100% -10%, rgba(255, 59, 212, 0.1), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(34, 211, 238, 0.12), transparent 60%),
+    linear-gradient(rgba(120, 160, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 160, 255, 0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 38px 38px, 38px 38px;
+  background-attachment: fixed;
+  font-family: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+html[data-theme='cyberpunk'] h1,
+html[data-theme='cyberpunk'] h2,
+html[data-theme='cyberpunk'] h3 {
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Surfaces ---- */
+html[data-theme='cyberpunk'] .bg-white {
+  background: linear-gradient(160deg, var(--cp-panel-1), var(--cp-panel-2));
+  border: 1px solid var(--cp-cyan-dim);
+  backdrop-filter: blur(6px);
+}
+html[data-theme='cyberpunk'] .bg-slate-100 {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+html[data-theme='cyberpunk'] .bg-slate-900 {
+  background-color: #05060d;
+}
+html[data-theme='cyberpunk'] .shadow {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(34, 211, 238, 0.05);
+}
+html[data-theme='cyberpunk'] .shadow-xl {
+  box-shadow: 0 0 45px rgba(34, 211, 238, 0.18), 0 24px 60px rgba(0, 0, 0, 0.75);
+}
+
+/* ---- Accent fills ---- */
+html[data-theme='cyberpunk'] .bg-emerald-700,
+html[data-theme='cyberpunk'] .bg-emerald-600,
+html[data-theme='cyberpunk'] .bg-emerald-500 {
+  background: linear-gradient(135deg, #06b6d4, #0e7490);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.35);
+}
+html[data-theme='cyberpunk'] .bg-emerald-800,
+html[data-theme='cyberpunk'] .bg-emerald-900 {
+  background: linear-gradient(135deg, #0b1424, #0a1b2e);
+  border-bottom: 1px solid var(--cp-cyan-dim);
+  box-shadow: 0 0 30px rgba(34, 211, 238, 0.12);
+}
+html[data-theme='cyberpunk'] .bg-emerald-50 {
+  background: rgba(34, 211, 238, 0.08);
+}
+html[data-theme='cyberpunk'] .bg-red-500,
+html[data-theme='cyberpunk'] .bg-red-600,
+html[data-theme='cyberpunk'] .bg-red-700 {
+  background: linear-gradient(135deg, #ff3b6b, #b91c4b);
+  box-shadow: 0 0 16px rgba(255, 93, 115, 0.4);
+}
+html[data-theme='cyberpunk'] .bg-red-50 {
+  background: rgba(255, 93, 115, 0.1);
+}
+html[data-theme='cyberpunk'] .bg-amber-500 {
+  background: linear-gradient(135deg, #d97706, #92400e);
+  box-shadow: 0 0 16px rgba(217, 119, 6, 0.35);
+}
+html[data-theme='cyberpunk'] .bg-amber-50 {
+  background: rgba(251, 191, 36, 0.1);
+}
+html[data-theme='cyberpunk'] .bg-black\/40 {
+  background-color: rgba(2, 3, 8, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+/* ---- Text ---- */
+html[data-theme='cyberpunk'] .text-slate-800 {
+  color: var(--cp-text);
+}
+html[data-theme='cyberpunk'] .text-slate-700 {
+  color: var(--cp-text-2);
+}
+html[data-theme='cyberpunk'] .text-slate-600,
+html[data-theme='cyberpunk'] .text-slate-500 {
+  color: var(--cp-text-3);
+}
+html[data-theme='cyberpunk'] .text-slate-400,
+html[data-theme='cyberpunk'] .text-slate-300 {
+  color: var(--cp-text-4);
+}
+html[data-theme='cyberpunk'] .text-slate-100 {
+  color: #eaf2ff;
+}
+html[data-theme='cyberpunk'] .text-emerald-700,
+html[data-theme='cyberpunk'] .text-emerald-800 {
+  color: var(--cp-cyan);
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
+}
+html[data-theme='cyberpunk'] .text-emerald-900 {
+  color: #7df9ff;
+  text-shadow: 0 0 16px rgba(34, 211, 238, 0.65);
+}
+html[data-theme='cyberpunk'] .text-red-600 {
+  color: var(--cp-red);
+  text-shadow: 0 0 10px rgba(255, 93, 115, 0.4);
+}
+html[data-theme='cyberpunk'] .text-amber-800,
+html[data-theme='cyberpunk'] .text-amber-600 {
+  color: var(--cp-amber);
+}
+
+/* ---- Borders ---- */
+html[data-theme='cyberpunk'] .border-slate-300 {
+  border-color: var(--cp-line);
+}
+html[data-theme='cyberpunk'] .border-slate-200,
+html[data-theme='cyberpunk'] .border-slate-100 {
+  border-color: var(--cp-line-soft);
+}
+html[data-theme='cyberpunk'] .border-emerald-200,
+html[data-theme='cyberpunk'] .border-emerald-500 {
+  border-color: rgba(34, 211, 238, 0.4);
+}
+html[data-theme='cyberpunk'] .border-amber-200 {
+  border-color: rgba(251, 191, 36, 0.3);
+}
+html[data-theme='cyberpunk'] .border-white\/20 {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+html[data-theme='cyberpunk'] .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--cp-line-soft);
+}
+
+/* ---- Form fields ---- */
+html[data-theme='cyberpunk'] input,
+html[data-theme='cyberpunk'] select,
+html[data-theme='cyberpunk'] textarea {
+  background-color: rgba(255, 255, 255, 0.04);
+  color: var(--cp-text);
+}
+html[data-theme='cyberpunk'] input::placeholder,
+html[data-theme='cyberpunk'] textarea::placeholder {
+  color: var(--cp-text-4);
+}
+html[data-theme='cyberpunk'] input:focus,
+html[data-theme='cyberpunk'] select:focus,
+html[data-theme='cyberpunk'] textarea:focus {
+  outline: none;
+  border-color: var(--cp-cyan);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.25), 0 0 14px rgba(34, 211, 238, 0.3);
+}
+html[data-theme='cyberpunk'] select option {
+  background: #0b0d16;
+  color: var(--cp-text);
+}
+html[data-theme='cyberpunk'] .ring-emerald-500 {
+  --tw-ring-color: var(--cp-cyan);
+}
+html[data-theme='cyberpunk'] .hover\:bg-emerald-800:hover {
+  background: linear-gradient(135deg, #22d3ee, #0891b2);
+  box-shadow: 0 0 26px rgba(34, 211, 238, 0.55);
+}
+html[data-theme='cyberpunk'] .hover\:text-red-600:hover {
+  color: var(--cp-red);
+}
+html[data-theme='cyberpunk'] .focus\:border-emerald-500:focus {
+  border-color: var(--cp-cyan);
+}
+html[data-theme='cyberpunk'] .focus\:ring-emerald-500:focus {
+  --tw-ring-color: var(--cp-cyan);
+}
+html[data-theme='cyberpunk'] input[type='checkbox'],
+html[data-theme='cyberpunk'] input[type='radio'] {
+  accent-color: var(--cp-cyan);
+}
+html[data-theme='cyberpunk'] input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+  opacity: 0.7;
+}
+
+/* ---- Scrollbar ---- */
+html[data-theme='cyberpunk'] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+html[data-theme='cyberpunk'] ::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.25);
+  border-radius: 8px;
+}
+html[data-theme='cyberpunk'] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html[data-theme='cyberpunk'] .cp-glow-cyan {
+  color: #7df9ff;
+  text-shadow: 0 0 18px rgba(34, 211, 238, 0.7), 0 0 40px rgba(34, 211, 238, 0.35);
+}
+
+/* =========================================================================
+   MIDNIGHT  (matte epic — flat near-black, bone-white numbers, serif headings,
+   and a muted brass accent used only on chrome. Matte: no gradients, no glow.)
+   ========================================================================= */
+html[data-theme='midnight'] body {
+  color: #c2bfb8;
+  background-color: #0e0e10;
+  font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: -0.004em;
+}
+html[data-theme='midnight'] h1,
+html[data-theme='midnight'] h2,
+html[data-theme='midnight'] h3 {
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  color: #eeeae3;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+/* Cards sit clearly above the matte-black page — crisp, defined borders. */
+html[data-theme='midnight'] .bg-white {
+  background-color: #17171a;
+  border: 1px solid #34343b;
+}
+html[data-theme='midnight'] .rounded-2xl { border-radius: 1.1rem; }
+html[data-theme='midnight'] .bg-slate-100 { background-color: #1f1f23; }
+html[data-theme='midnight'] .ring-emerald-500 { --tw-ring-color: #e5d4a1; }
+html[data-theme='midnight'] .bg-slate-900 { background-color: #08080a; }
+html[data-theme='midnight'] .shadow { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.45); }
+html[data-theme='midnight'] .shadow-xl { box-shadow: 0 28px 60px rgba(0, 0, 0, 0.65); }
+/* Champagne-gold accent — flat, dark text. Used on chrome (buttons, bars), not numbers. */
+html[data-theme='midnight'] .bg-emerald-700,
+html[data-theme='midnight'] .bg-emerald-600,
+html[data-theme='midnight'] .bg-emerald-500 {
+  background-color: #e5d4a1;
+  color: #211a08;
+}
+html[data-theme='midnight'] .bg-emerald-800,
+html[data-theme='midnight'] .bg-emerald-900 {
+  background-color: #161619;
+  border-bottom: 1px solid #2e2e34;
+}
+html[data-theme='midnight'] .bg-emerald-50 { background-color: #1a1a1e; }
+html[data-theme='midnight'] .bg-red-500,
+html[data-theme='midnight'] .bg-red-600,
+html[data-theme='midnight'] .bg-red-700 { background-color: #a8434f; }
+html[data-theme='midnight'] .bg-red-50 { background-color: rgba(168, 67, 79, 0.15); }
+html[data-theme='midnight'] .bg-amber-500 { background-color: #b7892f; }
+html[data-theme='midnight'] .bg-amber-50 { background-color: rgba(229, 212, 161, 0.08); }
+html[data-theme='midnight'] .bg-black\/40 { background-color: rgba(6, 6, 8, 0.64); }
+html[data-theme='midnight'] .text-slate-800 { color: #eeeae3; }
+html[data-theme='midnight'] .text-slate-700 { color: #c2bfb8; }
+html[data-theme='midnight'] .text-slate-600,
+html[data-theme='midnight'] .text-slate-500 { color: #87867f; }
+html[data-theme='midnight'] .text-slate-400,
+html[data-theme='midnight'] .text-slate-300 { color: #66655f; }
+html[data-theme='midnight'] .text-slate-100 { color: #eeeae3; }
+html[data-theme='midnight'] .text-emerald-700,
+html[data-theme='midnight'] .text-emerald-800 { color: #e5d4a1; }
+html[data-theme='midnight'] .text-emerald-900 { color: #efe2bd; }
+html[data-theme='midnight'] .text-red-600 { color: #e88a82; }
+html[data-theme='midnight'] .text-amber-800,
+html[data-theme='midnight'] .text-amber-600 { color: #d8b96a; }
+html[data-theme='midnight'] .border-slate-300 { border-color: #38383f; }
+html[data-theme='midnight'] .border-slate-200,
+html[data-theme='midnight'] .border-slate-100 { border-color: #2e2e34; }
+html[data-theme='midnight'] .border-emerald-200,
+html[data-theme='midnight'] .border-emerald-500 { border-color: rgba(229, 212, 161, 0.3); }
+html[data-theme='midnight'] .border-amber-200 { border-color: rgba(229, 212, 161, 0.25); }
+html[data-theme='midnight'] .border-white\/20 { border-color: rgba(255, 255, 255, 0.1); }
+html[data-theme='midnight'] .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2e2e34;
+}
+html[data-theme='midnight'] input,
+html[data-theme='midnight'] select,
+html[data-theme='midnight'] textarea {
+  background-color: #1f1f23;
+  color: #eeeae3;
+}
+html[data-theme='midnight'] input::placeholder,
+html[data-theme='midnight'] textarea::placeholder { color: #66655f; }
+html[data-theme='midnight'] input:focus,
+html[data-theme='midnight'] select:focus,
+html[data-theme='midnight'] textarea:focus {
+  outline: none;
+  border-color: #e5d4a1;
+  box-shadow: 0 0 0 2px rgba(229, 212, 161, 0.25);
+}
+html[data-theme='midnight'] select option { background: #17171a; color: #eeeae3; }
+html[data-theme='midnight'] input[type='checkbox'],
+html[data-theme='midnight'] input[type='radio'] { accent-color: #e5d4a1; }
+html[data-theme='midnight'] input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+  opacity: 0.7;
+}
+html[data-theme='midnight'] ::-webkit-scrollbar { width: 10px; height: 10px; }
+html[data-theme='midnight'] ::-webkit-scrollbar-thumb {
+  background: rgba(229, 212, 161, 0.3);
+  border-radius: 8px;
+}
+/* Hero number is bone-white and matte — no gold, no glow. */
+html[data-theme='midnight'] .cp-glow-cyan {
+  color: #eeeae3;
+  text-shadow: none;
+}
+
+/* =========================================================================
+   PUNK  (funky & fun — sticker shadows, sharp corners, hot pop colors)
+   ========================================================================= */
+html[data-theme='punk'] body {
+  color: #fafafa;
+  background-color: #15101c;
+  background-image:
+    radial-gradient(circle at 10% 12%, rgba(255, 31, 107, 0.45), transparent 30%),
+    radial-gradient(circle at 90% 16%, rgba(0, 209, 255, 0.4), transparent 32%),
+    radial-gradient(circle at 80% 85%, rgba(255, 230, 0, 0.32), transparent 30%),
+    radial-gradient(circle at 14% 88%, rgba(124, 58, 237, 0.5), transparent 32%);
+  background-attachment: fixed;
+  font-family: 'Rajdhani', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
+}
+html[data-theme='punk'] h1,
+html[data-theme='punk'] h2,
+html[data-theme='punk'] h3 {
+  font-family: 'Bangers', 'Rajdhani', sans-serif;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+/* Sharp corners + thick pink border + cyan hard-offset = sticker/poster feel. */
+html[data-theme='punk'] .rounded-2xl,
+html[data-theme='punk'] .rounded-xl,
+html[data-theme='punk'] .rounded-lg { border-radius: 4px; }
+html[data-theme='punk'] .bg-white {
+  background-color: #1b1422;
+  border: 2px solid #ff1f6b;
+}
+html[data-theme='punk'] .bg-slate-100 { background-color: rgba(255, 255, 255, 0.05); }
+html[data-theme='punk'] .bg-slate-900 { background-color: #0a0610; }
+html[data-theme='punk'] .shadow { box-shadow: 5px 5px 0 0 #00d1ff; }
+html[data-theme='punk'] .shadow-xl { box-shadow: 9px 9px 0 0 #ff1f6b; }
+html[data-theme='punk'] .bg-emerald-700,
+html[data-theme='punk'] .bg-emerald-600,
+html[data-theme='punk'] .bg-emerald-500 {
+  background: #ff1f6b;
+  box-shadow: 3px 3px 0 0 #00d1ff;
+}
+html[data-theme='punk'] .bg-emerald-800,
+html[data-theme='punk'] .bg-emerald-900 {
+  background: #7c3aed;
+  border-bottom: 2px solid #ffe600;
+}
+html[data-theme='punk'] .bg-emerald-50 { background-color: rgba(255, 230, 0, 0.14); }
+html[data-theme='punk'] .bg-red-500,
+html[data-theme='punk'] .bg-red-600,
+html[data-theme='punk'] .bg-red-700 { background: #ff3b6b; box-shadow: 3px 3px 0 0 #1a0010; }
+html[data-theme='punk'] .bg-red-50 { background-color: rgba(255, 59, 107, 0.14); }
+html[data-theme='punk'] .bg-amber-500 { background: #ffe600; color: #1a1206; }
+html[data-theme='punk'] .bg-amber-50 { background-color: rgba(255, 230, 0, 0.14); }
+html[data-theme='punk'] .bg-black\/40 { background-color: rgba(10, 6, 16, 0.7); }
+html[data-theme='punk'] .text-slate-800 { color: #fafafa; }
+html[data-theme='punk'] .text-slate-700 { color: #e5e5e5; }
+html[data-theme='punk'] .text-slate-600,
+html[data-theme='punk'] .text-slate-500 { color: #b9b3c0; }
+html[data-theme='punk'] .text-slate-400,
+html[data-theme='punk'] .text-slate-300 { color: #8a8492; }
+html[data-theme='punk'] .text-slate-100 { color: #fff; }
+html[data-theme='punk'] .text-emerald-700,
+html[data-theme='punk'] .text-emerald-800 { color: #ffe600; }
+html[data-theme='punk'] .text-emerald-900 { color: #fff27a; }
+html[data-theme='punk'] .text-red-600 { color: #ff5d8a; }
+html[data-theme='punk'] .text-amber-800,
+html[data-theme='punk'] .text-amber-600 { color: #00d1ff; }
+html[data-theme='punk'] .border-slate-300 { border-color: rgba(255, 31, 107, 0.5); }
+html[data-theme='punk'] .border-slate-200,
+html[data-theme='punk'] .border-slate-100 { border-color: rgba(255, 31, 107, 0.25); }
+html[data-theme='punk'] .border-emerald-200,
+html[data-theme='punk'] .border-emerald-500 { border-color: #ffe600; }
+html[data-theme='punk'] .border-amber-200 { border-color: rgba(255, 230, 0, 0.5); }
+html[data-theme='punk'] .border-white\/20 { border-color: rgba(255, 255, 255, 0.18); }
+html[data-theme='punk'] .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 31, 107, 0.2);
+}
+html[data-theme='punk'] input,
+html[data-theme='punk'] select,
+html[data-theme='punk'] textarea {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #fafafa;
+}
+html[data-theme='punk'] input::placeholder,
+html[data-theme='punk'] textarea::placeholder { color: #8a8492; }
+html[data-theme='punk'] input:focus,
+html[data-theme='punk'] select:focus,
+html[data-theme='punk'] textarea:focus {
+  outline: none;
+  border-color: #ffe600;
+  box-shadow: 3px 3px 0 0 #ff1f6b;
+}
+html[data-theme='punk'] select option { background: #1b1422; color: #fafafa; }
+html[data-theme='punk'] input[type='checkbox'],
+html[data-theme='punk'] input[type='radio'] { accent-color: #ff1f6b; }
+html[data-theme='punk'] input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+  opacity: 0.7;
+}
+html[data-theme='punk'] ::-webkit-scrollbar { width: 10px; height: 10px; }
+html[data-theme='punk'] ::-webkit-scrollbar-thumb {
+  background: #ff1f6b;
+  border-radius: 0;
+}
+html[data-theme='punk'] .cp-glow-cyan {
+  color: #ffe600;
+  text-shadow: 3px 3px 0 #ff1f6b;
+}
+
+/* ---- Compact density (Settings → Dashboard → Compact layout) ------------- */
+html[data-compact] main .p-5 { padding: 0.8rem; }
+html[data-compact] main .sm\:p-5 { padding: 0.8rem; }
+html[data-compact] main .gap-5 { gap: 0.75rem; }
+html[data-compact] main .gap-4 { gap: 0.75rem; }
+html[data-compact] main .space-y-5 > * + * { margin-top: 0.75rem; }
+html[data-compact] main .space-y-4 > * + * { margin-top: 0.6rem; }
+html[data-compact] main .space-y-3 > * + * { margin-top: 0.5rem; }
+html[data-compact] main .text-5xl { font-size: 2.25rem; line-height: 1.15; }
+html[data-compact] main .py-2 { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+html[data-compact] main .py-2\.5 { padding-top: 0.35rem; padding-bottom: 0.35rem; }
+html[data-compact] main .mb-3 { margin-bottom: 0.55rem; }
+html[data-compact] main .mb-4 { margin-bottom: 0.7rem; }
+
+/* ---- Desktop base type scale --------------------------------------------
+   Everything in the app is sized in rem, so raising the root font size on
+   larger screens scales text, spacing, and cards together in proportion —
+   the readable-by-default version of hitting ctrl+. Phones stay at 16px. */
+@media (min-width: 1024px) {
+  html { font-size: 20px; }
+  html[data-fs='s'] { font-size: 17px; }
+  html[data-fs='l'] { font-size: 23px; }
+  html[data-fs='xl'] { font-size: 26px; }
+}
+@media (min-width: 1440px) {
+  html { font-size: 21px; }
+  html[data-fs='s'] { font-size: 18px; }
+  html[data-fs='l'] { font-size: 24px; }
+  html[data-fs='xl'] { font-size: 27px; }
+}
+
+/* ---- Free-position tile grid ---------------------------------------------
+   react-grid-layout's stylesheet animates width/height changes. Resizing is
+   disabled here (tile height is set programmatically from real measured
+   content, not by dragging a resize handle) — animating it fights that
+   measurement, since the content reflows mid-transition and gets re-measured
+   mid-flight. Keep the position (transform) transition for smooth dragging. */
+.react-grid-item {
+  transition-property: transform !important;
+}
+
+/* ---- Setup-guide "jump to this tile" flash --------------------------------
+   Briefly rings a tile after the first-run guide scrolls you to it, so it's
+   obvious which card you were sent to. */
+.tile-flash {
+  animation: tile-flash 2s ease-out;
+  border-radius: 1rem;
+}
+@keyframes tile-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0); }
+  15%, 60% { box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.55); }
+}

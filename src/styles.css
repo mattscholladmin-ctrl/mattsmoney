@@ -1,0 +1,149 @@
+@import "tailwindcss";
+@import "./budget-themes.css";
+
+@theme {
+  --color-bg: #07070e;
+  --color-surface: #161b2e;
+  --color-fg: #e6f0ff;
+  --color-muted: #94a3c4;
+  --color-primary: #22d3ee;
+  --color-accent: #ff3bd4;
+  --color-border: rgba(120, 160, 255, 0.16);
+  --radius: 1rem;
+  --font-sans: "Rajdhani", "Sora", system-ui, sans-serif;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* react-grid-layout items are position:absolute with a fixed height. Content
+   must not clip during Customize; the default view no longer uses RGL. */
+.react-grid-item {
+  overflow: visible;
+}
+.react-grid-layout {
+  position: relative;
+}
+
+/* Aurora — fifth theme: Colorado dawn, cool sky over warm horizon */
+html[data-theme="aurora"] body {
+  color: #e8f4ff;
+  background-color: #07131c;
+  background-image:
+    radial-gradient(900px 420px at 10% -10%, rgba(56, 189, 248, 0.22), transparent 55%),
+    radial-gradient(800px 500px at 100% 110%, rgba(244, 114, 182, 0.16), transparent 50%),
+    radial-gradient(700px 400px at 80% 0%, rgba(52, 211, 153, 0.12), transparent 50%);
+  background-attachment: fixed;
+  font-family: "Sora", system-ui, sans-serif;
+}
+html[data-theme="aurora"] h1,
+html[data-theme="aurora"] h2,
+html[data-theme="aurora"] h3 {
+  font-family: "Fraunces", Georgia, serif;
+  color: #f0f9ff;
+  font-weight: 500;
+}
+html[data-theme="aurora"] .bg-white {
+  background: linear-gradient(165deg, rgba(15, 40, 58, 0.94), rgba(8, 22, 32, 0.94));
+  border: 1px solid rgba(125, 211, 252, 0.18);
+}
+html[data-theme="aurora"] .bg-slate-100 {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+html[data-theme="aurora"] .bg-slate-900 {
+  background-color: #041018;
+}
+html[data-theme="aurora"] .shadow {
+  box-shadow: 0 12px 36px rgba(2, 12, 20, 0.55);
+}
+html[data-theme="aurora"] .shadow-xl {
+  box-shadow: 0 24px 60px rgba(2, 12, 20, 0.7);
+}
+html[data-theme="aurora"] .bg-emerald-700,
+html[data-theme="aurora"] .bg-emerald-600,
+html[data-theme="aurora"] .bg-emerald-500 {
+  background: linear-gradient(135deg, #38bdf8, #34d399);
+  color: #062018;
+}
+html[data-theme="aurora"] .bg-emerald-800,
+html[data-theme="aurora"] .bg-emerald-900 {
+  background: linear-gradient(135deg, #0b2838, #0a1f2c);
+  border-bottom: 1px solid rgba(125, 211, 252, 0.2);
+}
+html[data-theme="aurora"] .bg-emerald-50 {
+  background: rgba(52, 211, 153, 0.1);
+}
+html[data-theme="aurora"] .text-slate-800 {
+  color: #e8f4ff;
+}
+html[data-theme="aurora"] .text-slate-700 {
+  color: #cfe7f6;
+}
+html[data-theme="aurora"] .text-slate-600,
+html[data-theme="aurora"] .text-slate-500 {
+  color: #8fb4c9;
+}
+html[data-theme="aurora"] .text-slate-400,
+html[data-theme="aurora"] .text-slate-300 {
+  color: #6b8fa3;
+}
+html[data-theme="aurora"] .text-slate-100 {
+  color: #f0f9ff;
+}
+html[data-theme="aurora"] .text-emerald-700,
+html[data-theme="aurora"] .text-emerald-800 {
+  color: #7dd3fc;
+}
+html[data-theme="aurora"] .text-emerald-900 {
+  color: #bae6fd;
+}
+html[data-theme="aurora"] .text-red-600 {
+  color: #fb7185;
+}
+html[data-theme="aurora"] .text-amber-800,
+html[data-theme="aurora"] .text-amber-600 {
+  color: #f9a8d4;
+}
+html[data-theme="aurora"] .border-slate-300 {
+  border-color: rgba(125, 211, 252, 0.28);
+}
+html[data-theme="aurora"] .border-slate-200,
+html[data-theme="aurora"] .border-slate-100 {
+  border-color: rgba(125, 211, 252, 0.12);
+}
+html[data-theme="aurora"] .border-emerald-200,
+html[data-theme="aurora"] .border-emerald-500 {
+  border-color: rgba(52, 211, 153, 0.4);
+}
+html[data-theme="aurora"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(125, 211, 252, 0.1);
+}
+html[data-theme="aurora"] input,
+html[data-theme="aurora"] select,
+html[data-theme="aurora"] textarea {
+  background-color: rgba(255, 255, 255, 0.04);
+  color: #e8f4ff;
+}
+html[data-theme="aurora"] .cp-glow-cyan {
+  color: #7dd3fc;
+  text-shadow: 0 0 18px rgba(56, 189, 248, 0.45);
+}
+html[data-theme="aurora"] .cp-mono {
+  font-family: "Sora", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+html[data-theme="aurora"] .ring-emerald-500 {
+  --tw-ring-color: #38bdf8;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+}

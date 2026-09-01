@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/send-notifications", "schedule": "0 14 * * *" },
+    { "path": "/api/google/cron-sync", "schedule": "0 8 * * *" }
+  ]
+}
