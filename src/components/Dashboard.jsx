@@ -66,6 +66,7 @@ import SetupGuide from './SetupGuide'
 import NotificationsCard from './NotificationsCard'
 import GoogleCalendarCard from './GoogleCalendarCard'
 import ThemeCard from './ThemeCard'
+import GrokConnectCard from './GrokConnectCard'
 import { refreshPlaid } from '../lib/plaidClient'
 import { demoData } from '../lib/demoData'
 
@@ -298,6 +299,7 @@ const DEFAULT_DASH_LAYOUT = {
 // Settings-page tiles. The guide defaults to the very bottom.
 const SETTINGS_TILE_NAMES = {
   bank: 'Bank & card connections',
+  grok: 'Grok',
   calendar: 'Google Calendar',
   theme: 'Theme',
   dashprefs: 'Dashboard',
@@ -310,7 +312,7 @@ const SETTINGS_TILE_NAMES = {
 }
 const SETTINGS_TILE_IDS = Object.keys(SETTINGS_TILE_NAMES)
 const DEFAULT_SETTINGS_LAYOUT = {
-  left: ['bank', 'calendar'],
+  left: ['bank', 'grok', 'calendar'],
   right: ['theme', 'dashprefs', 'buffer', 'notifications', 'yourdata', 'account', 'guide'],
 }
 
@@ -1496,6 +1498,7 @@ function SettingsView({ settings, bufferFloor, email, showPhase, onTogglePhase, 
         <ConnectBankCard onChanged={onChanged} />
       </Suspense>
     ),
+    grok: <GrokConnectCard data={data} />,
     calendar: <GoogleCalendarCard />,
     theme: <ThemeCard />,
     dashprefs: (
