@@ -4,17 +4,27 @@ import { adminClient } from './googleServer.js'
 import { accountSummaries, spendableToday, currentBalance } from './budget.js'
 import { isoDate } from './format.js'
 
-function secretOk(request) {
+export function grokSecretOk(request) {
   const secret = process.env.GROK_SECRET
   if (!secret) return false
   const header = request.headers.get('authorization') || ''
-  const got = header.startsWith('Bearer ')
-    ? header.slice(7)
-    : request.headers.get('x-grok-secret')
+  const bearer = header.startsWith('Bearer ') ? header.slice(7) : ''
+  const extra = request.headers.get('x-grok-secret') || ''
+  let query = ''
+  try {
+    query = new URL(request.url).searchParams.get('key') || ''
+  } catch {
+    query = ''
+  }
+  const got = bearer || extra || query
   if (!got) return false
   const a = crypto.createHash('sha256').update(String(got)).digest()
   const b = crypto.createHash('sha256').update(String(secret)).digest()
   return crypto.timingSafeEqual(a, b)
+}
+
+function secretOk(request) {
+  return grokSecretOk(request)
 }
 
 function json(status, body) {
@@ -148,46 +158,53 @@ export async function handleGrokRequest(request) {
   const action = body.action || 'snapshot'
 
   try {
-    const db = adminClient()
-    const uid = await uidOf(db)
-
-    if (action === 'snapshot') {
-      return json(200, await snapshot(db, uid))
-    }
-
-    if (action === 'pause_goal' || action === 'unpause_goal') {
-      if (!body.id) return json(400, { error: 'missing id' })
-      const reserved = action === 'unpause_goal'
-      const { error } = await db.from('goals').update({ reserved }).eq('id', body.id).eq('user_id', uid)
-      if (error) throw new Error(error.message)
-      return json(200, { ok: true, action, id: body.id, reserved })
-    }
-
-    if (action === 'update_card') {
-      if (!body.id) return json(400, { error: 'missing id' })
-      const fields = {}
-      if (body.balance != null) fields.balance = Number(body.balance)
-      if (body.credit_limit != null) fields.credit_limit = Number(body.credit_limit)
-      if (body.min_payment != null) fields.min_payment = Number(body.min_payment)
-      if (body.due_day != null) fields.due_day = Number(body.due_day)
-      if (!Object.keys(fields).length) return json(400, { error: 'nothing to update' })
-      const { error } = await db.from('debts').update(fields).eq('id', body.id).eq('user_id', uid)
-      if (error) throw new Error(error.message)
-      return json(200, { ok: true, action, id: body.id, fields })
-    }
-
-    if (action === 'set_buffer') {
-      if (body.buffer_floor == null) return json(400, { error: 'missing buffer_floor' })
-      const { error } = await db
-        .from('settings')
-        .update({ buffer_floor: Number(body.buffer_floor) })
-        .eq('user_id', uid)
-      if (error) throw new Error(error.message)
-      return json(200, { ok: true, action, buffer_floor: Number(body.buffer_floor) })
-    }
-
-    return json(400, { error: 'unknown action' })
+    const result = await runGrokAction(body)
+    if (!result.ok) return json(400, { error: result.error })
+    return json(200, result.data)
   } catch (e) {
     return json(500, { error: e.message || 'failed' })
   }
+}
+
+export async function runGrokAction(body = {}) {
+  const action = body.action || 'snapshot'
+  const db = adminClient()
+  const uid = await uidOf(db)
+
+  if (action === 'snapshot') {
+    return { ok: true, data: await snapshot(db, uid) }
+  }
+
+  if (action === 'pause_goal' || action === 'unpause_goal') {
+    if (!body.id) return { ok: false, error: 'missing id' }
+    const reserved = action === 'unpause_goal'
+    const { error } = await db.from('goals').update({ reserved }).eq('id', body.id).eq('user_id', uid)
+    if (error) throw new Error(error.message)
+    return { ok: true, data: { action, id: body.id, reserved } }
+  }
+
+  if (action === 'update_card') {
+    if (!body.id) return { ok: false, error: 'missing id' }
+    const fields = {}
+    if (body.balance != null) fields.balance = Number(body.balance)
+    if (body.credit_limit != null) fields.credit_limit = Number(body.credit_limit)
+    if (body.min_payment != null) fields.min_payment = Number(body.min_payment)
+    if (body.due_day != null) fields.due_day = Number(body.due_day)
+    if (!Object.keys(fields).length) return { ok: false, error: 'nothing to update' }
+    const { error } = await db.from('debts').update(fields).eq('id', body.id).eq('user_id', uid)
+    if (error) throw new Error(error.message)
+    return { ok: true, data: { action, id: body.id, fields } }
+  }
+
+  if (action === 'set_buffer') {
+    if (body.buffer_floor == null) return { ok: false, error: 'missing buffer_floor' }
+    const { error } = await db
+      .from('settings')
+      .update({ buffer_floor: Number(body.buffer_floor) })
+      .eq('user_id', uid)
+    if (error) throw new Error(error.message)
+    return { ok: true, data: { action, buffer_floor: Number(body.buffer_floor) } }
+  }
+
+  return { ok: false, error: 'unknown action' }
 }
