@@ -156,7 +156,6 @@ export async function handleMcpRequest(request) {
       status: 401,
       headers: corsHeaders({
         'Content-Type': 'application/json',
-        'WWW-Authenticate': 'Bearer realm="Budget"',
       }),
     })
   }
