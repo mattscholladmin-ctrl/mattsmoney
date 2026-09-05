@@ -1,58 +1,52 @@
 // MCP (Custom Grok connector) in front of the Budget door.
 import { grokSecretOk, runGrokAction } from './grokApi.js'
 
+const str = { type: 'string' }
+const num = { type: 'number' }
+const integer = { type: 'integer' }
+const bool = { type: 'boolean' }
+
+function tool(name, description, properties = {}, required = []) {
+  return {
+    name,
+    description,
+    inputSchema: { type: 'object', properties, required, additionalProperties: false },
+  }
+}
+
 const TOOLS = [
-  {
-    name: 'budget_snapshot',
-    description: 'Read Matt’s Money: cash, cards, debts, bills, goals, income, set-asides, buffer, safe to spend.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  },
-  {
-    name: 'pause_goal',
-    description: 'Pause a goal so it is not reserved. Requires the goal id from budget_snapshot.',
-    inputSchema: {
-      type: 'object',
-      properties: { id: { type: 'string' } },
-      required: ['id'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'unpause_goal',
-    description: 'Unpause a goal so it is reserved again. Requires the goal id from budget_snapshot.',
-    inputSchema: {
-      type: 'object',
-      properties: { id: { type: 'string' } },
-      required: ['id'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'update_card',
-    description: 'Update a credit card. Requires id from budget_snapshot. Only send fields to change.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        balance: { type: 'number' },
-        credit_limit: { type: 'number' },
-        min_payment: { type: 'number' },
-        due_day: { type: 'integer' },
-      },
-      required: ['id'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'set_buffer',
-    description: 'Set the buffer floor amount.',
-    inputSchema: {
-      type: 'object',
-      properties: { buffer_floor: { type: 'number' } },
-      required: ['buffer_floor'],
-      additionalProperties: false,
-    },
-  },
+  tool('budget_snapshot', 'Full read of Matt’s Money: cash, cards, debts, bills, goals, income, set-asides, recent transactions, budgets, credit scores, phases, buffer, safe to spend.'),
+  tool('log_purchase', 'Log a purchase or other transaction.', { txn_date: str, merchant: str, amount: num, category: str, note: str, account_id: str, goal_id: str, income_source: str }, ['merchant', 'amount']),
+  tool('update_transaction', 'Edit a transaction. Requires id from budget_snapshot.', { id: str, txn_date: str, merchant: str, amount: num, category: str, note: str, account_id: str, goal_id: str, income_source: str }, ['id']),
+  tool('delete_transaction', 'Delete a transaction.', { id: str }, ['id']),
+  tool('add_bill', 'Add a recurring bill.', { name: str, amount: num, category: str, cadence: str, due_day: integer }, ['name', 'amount']),
+  tool('update_bill', 'Edit a bill. Requires id.', { id: str, name: str, amount: num, category: str, cadence: str, due_day: integer, active: bool }, ['id']),
+  tool('delete_bill', 'Delete a bill.', { id: str }, ['id']),
+  tool('add_income', 'Add an income source.', { name: str, amount: num, cadence: str, due_day: integer, anchor_date: str, confirmed: bool }, ['name']),
+  tool('update_income', 'Edit income. Requires id.', { id: str, name: str, amount: num, cadence: str, due_day: integer, anchor_date: str, confirmed: bool, active: bool }, ['id']),
+  tool('delete_income', 'Delete an income source.', { id: str }, ['id']),
+  tool('add_account', 'Add a bank/cash account.', { name: str, kind: str, include_in_spendable: bool }, ['name']),
+  tool('update_account', 'Edit an account. Requires id.', { id: str, name: str, kind: str, include_in_spendable: bool, hidden: bool }, ['id']),
+  tool('delete_account', 'Delete an account.', { id: str }, ['id']),
+  tool('set_account_balance', 'Set an account cash balance.', { account_id: str, balance: num, as_of: str, note: str }, ['account_id', 'balance']),
+  tool('add_goal', 'Create a savings goal.', { name: str, target: num, current: num, monthly_contribution: num, note: str, target_date: str, status: str }, ['name', 'target']),
+  tool('update_goal', 'Edit a goal (name, target, saved, status, reserved). Requires id.', { id: str, name: str, target: num, current: num, monthly_contribution: num, note: str, target_date: str, status: str, reserved: bool }, ['id']),
+  tool('delete_goal', 'Delete a goal.', { id: str }, ['id']),
+  tool('pause_goal', 'Pause a goal (not reserved). Requires id.', { id: str }, ['id']),
+  tool('unpause_goal', 'Unpause a goal (reserved again). Requires id.', { id: str }, ['id']),
+  tool('add_card', 'Add a credit card.', { name: str, balance: num, credit_limit: num, min_payment: num, plan_payment: num, due_day: integer, apr: num }, ['name']),
+  tool('add_debt', 'Add a loan or other debt.', { name: str, kind: str, balance: num, min_payment: num, plan_payment: num, due_day: integer, apr: num }, ['name']),
+  tool('update_card', 'Update a credit card. Requires id.', { id: str, name: str, balance: num, credit_limit: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, autopay: bool, active: bool }, ['id']),
+  tool('update_debt', 'Update a loan/debt. Requires id.', { id: str, name: str, kind: str, balance: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, active: bool }, ['id']),
+  tool('delete_card', 'Delete a credit card.', { id: str }, ['id']),
+  tool('delete_debt', 'Delete a loan/debt.', { id: str }, ['id']),
+  tool('add_set_aside', 'Hold money aside for a date.', { name: str, amount: num, due_date: str }, ['name', 'amount']),
+  tool('remove_set_aside', 'Remove a set-aside.', { id: str }, ['id']),
+  tool('set_buffer', 'Set the buffer floor.', { buffer_floor: num }, ['buffer_floor']),
+  tool('set_budget', 'Set a monthly category budget.', { category: str, monthly_limit: num }, ['category', 'monthly_limit']),
+  tool('delete_budget', 'Delete a category budget.', { id: str }, ['id']),
+  tool('add_credit_score', 'Log a credit score.', { bureau: str, score: integer, model: str, source: str, checked_on: str, note: str }, ['bureau', 'score']),
+  tool('delete_credit_score', 'Delete a credit score log.', { id: str }, ['id']),
 ]
 
 function corsHeaders(extra = {}) {
@@ -95,10 +89,10 @@ async function dispatch(msg) {
     const version = params?.protocolVersion || '2025-03-26'
     return rpcResult(id, {
       protocolVersion: version,
-      capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: 'matts-money', title: "Matt's Money", version: '1.0.0' },
+      capabilities: { tools: { listChanged: true } },
+      serverInfo: { name: 'matts-money', title: "Matt's Money", version: '2.0.0' },
       instructions:
-        'Personal budget app. Read with budget_snapshot. Change only after the user says yes in chat.',
+        'Full read/write for Matt’s Money. Always budget_snapshot first. Confirm with the user in chat before any write.',
     })
   }
   if (method === 'notifications/initialized' || method === 'notifications/cancelled') {
@@ -111,21 +105,15 @@ async function dispatch(msg) {
   if (method === 'tools/call') {
     const name = params?.name
     const args = params?.arguments || {}
-    const map = {
-      budget_snapshot: { action: 'snapshot' },
-      pause_goal: { action: 'pause_goal', id: args.id },
-      unpause_goal: { action: 'unpause_goal', id: args.id },
-      update_card: { action: 'update_card', ...args },
-      set_buffer: { action: 'set_buffer', buffer_floor: args.buffer_floor },
-    }
-    const body = map[name]
-    if (!body) {
+    const known = TOOLS.some((t) => t.name === name)
+    if (!known) {
       return rpcResult(id, {
         content: [{ type: 'text', text: `Unknown tool: ${name}` }],
         isError: true,
       })
     }
-    const result = await runGrokAction(body)
+    const action = name === 'budget_snapshot' ? 'snapshot' : name
+    const result = await runGrokAction({ action, ...args })
     if (!result.ok) {
       return rpcResult(id, {
         content: [{ type: 'text', text: result.error || 'failed' }],
@@ -161,12 +149,8 @@ export async function handleMcpRequest(request) {
   }
 
   const accept = request.headers.get('accept') || ''
-  const sse = accept.includes('text/event-stream') && !accept.includes('application/json')
-    ? true
-    : accept.includes('text/event-stream') && method === 'GET'
 
   if (method === 'GET') {
-    // Stateless: no server-push stream.
     return new Response(null, { status: 405, headers: corsHeaders({ Allow: 'POST, OPTIONS' }) })
   }
   if (method === 'DELETE') {
