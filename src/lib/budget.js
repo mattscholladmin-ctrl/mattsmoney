@@ -128,6 +128,29 @@ export function goalPaceReserve(goals = [], transactions = [], ppy = 26, incomeS
   return Number(sum.toFixed(2))
 }
 
+// This paycheck's piece of each reserved dated goal. Full remaining if the
+// target is on or before next paycheck; otherwise one share.
+export function goalPaycheckShare(goals = [], transactions = [], ppy = 26, incomeSources = [], fromIso = isoDate(), nextPayIso = null) {
+  let sum = 0
+  const items = []
+  for (const g of goals || []) {
+    if (g.status !== 'active' || !g.target_date || g.reserved === false) continue
+    const saved = Math.max(Number(g.current || 0), goalSpent(g.id, transactions))
+    const p = goalPace(g, saved, fromIso, ppy, incomeSources, transactions)
+    const remaining = Math.max(0, p.remaining || 0)
+    if (!(remaining > 0)) continue
+    const hold =
+      nextPayIso && g.target_date <= nextPayIso
+        ? remaining
+        : Number(p.neededPerPaycheck || 0)
+    if (hold > 0) {
+      sum += hold
+      items.push({ id: g.id, name: g.name, perPaycheck: Number(hold.toFixed(2)) })
+    }
+  }
+  return { total: Number(sum.toFixed(2)), items }
+}
+
 export function moneyTotals(accounts = [], balanceEntries = [], debts = []) {
   const summaries = accountSummaries(accounts, balanceEntries)
   const spendableCash = summaries
@@ -2177,16 +2200,59 @@ export function spendableToday(
     ? nextIncome.date
     : isoDate(new Date(parseISO(fromIso).getTime() + 31 * DAY_MS))
   const upBills = unpaidBills(bills, transactions, fromIso, horizonDays, goals)
-  const windowBills = upBills.filter((b) => !b.preStart && b.date < windowEnd)
-  const preStartHeld = upBills.filter((b) => b.preStart).reduce((sum, b) => sum + b.amount, 0)
-  const billsBeforePay = windowBills.reduce((sum, b) => sum + b.amount, 0) + preStartHeld
+  const thisWindow = []
+  const later = []
+  const windowBillIds = new Set()
+  for (const b of upBills) {
+    const due = b.originalDate || b.date
+    if (b.preStart || due > windowEnd) later.push({ ...b, due })
+    else {
+      thisWindow.push(b)
+      windowBillIds.add(b.billId || b.id)
+    }
+  }
+  const laterOnly = later.filter((b) => !windowBillIds.has(b.billId || b.id))
+  const billsBeforePay = thisWindow.reduce((sum, b) => sum + Number(b.amount || 0), 0)
+  const soonest = new Map()
+  for (const b of laterOnly) {
+    const id = b.billId || b.id || b.name
+    const prev = soonest.get(id)
+    if (!prev || b.due < prev.due) soonest.set(id, b)
+  }
+  const laterItems = [...soonest.values()].map((b) => {
+    const amount = Number(b.amount || 0)
+    const n = Math.max(1, paydayCount(incomes, fromIso, b.due, transactions))
+    return {
+      id: b.billId || b.id || b.name,
+      name: b.name,
+      amount,
+      due: b.due,
+      share: amount / n,
+      category: b.category || 'Bills',
+    }
+  })
+  const laterShare = laterItems.reduce((sum, x) => sum + x.share, 0)
 
   const tripFunds = buckets.reduce((sum, b) => sum + Number(b.current || 0), 0)
 
   const spendable =
-    start - billsBeforePay - floor - tripFunds - reserved - held - goalHeld - everydayHeld - smoothedHeld
+    start - billsBeforePay - laterShare - floor - tripFunds - reserved - held - goalHeld - everydayHeld - smoothedHeld
 
-  return { spendable, start, floor, billsBeforePay, tripFunds, earmarked: reserved, setAside: held, goalReserve: goalHeld, everyday: everydayHeld, smoothed: smoothedHeld, nextIncome }
+  return {
+    spendable,
+    start,
+    floor,
+    billsBeforePay,
+    laterShare,
+    laterItems,
+    tripFunds,
+    earmarked: reserved,
+    setAside: held,
+    goalReserve: goalHeld,
+    everyday: everydayHeld,
+    smoothed: smoothedHeld,
+    nextIncome,
+  }
 }
 
 // Rule 6: figure out which spending phase we're in today, and whether the next

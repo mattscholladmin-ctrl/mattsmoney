@@ -29,7 +29,7 @@ import {
   monthlyDebtPayment,
   totalEarmarked,
   totalSetAside,
-  goalPaceReserve,
+  goalPaycheckShare,
   goalPace,
   goalSpent,
   everydayHoldback,
@@ -776,19 +776,17 @@ export default function Dashboard({ session, demo = false }) {
     // safe-to-spend so goal contributions are money you can't also spend. Nothing
     // is held for a goal until your NEXT real paycheck lands; from then, one slice
     // builds per landed paycheck until the full amount is set aside by its date.
-    const goalReservePotential = goalPaceReserve(data.goals, data.transactions, payPeriodsPerYear(data.income), data.income)
+    const goalShare = goalPaycheckShare(
+      data.goals,
+      data.transactions,
+      payPeriodsPerYear(data.income),
+      data.income,
+      today,
+      nextPay && nextPay.date
+    )
+    const goalReservePotential = goalShare.total
     const goalReserve = counting.goals ? goalReservePotential : 0
-    // Per-goal breakdown of that reserve — shows what's CURRENTLY held for each
-    // goal (not the flat pace), so the numbers under the "Toward goals each
-    // paycheck" line always add up to the total above them.
-    const goalReserveByItem = (data.goals || [])
-      .filter((g) => g.status === 'active' && g.target_date && g.reserved !== false)
-      .map((g) => {
-        const saved = Math.max(Number(g.current || 0), goalSpent(g.id, data.transactions))
-        const p = goalPace(g, saved, undefined, payPeriodsPerYear(data.income), data.income, data.transactions)
-        return { id: g.id, name: g.name, perPaycheck: Math.round((p.reserveNow || 0) * 100) / 100 }
-      })
-      .filter((x) => x.perPaycheck > 0)
+    const goalReserveByItem = goalShare.items
     // A forward preview, not a second hold: what each goal WILL be holding once
     // your next real paycheck lands — same math as above, just evaluated as of
     // that future date instead of today. Purely informational; it does NOT

@@ -61,6 +61,7 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
   const [showBillsBreak, setShowBillsBreak] = useState(false)
   const [showDebtBreak, setShowDebtBreak] = useState(false)
   const [showGoalsBreak, setShowGoalsBreak] = useState(false)
+  const [showLater, setShowLater] = useState(false)
 
   // Nothing set up yet. This used to render nothing at all — which meant a new
   // account never saw the single number the whole app is built around, and had
@@ -85,7 +86,7 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
     )
   }
 
-  const { spendable, start, floor, billsBeforePay, tripFunds, earmarked = 0, setAside = 0, everyday = 0, nextIncome } = info
+  const { spendable, start, floor, billsBeforePay, laterShare = 0, laterItems = [], tripFunds, earmarked = 0, setAside = 0, everyday = 0, nextIncome } = info
   const negative = spendable <= 0
 
   // #1 Daily allowance: split what's safe to spend evenly over the days left
@@ -200,6 +201,33 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
           <span className="text-slate-500">Bills before next paycheck</span>
           <span className="text-slate-800">−{money(billsBeforePay)}</span>
         </li>
+        {laterShare > 0 && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setShowLater((v) => !v)}
+              className="w-full flex justify-between items-center text-left"
+            >
+              <span className="text-slate-500">
+                Saving toward later bills / debt
+                {laterItems.length > 0 && (
+                  <span className="text-slate-400 text-xs"> {showLater ? '▾' : '▸'}</span>
+                )}
+              </span>
+              <span className="text-slate-800">−{money(laterShare)}</span>
+            </button>
+            {showLater && laterItems.length > 0 && (
+              <ul className="mt-1 mb-1 ml-3 pl-2 border-l-2 border-slate-100 space-y-0.5">
+                {laterItems.map((x) => (
+                  <li key={x.id} className="flex justify-between text-xs text-slate-400">
+                    <span className="min-w-0 truncate pr-2">{x.name}</span>
+                    <span className="shrink-0">−{money(x.share)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        )}
         {everyday > 0 ? (
           <li>
             <button

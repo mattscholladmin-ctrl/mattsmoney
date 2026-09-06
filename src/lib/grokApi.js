@@ -10,12 +10,13 @@ import {
   moneyTotals,
   totalEarmarked,
   totalSetAside,
-  goalPaceReserve,
+  goalPaycheckShare,
   everydayHoldback,
   smoothedReserve,
   payPeriodsPerYear,
   mostRecentPaydayIso,
   upcomingBills,
+  upcomingIncome,
 } from './budget.js'
 import { isoDate } from './format.js'
 
@@ -167,7 +168,8 @@ async function snapshot(db, uid) {
   const startBal = checkinBal - assumedSince
   const earmarked = totalEarmarked(goalRows, txnRows, acctRows)
   const setAside = totalSetAside(setAsideRows)
-  const goalReserve = goalPaceReserve(goalRows, txnRows, ppy, incomeRows)
+  const nextPay = upcomingIncome(incomeRows, today, 60, txnRows).find((i) => i.date > today)
+  const goalReserve = goalPaycheckShare(goalRows, txnRows, ppy, incomeRows, today, nextPay && nextPay.date).total
   const everyday = everydayHoldback(budgetRows, txnRows, {
     ppy,
     periodStartIso: mostRecentPaydayIso(incomeRows, today),
