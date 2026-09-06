@@ -1997,11 +1997,62 @@ export function gapClosers({ gap, goalLines = [], everydayTotal = 0, debtHeld = 
   return { gap: g, plan, covered: round2(covered), remaining: Math.max(0, round2(g - covered)) }
 }
 
-// Best nearby charge that looks like this unpaid bill, even if the match isn't
-// strict enough to count as paid. Null if nothing is close.
-export function suggestBillPayment(occ, transactions = [], todayIso = isoDate()) {
+// Known bank payee names that still count as the bill (Apple posts YouTube, etc).
+const BILL_PAYEE_ALIASES = {
+  youtube: ['youtube', 'apple', 'google'],
+  google: ['google', 'apple'],
+  icloud: ['icloud', 'apple'],
+  applecare: ['applecare', 'apple', 'applecare+'],
+  apple: ['apple'],
+  instagram: ['instagram', 'meta', 'facebook'],
+  netflix: ['netflix'],
+  starlink: ['starlink', 'spacex'],
+  hinge: ['hinge'],
+  verizon: ['verizon'],
+  frameo: ['frameo'],
+}
+
+function billPayeeKeys(name) {
+  const raw = normalizeMerchant(name || '')
+  const words = significantWords(name || '')
+  const keys = new Set(words)
+  for (const w of raw.split(' ')) {
+    if (w.length >= 4) keys.add(w)
+  }
+  const extra = []
+  for (const key of keys) {
+    const aliases = BILL_PAYEE_ALIASES[key]
+    if (aliases) extra.push(...aliases)
+  }
+  extra.forEach((a) => keys.add(a))
+  return keys
+}
+
+function merchantMatchesBill(billName, merchant) {
+  const billKeys = billPayeeKeys(billName)
+  const merch = normalizeMerchant(merchant || '')
+  if (!billKeys.size || !merch) return false
+  const merchWords = new Set([...significantWords(merchant || ''), ...merch.split(' ').filter((w) => w.length >= 4)])
+  for (const w of merchWords) {
+    if (billKeys.has(w)) return true
+  }
+  for (const k of billKeys) {
+    if (k.length >= 4 && merch.includes(k)) return true
+  }
+  return false
+}
+
+export function rejectKey(billId, txnId) {
+  if (!billId || !txnId) return ''
+  return `${billId}::${txnId}`
+}
+
+// Suggest a payment only when the merchant is the bill (or a known payee).
+// Dollar-proximity alone is not a match. Rejected pairs never come back.
+export function suggestBillPayment(occ, transactions = [], todayIso = isoDate(), rejected = []) {
   const amt = Number(occ.amount || 0)
-  const billWords = significantWords(occ.name || '')
+  const billId = occ.billId || occ.id
+  const rejectedSet = new Set(rejected)
   const from = isoDate(new Date(parseISO(occ.date).getTime() - OVERDUE_PAID_WINDOW_DAYS * DAY_MS))
   let best = null
   let bestScore = 0
@@ -2010,21 +2061,16 @@ export function suggestBillPayment(occ, transactions = [], todayIso = isoDate())
     if (ta <= 0) continue
     const d = t.txn_date || ''
     if (d < from || d > todayIso) continue
-    const words = significantWords(t.merchant || '')
-    const wordHit = billWords.length > 0 && words.some((w) => billWords.includes(w))
-    const exactAmt = Math.abs(ta - amt) <= Math.max(0.5, amt * 0.02)
-    const closeAmt = Math.abs(ta - amt) <= Math.max(1, amt * 0.2)
-    if (!exactAmt && !wordHit && !closeAmt) continue
-    let score = 0
-    if (wordHit) score += 3
-    if (exactAmt) score += 3
-    else if (closeAmt) score += 1
+    if (rejectedSet.has(rejectKey(billId, t.id))) continue
+    if (!merchantMatchesBill(occ.name, t.merchant)) continue
+    const rel = amt > 0 ? Math.abs(ta - amt) / amt : 1
+    if (rel > 0.15 && Math.abs(ta - amt) > 1) continue
+    const score = rel <= 0.02 ? 4 : 3
     if (score > bestScore) {
       bestScore = score
       best = t
     }
   }
-  if (bestScore < 3) return null
   return best
 }
 

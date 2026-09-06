@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { money, shortDate, isoDate } from '../lib/format'
-import { suggestBillPayment } from '../lib/budget'
+import { suggestBillPayment, rejectKey } from '../lib/budget'
 import { addTransaction, updateTransaction } from '../lib/api'
 import Modal from './Modal'
 
@@ -9,10 +9,27 @@ const RecurringBillsCard = lazy(() => import('./RecurringBillsCard'))
 
 export default function UpcomingBillsCard({ upcoming = [], bills = [], transactions = [], ppy = 26, onChanged }) {
   const [manage, setManage] = useState(false)
-  const [dismissed, setDismissed] = useState({})
+  const [rejected, setRejected] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('budget.rejectedBillMatches') || '[]')
+    } catch {
+      return []
+    }
+  })
   const total = upcoming.reduce((s, b) => s + b.amount, 0)
   const canManage = typeof onChanged === 'function'
   const today = isoDate()
+
+  const persistReject = (billId, txnId) => {
+    const key = rejectKey(billId, txnId)
+    if (!key) return
+    setRejected((prev) => {
+      if (prev.includes(key)) return prev
+      const next = [...prev, key]
+      localStorage.setItem('budget.rejectedBillMatches', JSON.stringify(next))
+      return next
+    })
+  }
 
   const suggested = useMemo(() => {
     const map = {}
@@ -20,14 +37,14 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
     for (const b of upcoming) {
       const overdue = b.overdue || (b.date < today && !b.preStart)
       if (!overdue) continue
-      const t = suggestBillPayment(b, transactions, today)
+      const t = suggestBillPayment(b, transactions, today, rejected)
       if (t && !used.has(t.id)) {
         map[`${b.billId || b.name}-${b.date}`] = t
         used.add(t.id)
       }
     }
     return map
-  }, [upcoming, transactions, today])
+  }, [upcoming, transactions, today, rejected])
 
   return (
     <section className="rounded-2xl bg-white p-5 shadow">
@@ -51,7 +68,7 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
             {upcoming.map((b) => {
               const key = `${b.billId || b.name}-${b.date}`
               const overdue = !b.preStart && (b.overdue || b.date < today)
-              const match = !dismissed[key] ? suggested[key] : null
+              const match = suggested[key] || null
               return (
               <li key={key} className="py-2 text-sm">
                 <div className="flex justify-between gap-2">
@@ -97,7 +114,7 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
                               className="font-medium text-slate-600 bg-white border border-slate-200 rounded-full px-3 min-h-11"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setDismissed((d) => ({ ...d, [key]: true }))
+                                persistReject(b.billId || b.id, match.id)
                               }}
                             >
                               No
