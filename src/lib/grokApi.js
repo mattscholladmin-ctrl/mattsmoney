@@ -182,6 +182,13 @@ async function snapshot(db, uid) {
     incomeSources: incomeRows,
     transactions: txnRows,
   })
+  const smoothedForSpend =
+    (smoothed.byItem || []).reduce((sum, x) => {
+      const n = String(x.id || '').startsWith('debt-')
+        ? Number(x.slice || x.perPaycheck || 0)
+        : Number(x.perPaycheck || 0)
+      return sum + n
+    }, 0)
   let spendable = null
   if (hasBalance) {
     try {
@@ -194,7 +201,7 @@ async function snapshot(db, uid) {
         setAside,
         goalReserve,
         everyday: everyday.total,
-        smoothed: smoothed.total,
+        smoothed: smoothedForSpend,
         transactions: txnRows,
         fromIso: today,
         goals: goalRows,

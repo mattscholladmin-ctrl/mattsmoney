@@ -834,11 +834,16 @@ export default function Dashboard({ session, demo = false }) {
     // you've smoothed — so it stays a quick on/off even when every active debt is
     // smoothed; the Bills portion is never affected by that chip.
     const billSmoothedItems = (smoothed.byItem || []).filter((s) => String(s.id).startsWith('bill-'))
-    const debtSmoothedItems = (smoothed.byItem || []).filter((s) => String(s.id).startsWith('debt-'))
+    const debtSmoothedItems = (smoothed.byItem || [])
+      .filter((s) => String(s.id).startsWith('debt-'))
+      .map((s) => ({ ...s, perPaycheck: Number(s.slice || s.perPaycheck || 0) }))
     const billSmoothedTotal = Math.round(billSmoothedItems.reduce((s, x) => s + Number(x.perPaycheck || 0), 0) * 100) / 100
     const debtSmoothedPotential = Math.round(debtSmoothedItems.reduce((s, x) => s + Number(x.perPaycheck || 0), 0) * 100) / 100
     const debtSmoothedTotal = counting.debt ? debtSmoothedPotential : 0
-    const hasDebt = hasDebtBills || debtSmoothedPotential > 0
+    const hasSmoothedDebt = (data.debts || []).some(
+      (d) => d.active !== false && d.kind !== 'card' && d.smooth && Math.max(Number(d.plan_payment || 0), Number(d.min_payment || 0)) > 0
+    )
+    const hasDebt = hasDebtBills || debtSmoothedPotential > 0 || hasSmoothedDebt
     const spendable = hasBalance
       ? spendableToday(startBal, {
           bills: allBills,
