@@ -2,20 +2,31 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { money, shortDate, isoDate } from '../lib/format'
 import { suggestBillPayment, rejectKey } from '../lib/budget'
-import { addTransaction, updateTransaction } from '../lib/api'
+import { updateTransaction } from '../lib/api'
 import Modal from './Modal'
 
 const RecurringBillsCard = lazy(() => import('./RecurringBillsCard'))
 
+function readList(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || '[]')
+  } catch {
+    return []
+  }
+}
+function readMap(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || '{}')
+  } catch {
+    return {}
+  }
+}
+
 export default function UpcomingBillsCard({ upcoming = [], bills = [], transactions = [], ppy = 26, onChanged }) {
   const [manage, setManage] = useState(false)
-  const [rejected, setRejected] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('budget.rejectedBillMatches') || '[]')
-    } catch {
-      return []
-    }
-  })
+  const [rejected, setRejected] = useState(() => readList('budget.rejectedBillMatches'))
+  const [hidden, setHidden] = useState(() => readList('budget.hiddenBillPrompts'))
+  const [confirmed, setConfirmed] = useState(() => readMap('budget.confirmedBillMatches'))
   const total = upcoming.reduce((s, b) => s + b.amount, 0)
   const canManage = typeof onChanged === 'function'
   const today = isoDate()
@@ -27,6 +38,23 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
       if (prev.includes(key)) return prev
       const next = [...prev, key]
       localStorage.setItem('budget.rejectedBillMatches', JSON.stringify(next))
+      return next
+    })
+  }
+
+  const hidePrompt = (occKey) => {
+    setHidden((prev) => {
+      if (prev.includes(occKey)) return prev
+      const next = [...prev, occKey]
+      localStorage.setItem('budget.hiddenBillPrompts', JSON.stringify(next))
+      return next
+    })
+  }
+
+  const confirmMatch = (occKey, txnId) => {
+    setConfirmed((prev) => {
+      const next = { ...prev, [occKey]: txnId }
+      localStorage.setItem('budget.confirmedBillMatches', JSON.stringify(next))
       return next
     })
   }
@@ -69,6 +97,10 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
               const key = `${b.billId || b.name}-${b.date}`
               const overdue = !b.preStart && (b.overdue || b.date < today)
               const match = suggested[key] || null
+              const confirmedId = confirmed[key]
+              const confirmedTxn = confirmedId ? transactions.find((t) => t.id === confirmedId) : null
+              const showGuess = overdue && match && !hidden.includes(key) && !confirmedId
+              const showPaidAsk = overdue && confirmedId && !hidden.includes(key)
               return (
               <li key={key} className="py-2 text-sm">
                 <div className="flex justify-between gap-2">
@@ -85,61 +117,67 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
                 </span>
                 <span className="text-slate-700 shrink-0">{money(b.amount)}</span>
                 </div>
-                {overdue && (
+                {showGuess && (
                   <div className="mt-1.5 ml-12 text-xs">
-                    {match ? (
-                      <div className="rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2">
-                        <p className="text-amber-800">
-                          Looks like {match.merchant} {money(match.amount)} on {shortDate(match.txn_date)}.
-                        </p>
-                        {typeof onChanged === 'function' && (
-                          <div className="mt-1.5 flex gap-2">
-                            <button
-                              type="button"
-                              className="font-semibold text-white bg-emerald-700 rounded-full px-3 min-h-11"
-                              onClick={async (e) => {
-                                e.stopPropagation()
-                                const name = String(match.merchant || '')
-                                const tagged = name.toLowerCase().includes(String(b.name).toLowerCase())
-                                  ? name
-                                  : `${name} · ${b.name}`
-                                await updateTransaction(match.id, { merchant: tagged })
-                                onChanged()
-                              }}
-                            >
-                              Yes, that’s it
-                            </button>
-                            <button
-                              type="button"
-                              className="font-medium text-slate-600 bg-white border border-slate-200 rounded-full px-3 min-h-11"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                persistReject(b.billId || b.id, match.id)
-                              }}
-                            >
-                              No
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-amber-800">Still holding — no payment matched yet.</p>
-                        {typeof onChanged === 'function' && (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2">
+                      <p className="text-amber-800">
+                        Looks like {match.merchant} {money(match.amount)} on {shortDate(match.txn_date)}.
+                      </p>
+                      {typeof onChanged === 'function' && (
+                        <div className="mt-1.5 flex gap-2">
                           <button
                             type="button"
-                            className="shrink-0 font-semibold text-emerald-700 border border-emerald-200 rounded-full px-3 min-h-11"
-                            onClick={async (e) => {
+                            className="font-semibold text-white bg-emerald-700 rounded-full px-3 min-h-11"
+                            onClick={(e) => {
                               e.stopPropagation()
-                              await addTransaction({ txn_date: isoDate(), merchant: b.name, amount: b.amount, category: 'Bills', note: 'Marked paid' })
-                              onChanged()
+                              confirmMatch(key, match.id)
                             }}
                           >
-                            I paid this
+                            Yes, that’s it
                           </button>
-                        )}
-                      </div>
-                    )}
+                          <button
+                            type="button"
+                            className="font-medium text-slate-600 bg-white border border-slate-200 rounded-full px-3 min-h-11"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              persistReject(b.billId || b.id, match.id)
+                              hidePrompt(key)
+                            }}
+                          >
+                            No
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {showPaidAsk && (
+                  <div className="mt-1.5 ml-12 text-xs">
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2 flex items-center justify-between gap-2">
+                      <p className="text-amber-800">
+                        Did you pay this{confirmedTxn ? ` with ${confirmedTxn.merchant}` : ''}?
+                      </p>
+                      {typeof onChanged === 'function' && (
+                        <button
+                          type="button"
+                          className="shrink-0 font-semibold text-emerald-700 border border-emerald-200 rounded-full px-3 min-h-11"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            if (confirmedId) {
+                              const name = String(confirmedTxn?.merchant || '')
+                              const tagged = name.toLowerCase().includes(String(b.name).toLowerCase())
+                                ? name
+                                : `${name} · ${b.name}`.trim()
+                              await updateTransaction(confirmedId, { merchant: tagged })
+                            }
+                            hidePrompt(key)
+                            onChanged()
+                          }}
+                        >
+                          I paid this
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </li>
