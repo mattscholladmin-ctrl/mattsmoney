@@ -74,8 +74,9 @@ async function patch(db, table, uid, id, fields) {
     if (v !== undefined) clean[k] = v
   }
   if (!Object.keys(clean).length) return { ok: false, error: 'nothing to update' }
-  const { error } = await db.from(table).update(clean).eq('id', id).eq('user_id', uid)
+  const { data, error } = await db.from(table).update(clean).eq('id', id).eq('user_id', uid).select('id').maybeSingle()
   if (error) throw new Error(error.message)
+  if (!data) return { ok: false, error: 'not found — nothing saved' }
   return { ok: true, data: { id, ...clean } }
 }
 

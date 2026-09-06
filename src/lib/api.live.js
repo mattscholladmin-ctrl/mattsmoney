@@ -304,13 +304,14 @@ export async function updateBill(id, { name, amount, category, cadence, due_day,
   const fields = { name, amount, category, cadence, due_day }
   if (smooth !== undefined) fields.smooth = smooth
   if (start_date !== undefined) fields.start_date = start_date || null
-  let { error } = await supabase.from('recurring_bills').update(fields).eq('id', id)
+  let { data, error } = await supabase.from('recurring_bills').update(fields).eq('id', id).select('id').maybeSingle()
   if (error && isMissingColumn(error)) {
     delete fields.smooth
     delete fields.start_date
-    ;({ error } = await supabase.from('recurring_bills').update(fields).eq('id', id))
+    ;({ data, error } = await supabase.from('recurring_bills').update(fields).eq('id', id).select('id').maybeSingle())
   }
   if (error) throw error
+  if (!data) throw new Error('Bill not found — nothing saved')
 }
 
 export async function deleteBill(id) {
