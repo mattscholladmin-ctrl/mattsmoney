@@ -1,7 +1,7 @@
 // Shared Grok door: full read + writes. Used by /api/grok and the MCP connector.
 import crypto from 'node:crypto'
 import { adminClient } from './googleServer.js'
-import { accountSummaries, spendableToday, currentBalance } from './budget.js'
+import { accountSummaries, spendableToday, currentBalance, debtsAsBills, obligationSchedule } from './budget.js'
 import { isoDate } from './format.js'
 
 export function grokSecretOk(request) {
@@ -86,11 +86,12 @@ async function snapshot(db, uid) {
     budgets,
     scores,
     phases,
+    payments,
   ] = await Promise.all([
     db.from('accounts').select('id,name,kind,include_in_spendable,mask,institution,sort_order,hidden').eq('user_id', uid).order('sort_order'),
     db.from('balance_entries').select('id,account_id,balance,as_of,note').eq('user_id', uid).order('as_of', { ascending: false }),
-    db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance').eq('user_id', uid),
-    db.from('recurring_bills').select('id,name,amount,due_day,cadence,active,category').eq('user_id', uid),
+    db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance,start_date').eq('user_id', uid),
+    db.from('recurring_bills').select('id,name,amount,due_day,cadence,active,category,start_date').eq('user_id', uid),
     db.from('goals').select('id,name,target,current,monthly_contribution,status,reserved,target_date,note,sort_order').eq('user_id', uid).order('sort_order'),
     db.from('income_sources').select('id,name,amount,cadence,confirmed,anchor_date,due_day,active').eq('user_id', uid),
     db.from('set_asides').select('id,name,amount,due_date').eq('user_id', uid),
@@ -99,9 +100,29 @@ async function snapshot(db, uid) {
     db.from('budgets').select('id,category,monthly_limit').eq('user_id', uid),
     db.from('credit_scores').select('id,bureau,score,model,source,checked_on,note').eq('user_id', uid).order('checked_on', { ascending: false }).limit(12),
     db.from('phases').select('id,name,starts_on,ends_on').eq('user_id', uid).order('starts_on'),
+    db.from('debt_payments').select('debt_id,paid_on').eq('user_id', uid),
   ])
-  const first = [accounts, balances, debts, bills, goals, income, settings].find((r) => r.error)
+  const first = [accounts, balances, goals, income, settings].find((r) => r.error)
   if (first?.error) throw new Error(first.error.message)
+
+  let debtRows = debts.data || []
+  if (debts.error) {
+    const retry = await db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance').eq('user_id', uid)
+    if (retry.error) throw new Error(retry.error.message)
+    debtRows = retry.data || []
+  }
+  let billRows = bills.data || []
+  if (bills.error) {
+    const retry = await db.from('recurring_bills').select('id,name,amount,due_day,cadence,active,category').eq('user_id', uid)
+    if (retry.error) throw new Error(retry.error.message)
+    billRows = retry.data || []
+  }
+  const payRows = payments?.error ? [] : payments?.data || []
+  const paidByDebt = {}
+  for (const p of payRows) {
+    ;(paidByDebt[p.debt_id] ||= []).push(p.paid_on)
+  }
+  const allBills = [...billRows.filter((b) => !b.smooth), ...debtsAsBills(debtRows)]
 
   const sums = accountSummaries(accounts.data || [], balances.data || [])
   const bufferFloor = Number(settings.data?.buffer_floor || 0)
@@ -110,7 +131,7 @@ async function snapshot(db, uid) {
   if (latest) {
     try {
       const info = spendableToday(Number(latest.balance), {
-        bills: bills.data || [],
+        bills: allBills,
         incomes: income.data || [],
         buckets: [],
         bufferFloor,
@@ -150,28 +171,40 @@ async function snapshot(db, uid) {
         active: d.active !== false,
         autopay: !!d.autopay,
       })),
-    debts: (debts.data || [])
+    debts: debtRows
       .filter((d) => d.kind !== 'card')
-      .map((d) => ({
-        id: d.id,
-        name: d.name,
-        kind: d.kind,
-        balance: Number(d.balance || 0),
-        min_payment: Number(d.min_payment || 0),
-        plan_payment: Number(d.plan_payment || 0),
-        due_day: d.due_day,
-        apr: d.apr,
-        active: d.active !== false,
-      })),
-    bills: (bills.data || []).map((b) => ({
-      id: b.id,
-      name: b.name,
-      amount: Number(b.amount || 0),
-      due_day: b.due_day,
-      cadence: b.cadence,
-      category: b.category,
-      active: b.active !== false,
-    })),
+      .map((d) => {
+        const sched = obligationSchedule(d, today, { paidDates: paidByDebt[d.id] || [] })
+        return {
+          id: d.id,
+          name: d.name,
+          kind: d.kind,
+          balance: Number(d.balance || 0),
+          min_payment: Number(d.min_payment || 0),
+          plan_payment: Number(d.plan_payment || 0),
+          due_day: d.due_day,
+          start_date: d.start_date || null,
+          next_due: sched.next_due,
+          status: sched.status,
+          apr: d.apr,
+          active: d.active !== false,
+        }
+      }),
+    bills: billRows.map((b) => {
+      const sched = obligationSchedule({ ...b, plan_payment: b.amount }, today)
+      return {
+        id: b.id,
+        name: b.name,
+        amount: Number(b.amount || 0),
+        due_day: b.due_day,
+        cadence: b.cadence,
+        category: b.category,
+        active: b.active !== false,
+        start_date: b.start_date || null,
+        next_due: sched.next_due,
+        status: sched.status,
+      }
+    }),
     goals: (goals.data || []).map((g) => ({
       id: g.id,
       name: g.name,
@@ -284,13 +317,13 @@ export async function runGrokAction(body = {}) {
 
   if (action === 'add_bill') {
     if (!body.name || body.amount == null) return { ok: false, error: 'need name and amount' }
-    const row = { ...pick(body, ['name', 'amount', 'category', 'cadence', 'due_day']), active: true }
+    const row = { ...pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'start_date']), active: true }
     row.amount = Number(row.amount)
     const data = await insert(db, 'recurring_bills', uid, row)
     return { ok: true, data }
   }
   if (action === 'update_bill') {
-    return patch(db, 'recurring_bills', uid, body.id, pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'active']))
+    return patch(db, 'recurring_bills', uid, body.id, pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'active', 'start_date']))
   }
   if (action === 'delete_bill') return remove(db, 'recurring_bills', uid, body.id)
 
@@ -342,7 +375,7 @@ export async function runGrokAction(body = {}) {
 
   if (action === 'add_debt' || action === 'add_card') {
     if (!body.name) return { ok: false, error: 'need name' }
-    const row = pick(body, ['name', 'balance', 'apr', 'plan_payment', 'min_payment', 'due_day', 'kind', 'original_balance', 'credit_limit', 'next_payment_date'])
+    const row = pick(body, ['name', 'balance', 'apr', 'plan_payment', 'min_payment', 'due_day', 'kind', 'original_balance', 'credit_limit', 'next_payment_date', 'start_date'])
     row.kind = row.kind || (action === 'add_card' ? 'card' : 'loan')
     row.active = true
     const data = await insert(db, 'debts', uid, row)
@@ -354,7 +387,7 @@ export async function runGrokAction(body = {}) {
       'debts',
       uid,
       body.id,
-      pick(body, ['name', 'balance', 'apr', 'plan_payment', 'min_payment', 'due_day', 'kind', 'credit_limit', 'autopay', 'active', 'next_payment_date'])
+      pick(body, ['name', 'balance', 'apr', 'plan_payment', 'min_payment', 'due_day', 'kind', 'credit_limit', 'autopay', 'active', 'next_payment_date', 'start_date'])
     )
   }
   if (action === 'delete_debt' || action === 'delete_card') return remove(db, 'debts', uid, body.id)

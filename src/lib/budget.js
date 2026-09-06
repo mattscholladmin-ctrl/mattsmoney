@@ -387,44 +387,116 @@ export function balanceFromStart({ original = 0, payment = 0, frequency = 'month
 // The next payment date for a debt (today or later), rolled forward from its
 // schedule so a next-payment date set in the past still lands on the real next
 // one. Returns an ISO date or null when the debt has no schedule.
-export function nextDueDate(debt = {}, today = isoDate()) {
+//
+// start_date (first collectible) wins when it is still in the future: a loan
+// that starts Oct 1 must not look late on Sep 1. After start_date, due_day
+// drives the monthly cycle. If unpaid, next_due stays on the missed cycle
+// (status `late`) instead of jumping to next month.
+export function nextDueDate(debt = {}, today = isoDate(), { unpaid = true } = {}) {
+  const sched = obligationSchedule(debt, today, { unpaid })
+  return sched.next_due
+}
+
+function dueDayOf(item) {
+  if (item.due_day != null && item.due_day !== '') {
+    const n = Number(item.due_day)
+    if (!Number.isNaN(n)) return n
+  }
+  if (item.start_date) return Number(String(item.start_date).slice(8, 10))
+  if (item.next_payment_date) return Number(String(item.next_payment_date).slice(8, 10))
+  return null
+}
+
+function dateOnDueDay(year, monthIndex, dueDay) {
+  const dim = daysInMonth(year, monthIndex)
+  return new Date(year, monthIndex, Math.min(dueDay, dim))
+}
+
+// Cycle dates from first due (start_date) then due_day each following month.
+export function obligationCycles(item, throughIso) {
+  const start = item.start_date || null
+  const dueDay = dueDayOf(item)
+  const out = []
+  if (start) {
+    out.push(start)
+    let y = parseISO(start).getFullYear()
+    let m = parseISO(start).getMonth() + 1
+    for (let i = 0; i < 36; i++) {
+      if (m > 11) {
+        m = 0
+        y += 1
+      }
+      const iso = isoDate(dueDay != null ? dateOnDueDay(y, m, dueDay) : new Date(y, m, parseISO(start).getDate()))
+      if (iso !== start) out.push(iso)
+      if (iso > throughIso) break
+      m += 1
+    }
+    return out
+  }
+  return out
+}
+
+export function obligationSchedule(item = {}, today = isoDate(), { unpaid = true, paidDates = [] } = {}) {
+  const start = item.start_date || null
+  const paid = new Set((paidDates || []).map((d) => String(d).slice(0, 10)))
+  const monthPaid = (cycle) =>
+    paid.has(cycle) || [...paid].some((d) => d.slice(0, 7) === String(cycle).slice(0, 7))
+
+  if (start && today < start) {
+    return { next_due: start, status: 'pre_start' }
+  }
+
+  if (start) {
+    const through = isoDate(new Date(parseISO(today).getTime() + 400 * DAY_MS))
+    const cycles = obligationCycles(item, through).filter((c) => c >= start)
+    const last = [...cycles].reverse().find((c) => c <= today)
+    const upcoming = cycles.find((c) => c >= today) || start
+    if (unpaid && last && last < today && !monthPaid(last)) {
+      return { next_due: last, status: 'late' }
+    }
+    return { next_due: upcoming, status: 'due' }
+  }
+
+  // Legacy: no start_date. Existing next_payment_date / due_day behavior.
   const from = parseISO(today)
-  const npd = debt.next_payment_date || null
-  const freq = debt.pay_frequency || 'monthly'
+  const npd = item.next_payment_date || null
+  const freq = item.pay_frequency || 'monthly'
   if (npd && freq === 'biweekly') {
     const d = parseISO(npd)
     while (d < from) d.setDate(d.getDate() + 14)
-    return isoDate(d)
+    return { next_due: isoDate(d), status: 'due' }
   }
   if (npd && freq === 'weekly') {
     const d = parseISO(npd)
     while (d < from) d.setDate(d.getDate() + 7)
-    return isoDate(d)
+    return { next_due: isoDate(d), status: 'due' }
   }
-  // Monthly — anchor on the next-payment date and roll forward WHOLE MONTHS, so a
-  // first payment set in a future month (e.g. Sep 1 when today is Jul) isn't shown
-  // a month early. Fall back to the legacy day-of-month for debts saved before the
-  // date field existed (an ordinary recurring bill with no start date).
   if (npd) {
     const d = parseISO(npd)
     while (d < from) d.setMonth(d.getMonth() + 1)
-    return isoDate(d)
+    return { next_due: isoDate(d), status: 'due' }
   }
-  const dueDay = debt.due_day != null ? Number(debt.due_day) : null
-  if (dueDay == null || Number.isNaN(dueDay)) return null
+  const dueDay = item.due_day != null ? Number(item.due_day) : null
+  if (dueDay == null || Number.isNaN(dueDay)) return { next_due: null, status: 'due' }
   let year = from.getFullYear()
   let month = from.getMonth()
   for (let i = 0; i < 13; i++) {
-    const dim = daysInMonth(year, month)
-    const occ = new Date(year, month, Math.min(dueDay, dim))
-    if (occ >= from) return isoDate(occ)
+    const occ = dateOnDueDay(year, month, dueDay)
+    if (occ >= from) return { next_due: isoDate(occ), status: 'due' }
     month += 1
     if (month > 11) {
       month = 0
       year += 1
     }
   }
-  return null
+  return { next_due: null, status: 'due' }
+}
+
+export function obligationAmount(item = {}) {
+  if (item.plan_payment != null || item.min_payment != null) {
+    return Math.max(Number(item.min_payment || 0), Number(item.plan_payment || 0))
+  }
+  return Number(item.amount || 0)
 }
 
 // Turn each active debt's minimum payment into a recurring monthly "bill" so it
@@ -462,7 +534,13 @@ export function debtsAsBills(debts = [], goals = []) {
       // so a first payment set in a future month isn't billed a month early.
       const dueDay = npd ? Number(npd.slice(8, 10)) : d.due_day
       if (dueDay == null) continue
-      out.push({ ...base, cadence: 'monthly', due_day: Number(dueDay), anchor: npd || null })
+      out.push({
+        ...base,
+        cadence: 'monthly',
+        due_day: Number(dueDay),
+        start_date: d.start_date || null,
+        anchor: d.start_date || npd || null,
+      })
     }
   }
   return out
@@ -1366,6 +1444,7 @@ export function billOccurrences(bill, fromIso, horizonDays) {
   const from = parseISO(fromIso)
   const end = new Date(from.getTime() + horizonDays * DAY_MS)
   const out = []
+  const start = bill.start_date || bill.anchor || null
 
   if (bill.cadence === 'biweekly') {
     // Every 14 days from an anchor date (e.g. a debt paid every 2 weeks).
@@ -1386,7 +1465,7 @@ export function billOccurrences(bill, fromIso, horizonDays) {
     while (d <= end) {
       // Skip occurrences before the anchor (first payment date) — same reason
       // as monthly below: a payment starting weeks out shouldn't be billed now.
-      if (!bill.anchor || isoDate(d) >= bill.anchor) out.push(isoDate(d))
+      if (!start || isoDate(d) >= start) out.push(isoDate(d))
       d.setDate(d.getDate() + 7)
     }
   } else {
@@ -1400,7 +1479,7 @@ export function billOccurrences(bill, fromIso, horizonDays) {
       const occ = new Date(year, month, day)
       // Skip occurrences before the anchor (first payment date) so a payment
       // starting in a future month isn't listed a month early.
-      if (occ >= from && occ <= end && (!bill.anchor || isoDate(occ) >= bill.anchor)) out.push(isoDate(occ))
+      if (occ >= from && occ <= end && (!start || isoDate(occ) >= start)) out.push(isoDate(occ))
       month += 1
       if (month > 11) {
         month = 0
@@ -1737,18 +1816,39 @@ const OVERDUE_PAID_WINDOW_DAYS = 21
 // Skipped when `forward` already has a same-bill occurrence due exactly
 // today — that already covers it, so this doesn't double the bill up.
 export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), horizonDays = 30) {
+  const preStartIds = new Set()
+  const preStartHolds = []
+  for (const bill of bills) {
+    if (bill.active === false) continue
+    const start = bill.start_date || null
+    if (start && fromIso < start) {
+      preStartIds.add(bill.id)
+      preStartHolds.push({
+        date: fromIso,
+        name: bill.name,
+        amount: Number(bill.amount || 0),
+        category: bill.category || 'Bills',
+        billId: bill.id,
+        overdue: false,
+        preStart: true,
+        originalDate: start,
+      })
+    }
+  }
+
   const forward = upcomingBills(bills, fromIso, horizonDays).filter(
-    (occ) => !isBillOccurrencePaid(occ, transactions, fromIso)
+    (occ) => !preStartIds.has(occ.billId) && !isBillOccurrencePaid(occ, transactions, fromIso)
   )
   const dueTodayBillIds = new Set(forward.filter((o) => o.date === fromIso).map((o) => o.billId))
 
   const overdue = []
   const lookbackFrom = isoDate(new Date(parseISO(fromIso).getTime() - OVERDUE_LOOKBACK_DAYS * DAY_MS))
   for (const bill of bills) {
-    if (bill.active === false || dueTodayBillIds.has(bill.id)) continue
+    if (bill.active === false || dueTodayBillIds.has(bill.id) || preStartIds.has(bill.id)) continue
     const past = billOccurrences(bill, lookbackFrom, OVERDUE_LOOKBACK_DAYS).filter((d) => d < fromIso)
     const mostRecent = past[past.length - 1]
     if (!mostRecent) continue
+    if (bill.start_date && mostRecent < bill.start_date) continue
     const occ = {
       date: mostRecent,
       name: bill.name,
@@ -1760,7 +1860,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
       overdue.push({ ...occ, date: fromIso, overdue: true, originalDate: mostRecent })
     }
   }
-  return [...overdue, ...forward].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  return [...preStartHolds, ...overdue, ...forward].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
 }
 
 function round2(n) {

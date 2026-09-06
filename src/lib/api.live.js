@@ -287,23 +287,27 @@ function isMissingColumn(error) {
   return error?.code === '42703' || /column .* does not exist|could not find the .* column|schema cache/i.test(error?.message || '')
 }
 
-export async function addBill({ name, amount, category, cadence, due_day, smooth }) {
+export async function addBill({ name, amount, category, cadence, due_day, smooth, start_date }) {
   const row = { name, amount, category, cadence, due_day, active: true }
   if (smooth !== undefined) row.smooth = smooth
+  if (start_date) row.start_date = start_date
   let { error } = await supabase.from('recurring_bills').insert(row)
-  if (error && smooth !== undefined && isMissingColumn(error)) {
+  if (error && isMissingColumn(error)) {
     delete row.smooth
+    delete row.start_date
     ;({ error } = await supabase.from('recurring_bills').insert(row))
   }
   if (error) throw error
 }
 
-export async function updateBill(id, { name, amount, category, cadence, due_day, smooth }) {
+export async function updateBill(id, { name, amount, category, cadence, due_day, smooth, start_date }) {
   const fields = { name, amount, category, cadence, due_day }
   if (smooth !== undefined) fields.smooth = smooth
+  if (start_date !== undefined) fields.start_date = start_date || null
   let { error } = await supabase.from('recurring_bills').update(fields).eq('id', id)
-  if (error && smooth !== undefined && isMissingColumn(error)) {
+  if (error && isMissingColumn(error)) {
     delete fields.smooth
+    delete fields.start_date
     ;({ error } = await supabase.from('recurring_bills').update(fields).eq('id', id))
   }
   if (error) throw error
@@ -672,7 +676,7 @@ export async function deleteGoal(id) {
 }
 
 // ---- Debts (credit cards + loan) -------------------------------------------
-export async function addDebt({ name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date }) {
+export async function addDebt({ name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date, start_date }) {
   const row = {
     name,
     balance,
@@ -692,13 +696,15 @@ export async function addDebt({ name, balance, apr, plan_payment, min_payment, d
     row.original_balance = Number(original_balance)
   if (pay_frequency) row.pay_frequency = pay_frequency
   if (next_payment_date) row.next_payment_date = next_payment_date
+  if (start_date) row.start_date = start_date
   let { error } = await supabase.from('debts').insert(row)
   // pay_frequency / next_payment_date / is_collection not migrated yet? drop
   // and retry.
-  if (error && isMissingAccountIdColumn(error)) {
+  if (error && (isMissingAccountIdColumn(error) || isMissingColumn(error))) {
     delete row.pay_frequency
     delete row.next_payment_date
     delete row.is_collection
+    delete row.start_date
     ;({ error } = await supabase.from('debts').insert(row))
   }
   if (error) throw error
@@ -750,7 +756,7 @@ export async function toggleCreditTask(id, done) {
   if (error) throw error
 }
 
-export async function updateDebt(id, { name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date }) {
+export async function updateDebt(id, { name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date, start_date }) {
   const fields = {
     name,
     apr: apr ?? 0,
@@ -768,13 +774,15 @@ export async function updateDebt(id, { name, balance, apr, plan_payment, min_pay
     fields.original_balance = original_balance === '' ? null : Number(original_balance)
   if (pay_frequency !== undefined) fields.pay_frequency = pay_frequency
   if (next_payment_date !== undefined) fields.next_payment_date = next_payment_date || null
+  if (start_date !== undefined) fields.start_date = start_date || null
   let { error } = await supabase.from('debts').update(fields).eq('id', id)
   // pay_frequency / next_payment_date / is_collection columns not migrated
   // yet? drop and retry.
-  if (error && isMissingAccountIdColumn(error)) {
+  if (error && (isMissingAccountIdColumn(error) || isMissingColumn(error))) {
     delete fields.pay_frequency
     delete fields.next_payment_date
     delete fields.is_collection
+    delete fields.start_date
     ;({ error } = await supabase.from('debts').update(fields).eq('id', id))
   }
   if (error) throw error

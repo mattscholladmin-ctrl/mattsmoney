@@ -164,6 +164,7 @@ function AddBillForm({ onChanged, onDone }) {
   const [category, setCategory] = useState('Bills')
   const [cadence, setCadence] = useState('monthly')
   const [dueDay, setDueDay] = useState('1')
+  const [startDate, setStartDate] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -172,7 +173,7 @@ function AddBillForm({ onChanged, onDone }) {
     setBusy(true)
     setError(null)
     try {
-      await addBill({ name: name.trim(), amount: Number(amount), category: category.trim() || 'Bills', cadence, due_day: Number(dueDay) })
+      await addBill({ name: name.trim(), amount: Number(amount), category: category.trim() || 'Bills', cadence, due_day: Number(dueDay), start_date: startDate || null })
       onChanged()
       onDone()
     } catch (err) {
@@ -196,6 +197,7 @@ function AddBillForm({ onChanged, onDone }) {
         <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className={inputCls} />
       </div>
       <ScheduleFields cadence={cadence} setCadence={setCadence} dueDay={dueDay} setDueDay={setDueDay} />
+      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} title="First due date" />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button type="submit" disabled={busy} className="w-full bg-emerald-700 text-white font-semibold rounded-lg px-4 py-2">
         {busy ? 'Saving…' : 'Add bill'}
@@ -215,6 +217,7 @@ function BillRow({ bill, ppy = 26, onChanged }) {
   const [category, setCategory] = useState(bill.category || 'Bills')
   const [cadence, setCadence] = useState(bill.cadence)
   const [dueDay, setDueDay] = useState(String(bill.due_day))
+  const [startDate, setStartDate] = useState(bill.start_date || '')
   const [busy, setBusy] = useState(false)
 
   // Inline amount edit — tap the box, tap away to save (like budgets). Sends the
@@ -222,14 +225,14 @@ function BillRow({ bill, ppy = 26, onChanged }) {
   async function saveAmount(v) {
     const n = Number(v)
     if (Number.isNaN(n) || n === Number(bill.amount)) return
-    await updateBill(bill.id, { name: bill.name, amount: n, category: bill.category || 'Bills', cadence: bill.cadence, due_day: bill.due_day })
+    await updateBill(bill.id, { name: bill.name, amount: n, category: bill.category || 'Bills', cadence: bill.cadence, due_day: bill.due_day, start_date: bill.start_date || null })
     onChanged()
   }
   async function saveEdit(e) {
     e.preventDefault()
     setBusy(true)
     try {
-      await updateBill(bill.id, { name: name.trim(), amount: Number(bill.amount), category: category.trim() || 'Bills', cadence, due_day: Number(dueDay) })
+      await updateBill(bill.id, { name: name.trim(), amount: Number(bill.amount), category: category.trim() || 'Bills', cadence, due_day: Number(dueDay), start_date: startDate || null })
       setEditing(false)
       onChanged()
     } finally {
@@ -248,6 +251,7 @@ function BillRow({ bill, ppy = 26, onChanged }) {
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Bill name" required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" />
           <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" />
           <ScheduleFields cadence={cadence} setCadence={setCadence} dueDay={dueDay} setDueDay={setDueDay} />
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" title="First due date" />
           <div className="flex gap-2">
             <button type="submit" disabled={busy} className="flex-1 bg-emerald-700 text-white font-semibold rounded-lg px-4 py-2">
               {busy ? 'Saving…' : 'Save'}

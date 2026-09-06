@@ -18,7 +18,7 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
     const map = {}
     const used = new Set()
     for (const b of upcoming) {
-      const overdue = b.overdue || b.date < today
+      const overdue = b.overdue || (b.date < today && !b.preStart)
       if (!overdue) continue
       const t = suggestBillPayment(b, transactions, today)
       if (t && !used.has(t.id)) {
@@ -50,7 +50,7 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
           <ul className="divide-y divide-slate-100">
             {upcoming.map((b) => {
               const key = `${b.billId || b.name}-${b.date}`
-              const overdue = b.overdue || b.date < today
+              const overdue = !b.preStart && (b.overdue || b.date < today)
               const match = !dismissed[key] ? suggested[key] : null
               return (
               <li key={key} className="py-2 text-sm">
@@ -60,6 +60,11 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
                     {shortDate(b.originalDate || b.date)}
                   </span>
                   <span className="min-w-0 truncate">{b.name}</span>
+                  {b.preStart && (
+                    <span className="ml-1.5 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-1.5 py-0.5">
+                      Starts {shortDate(b.originalDate)}
+                    </span>
+                  )}
                 </span>
                 <span className="text-slate-700 shrink-0">{money(b.amount)}</span>
                 </div>

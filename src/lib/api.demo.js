@@ -155,13 +155,14 @@ export async function setIncomeSources(ids = [], source) {
   for (const id of ids) upd("transactions", id, { income_source: source });
 }
 
-export async function addBill({ name, amount, category, cadence, due_day, smooth }) {
+export async function addBill({ name, amount, category, cadence, due_day, smooth, start_date }) {
   add("bills", {
     name,
     amount: Number(amount) || 0,
     category: category || null,
     cadence: cadence || "monthly",
     due_day: due_day ?? null,
+    start_date: start_date || null,
     active: true,
     smooth: !!smooth,
   });

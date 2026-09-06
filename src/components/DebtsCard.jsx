@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useRef, useState } from 'react'
 import { money, shortDate, isoDate } from '../lib/format'
-import { monthlyInterest, totalMonthlyInterest, payoffPlan, debtBar, debtPaymentPlan, singleDebtPayoff, groupSeries, balanceFromStart, nextDueDate, monthlyDebtPayment } from '../lib/budget'
+import { monthlyInterest, totalMonthlyInterest, payoffPlan, debtBar, debtPaymentPlan, singleDebtPayoff, groupSeries, balanceFromStart, nextDueDate, monthlyDebtPayment, obligationSchedule, obligationAmount } from '../lib/budget'
 import { EditPlanModal } from './GoalsCard'
 import { addDebt, updateDebt, updateDebtBalance, decrementDebtBalance, addDebtPayment, deleteDebtPayment, deleteDebt, setDebtSmooth, setDebtActive } from '../lib/api'
 import Modal from './Modal'
@@ -91,6 +91,8 @@ export default function DebtsCard({ debts, goals = [], debtPayments = [], ppy = 
               const bar = debtBar(d, payPlan)
               const po = singleDebtPayoff(d)
               const nextDue = nextDueDate(d)
+              const sched = obligationSchedule(d)
+              const payAmt = obligationAmount(d)
               const pays = debtPayments
                 .filter((p) => p.debt_id === d.id)
                 .sort((a, b) => (a.paid_on < b.paid_on ? 1 : -1))
@@ -114,9 +116,20 @@ export default function DebtsCard({ debts, goals = [], debtPayments = [], ppy = 
                         {debtTypeLabel(d.kind)}
                         {d.apr > 0 ? ` · ${d.apr}% APR` : ''}
                         {paymentSummary(d) ? ` · ${paymentSummary(d)}` : ''}
-                        {!payPlan?.next && nextDue ? ` · Next payment ${shortDate(nextDue)}` : ''}
+                        {d.kind !== 'card' && sched.status === 'pre_start' && payAmt > 0
+                          ? ` · First payment ${shortDate(sched.next_due)} — save ${money(payAmt)}`
+                          : d.kind !== 'card' && sched.status === 'late' && payAmt > 0
+                            ? ` · Late · due ${shortDate(sched.next_due)} · ${money(payAmt)}`
+                            : !payPlan?.next && nextDue
+                              ? ` · Next payment ${shortDate(nextDue)}`
+                              : ''}
                         {int > 0 ? ` · ~${money(int)}/mo interest` : ''}
                       </span>
+                      {d.kind !== 'card' && sched.status === 'pre_start' && (
+                        <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-1.5 py-0.5">
+                          Starts {shortDate(sched.next_due)}
+                        </span>
+                      )}
                     </span>
                     <span className="text-slate-800 font-medium shrink-0">
                       {money(d.balance)}
@@ -455,6 +468,7 @@ function ManageDebtsModal({ debts, focusId = null, onClose, onChanged }) {
   const [kind, setKind] = useState('card')
   const [originalBalance, setOriginalBalance] = useState('')
   const [startDate, setStartDate] = useState('')
+  const [firstPay, setFirstPay] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -482,7 +496,7 @@ function ManageDebtsModal({ debts, focusId = null, onClose, onChanged }) {
       return
     }
     // A payment with no date (next OR start) wouldn't schedule into the forecast.
-    if (Number(payment) > 0 && !nextDate && !startDate) {
+    if (Number(payment) > 0 && !nextDate && !startDate && !firstPay) {
       setError('Add a start date or next payment date so this shows up in your forecast.')
       return
     }
@@ -500,7 +514,8 @@ function ManageDebtsModal({ debts, focusId = null, onClose, onChanged }) {
         plan_payment: Number(payment || 0),
         due_day: frequency === 'monthly' && anchor ? Number(anchor.slice(8, 10)) : null,
         pay_frequency: frequency,
-        next_payment_date: anchor,
+        next_payment_date: nextDate || firstPay || startDate || null,
+        start_date: firstPay || nextDate || null,
         kind,
         original_balance: originalBalance,
       })
@@ -512,6 +527,7 @@ function ManageDebtsModal({ debts, focusId = null, onClose, onChanged }) {
       setNextDate('')
       setOriginalBalance('')
       setStartDate('')
+      setFirstPay('')
       onChanged()
     } catch (err) {
       setError(err.message)
@@ -589,6 +605,15 @@ function ManageDebtsModal({ debts, focusId = null, onClose, onChanged }) {
         </div>
         <div className="flex gap-2">
           <div className="flex-1 min-w-0">
+            <label className="block text-xs font-medium text-slate-500 mb-1">First payment</label>
+            <input
+              type="date"
+              value={firstPay}
+              onChange={(e) => setFirstPay(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
+            />
+          </div>
+          <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-slate-500 mb-1">Next payment date</label>
             <input
               type="date"
@@ -597,6 +622,8 @@ function ManageDebtsModal({ debts, focusId = null, onClose, onChanged }) {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
             />
           </div>
+        </div>
+        <div className="flex gap-2">
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-slate-500 mb-1">Interest rate (APR)</label>
             <input
@@ -691,6 +718,7 @@ function DebtRow({ debt, autoEdit = false, onChanged }) {
   )
   const [frequency, setFrequency] = useState(debt.pay_frequency || 'monthly')
   const [nextDate, setNextDate] = useState(debt.next_payment_date || '')
+  const [firstPay, setFirstPay] = useState(debt.start_date || '')
   const [kind, setKind] = useState(debt.kind || 'card')
   const [originalBalance, setOriginalBalance] = useState(
     debt.original_balance != null ? String(debt.original_balance) : ''
@@ -714,7 +742,7 @@ function DebtRow({ debt, autoEdit = false, onChanged }) {
     // A payment with no schedule would silently vanish from the forecast. Weekly
     // and biweekly have no fallback; a monthly debt can fall back to its legacy
     // due-day, so it's only required when there isn't one.
-    if (Number(payment) > 0 && !nextDate && (frequency !== 'monthly' || debt.due_day == null)) {
+    if (Number(payment) > 0 && !nextDate && !firstPay && (frequency !== 'monthly' || debt.due_day == null)) {
       setError('Add the next payment date so this shows up in your forecast.')
       return
     }
@@ -731,9 +759,10 @@ function DebtRow({ debt, autoEdit = false, onChanged }) {
         plan_payment: Number(payment || 0),
         // Keep the legacy due_day as a monthly fallback; scheduling now uses
         // frequency + next payment date.
-        due_day: debt.due_day ?? null,
+        due_day: debt.due_day ?? (frequency === 'monthly' && (firstPay || nextDate) ? Number(String(firstPay || nextDate).slice(8, 10)) : null),
         pay_frequency: frequency,
         next_payment_date: nextDate || null,
+        start_date: firstPay || null,
         kind,
         original_balance: originalBalance,
       })
@@ -872,6 +901,15 @@ function DebtRow({ debt, autoEdit = false, onChanged }) {
         </div>
         <div className="flex gap-2">
           <div className="flex-1 min-w-0">
+            <label className="block text-xs font-medium text-slate-500 mb-1">First payment</label>
+            <input
+              type="date"
+              value={firstPay}
+              onChange={(e) => setFirstPay(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
+            />
+          </div>
+          <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-slate-500 mb-1">Next payment date</label>
             <input
               type="date"
@@ -880,6 +918,8 @@ function DebtRow({ debt, autoEdit = false, onChanged }) {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
             />
           </div>
+        </div>
+        <div className="flex gap-2">
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-slate-500 mb-1">Interest rate (APR)</label>
             <input

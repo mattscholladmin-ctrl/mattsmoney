@@ -15,12 +15,12 @@ function tool(name, description, properties = {}, required = []) {
 }
 
 const TOOLS = [
-  tool('budget_snapshot', 'Full read of Matt’s Money: cash, cards, debts, bills, goals, income, set-asides, recent transactions, budgets, credit scores, phases, buffer, safe to spend.'),
+  tool('budget_snapshot', 'Full read of Matt’s Money: cash, cards, debts (start_date, next_due, status pre_start|due|late), bills, goals, income, set-asides, recent transactions, budgets, credit scores, phases, buffer, safe to spend.'),
   tool('log_purchase', 'Log a purchase or other transaction.', { txn_date: str, merchant: str, amount: num, category: str, note: str, account_id: str, goal_id: str, income_source: str }, ['merchant', 'amount']),
   tool('update_transaction', 'Edit a transaction. Requires id from budget_snapshot.', { id: str, txn_date: str, merchant: str, amount: num, category: str, note: str, account_id: str, goal_id: str, income_source: str }, ['id']),
   tool('delete_transaction', 'Delete a transaction.', { id: str }, ['id']),
-  tool('add_bill', 'Add a recurring bill.', { name: str, amount: num, category: str, cadence: str, due_day: integer }, ['name', 'amount']),
-  tool('update_bill', 'Edit a bill. Requires id.', { id: str, name: str, amount: num, category: str, cadence: str, due_day: integer, active: bool }, ['id']),
+  tool('add_bill', 'Add a recurring bill.', { name: str, amount: num, category: str, cadence: str, due_day: integer, start_date: str }, ['name', 'amount']),
+  tool('update_bill', 'Edit a bill. Requires id. start_date is first due (YYYY-MM-DD); omit to leave it.', { id: str, name: str, amount: num, category: str, cadence: str, due_day: integer, active: bool, start_date: str }, ['id']),
   tool('delete_bill', 'Delete a bill.', { id: str }, ['id']),
   tool('add_income', 'Add an income source.', { name: str, amount: num, cadence: str, due_day: integer, anchor_date: str, confirmed: bool }, ['name']),
   tool('update_income', 'Edit income. Requires id.', { id: str, name: str, amount: num, cadence: str, due_day: integer, anchor_date: str, confirmed: bool, active: bool }, ['id']),
@@ -35,9 +35,9 @@ const TOOLS = [
   tool('pause_goal', 'Pause a goal (not reserved). Requires id.', { id: str }, ['id']),
   tool('unpause_goal', 'Unpause a goal (reserved again). Requires id.', { id: str }, ['id']),
   tool('add_card', 'Add a credit card.', { name: str, balance: num, credit_limit: num, min_payment: num, plan_payment: num, due_day: integer, apr: num }, ['name']),
-  tool('add_debt', 'Add a loan or other debt.', { name: str, kind: str, balance: num, min_payment: num, plan_payment: num, due_day: integer, apr: num }, ['name']),
+  tool('add_debt', 'Add a loan or other debt. start_date is first payment (YYYY-MM-DD).', { name: str, kind: str, balance: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, start_date: str }, ['name']),
   tool('update_card', 'Update a credit card. Requires id.', { id: str, name: str, balance: num, credit_limit: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, autopay: bool, active: bool }, ['id']),
-  tool('update_debt', 'Update a loan/debt. Requires id.', { id: str, name: str, kind: str, balance: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, active: bool }, ['id']),
+  tool('update_debt', 'Update a loan/debt. Requires id. start_date is first payment (YYYY-MM-DD); other fields only change if sent.', { id: str, name: str, kind: str, balance: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, active: bool, start_date: str }, ['id']),
   tool('delete_card', 'Delete a credit card.', { id: str }, ['id']),
   tool('delete_debt', 'Delete a loan/debt.', { id: str }, ['id']),
   tool('add_set_aside', 'Hold money aside for a date.', { name: str, amount: num, due_date: str }, ['name', 'amount']),
