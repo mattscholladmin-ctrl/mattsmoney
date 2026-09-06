@@ -2205,8 +2205,12 @@ export function spendableToday(
   const windowBillIds = new Set()
   for (const b of upBills) {
     const due = b.originalDate || b.date
-    if (b.preStart || due > windowEnd) later.push({ ...b, due })
-    else {
+    if (b.overdue) continue
+    if (b.preStart) {
+      later.push({ ...b, due })
+      continue
+    }
+    if (due <= windowEnd) {
       thisWindow.push(b)
       windowBillIds.add(b.billId || b.id)
     }

@@ -95,6 +95,19 @@ describe('paycheck-share safe to spend', () => {
     assert.ok(info.laterItems.some((x) => x.name.includes('Friend') && x.share === 375))
   })
 
+  it('Sep 6: later September bill is not dumped into later or this window', () => {
+    const netflix = { id: 'n', name: 'Netflix', amount: 8.99, cadence: 'monthly', due_day: 15, start_date: '2026-08-15', active: true }
+    const info = spendableToday(10000, {
+      bills: [netflix],
+      incomes: [smr],
+      fromIso: '2026-09-06',
+      bufferFloor: 0,
+      transactions: [{ merchant: 'Netflix', amount: 8.99, txn_date: '2026-08-15' }],
+    })
+    assert.equal(info.billsBeforePay, 0)
+    assert.equal(info.laterShare, 0)
+  })
+
   it('Sep 6: bill due before next paycheck is held in full', () => {
     const hinge = { id: 'h', name: 'Hinge+', amount: 19.99, cadence: 'monthly', due_day: 9, start_date: '2026-08-09', active: true }
     const info = spendableToday(10000, {
