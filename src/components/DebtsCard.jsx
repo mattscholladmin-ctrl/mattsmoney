@@ -496,26 +496,24 @@ function ManageDebtsModal({ debts, focusId = null, onClose, onChanged }) {
       return
     }
     // A payment with no date (next OR start) wouldn't schedule into the forecast.
-    if (Number(payment) > 0 && !nextDate && !startDate && !firstPay) {
-      setError('Add a start date or next payment date so this shows up in your forecast.')
+    if (Number(payment) > 0 && !nextDate && !firstPay) {
+      setError('Add a first payment or next payment date so this shows up in your forecast.')
       return
     }
     setBusy(true)
     setError(null)
     try {
-      // Schedule anchors on the next payment date, or the start date rolled
-      // forward if that's all you gave.
-      const anchor = nextDate || startDate || null
+      const scheduleDate = firstPay || nextDate || null
       await addDebt({
         name: name.trim(),
         balance: effectiveBalance,
         apr: Number(apr || 0),
         min_payment: Number(payment || 0),
         plan_payment: Number(payment || 0),
-        due_day: frequency === 'monthly' && anchor ? Number(anchor.slice(8, 10)) : null,
+        due_day: frequency === 'monthly' && scheduleDate ? Number(scheduleDate.slice(8, 10)) : null,
         pay_frequency: frequency,
-        next_payment_date: nextDate || firstPay || startDate || null,
-        start_date: firstPay || nextDate || null,
+        next_payment_date: nextDate || null,
+        start_date: firstPay || null,
         kind,
         original_balance: originalBalance,
       })

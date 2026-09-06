@@ -1,7 +1,22 @@
 // Shared Grok door: full read + writes. Used by /api/grok and the MCP connector.
 import crypto from 'node:crypto'
 import { adminClient } from './googleServer.js'
-import { accountSummaries, spendableToday, currentBalance, debtsAsBills, obligationSchedule } from './budget.js'
+import {
+  accountSummaries,
+  spendableToday,
+  currentBalance,
+  debtsAsBills,
+  obligationSchedule,
+  moneyTotals,
+  totalEarmarked,
+  totalSetAside,
+  goalPaceReserve,
+  everydayHoldback,
+  smoothedReserve,
+  payPeriodsPerYear,
+  mostRecentPaydayIso,
+  upcomingBills,
+} from './budget.js'
 import { isoDate } from './format.js'
 
 export function grokSecretOk(request) {
@@ -90,13 +105,13 @@ async function snapshot(db, uid) {
   ] = await Promise.all([
     db.from('accounts').select('id,name,kind,include_in_spendable,mask,institution,sort_order,hidden').eq('user_id', uid).order('sort_order'),
     db.from('balance_entries').select('id,account_id,balance,as_of,note').eq('user_id', uid).order('as_of', { ascending: false }),
-    db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance,start_date').eq('user_id', uid),
-    db.from('recurring_bills').select('id,name,amount,due_day,cadence,active,category,start_date').eq('user_id', uid),
+    db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance,start_date,smooth').eq('user_id', uid),
+    db.from('recurring_bills').select('id,name,amount,due_day,cadence,active,category,start_date,smooth').eq('user_id', uid),
     db.from('goals').select('id,name,target,current,monthly_contribution,status,reserved,target_date,note,sort_order').eq('user_id', uid).order('sort_order'),
     db.from('income_sources').select('id,name,amount,cadence,confirmed,anchor_date,due_day,active').eq('user_id', uid),
     db.from('set_asides').select('id,name,amount,due_date').eq('user_id', uid),
     db.from('settings').select('buffer_floor').eq('user_id', uid).maybeSingle(),
-    db.from('transactions').select('id,txn_date,merchant,amount,category,note,account_id,goal_id,income_source').eq('user_id', uid).order('txn_date', { ascending: false }).limit(40),
+    db.from('transactions').select('id,txn_date,merchant,amount,category,note,account_id,goal_id,income_source').eq('user_id', uid).order('txn_date', { ascending: false }).limit(500),
     db.from('budgets').select('id,category,monthly_limit').eq('user_id', uid),
     db.from('credit_scores').select('id,bureau,score,model,source,checked_on,note').eq('user_id', uid).order('checked_on', { ascending: false }).limit(12),
     db.from('phases').select('id,name,starts_on,ends_on').eq('user_id', uid).order('starts_on'),
@@ -122,21 +137,64 @@ async function snapshot(db, uid) {
   for (const p of payRows) {
     ;(paidByDebt[p.debt_id] ||= []).push(p.paid_on)
   }
-  const allBills = [...billRows.filter((b) => !b.smooth), ...debtsAsBills(debtRows)]
+  const allBills = [...billRows.filter((b) => !b.smooth), ...debtsAsBills(debtRows, goals.data || [])]
+  const acctRows = (accounts.data || []).filter((a) => !a.hidden)
+  const txnRows = txns.error ? [] : txns.data || []
+  const goalRows = goals.data || []
+  const incomeRows = income.data || []
+  const budgetRows = budgets.error ? [] : budgets.data || []
+  const setAsideRows = setAsides.error ? [] : setAsides.data || []
 
-  const sums = accountSummaries(accounts.data || [], balances.data || [])
+  const sums = accountSummaries(acctRows, balances.data || [])
+  const totals = moneyTotals(acctRows, balances.data || [], debtRows)
   const bufferFloor = Number(settings.data?.buffer_floor || 0)
   const latest = currentBalance(balances.data || [])
+  const hasAccounts = acctRows.length > 0
+  const checkinBal = hasAccounts ? totals.spendableCash : latest ? Number(latest.balance) : 0
+  const hasBalance = hasAccounts || !!latest
+  const anchorDate = latest?.as_of || today
+  const elapsedDays = Math.max(
+    0,
+    Math.round((new Date(today) - new Date(anchorDate)) / (24 * 60 * 60 * 1000))
+  )
+  const ppy = payPeriodsPerYear(incomeRows)
+  const monthlyVariable = budgetRows.reduce((s, b) => s + Number(b.monthly_limit || 0), 0)
+  const billsSince = upcomingBills(allBills, anchorDate, elapsedDays)
+    .filter((b) => b.date < today)
+    .reduce((s, b) => s + Number(b.amount || 0), 0)
+  const assumedSince = elapsedDays * (monthlyVariable / 30) + billsSince
+  const startBal = checkinBal - assumedSince
+  const earmarked = totalEarmarked(goalRows, txnRows, acctRows)
+  const setAside = totalSetAside(setAsideRows)
+  const goalReserve = goalPaceReserve(goalRows, txnRows, ppy, incomeRows)
+  const everyday = everydayHoldback(budgetRows, txnRows, {
+    ppy,
+    periodStartIso: mostRecentPaydayIso(incomeRows, today),
+    today,
+  })
+  const smoothed = smoothedReserve(billRows, debtRows, ppy, {
+    accounts: sums,
+    goals: goalRows,
+    today,
+    incomeSources: incomeRows,
+    transactions: txnRows,
+  })
   let spendable = null
-  if (latest) {
+  if (hasBalance) {
     try {
-      const info = spendableToday(Number(latest.balance), {
+      const info = spendableToday(startBal, {
         bills: allBills,
-        incomes: income.data || [],
+        incomes: incomeRows,
         buckets: [],
         bufferFloor,
-        transactions: txns.error ? [] : txns.data || [],
+        earmarked,
+        setAside,
+        goalReserve,
+        everyday: everyday.total,
+        smoothed: smoothed.total,
+        transactions: txnRows,
         fromIso: today,
+        goals: goalRows,
       })
       spendable = info?.spendable ?? null
     } catch {
@@ -157,7 +215,7 @@ async function snapshot(db, uid) {
       as_of: a.asOf,
       include_in_spendable: byId[a.id]?.include_in_spendable !== false,
     })),
-    cards: (debts.data || [])
+    cards: debtRows
       .filter((d) => d.kind === 'card')
       .map((d) => ({
         id: d.id,

@@ -45,10 +45,17 @@ describe('obligation start_date', () => {
     assert.equal(s.next_due, '2026-10-01')
   })
 
-  it('Sep 6 unpaid list is not overdue and holds $750', () => {
+  it('weekly bill next_due is the next weekday, not next month', () => {
+    const s = obligationSchedule({ name: 'Hinge+', amount: 19.99, cadence: 'weekly', due_day: 3 }, '2026-09-06')
+    assert.equal(s.next_due, '2026-09-09')
+  })
+
+  it('Sep 6 hold is dated Oct 1 and still reserved', () => {
     const asBills = debtsAsBills([loan])
     const unpaid = unpaidBills(asBills, [], '2026-09-06', 30)
-    assert.ok(unpaid.some((u) => u.preStart && u.originalDate === '2026-10-01'))
+    const hold = unpaid.find((u) => u.preStart)
+    assert.ok(hold)
+    assert.equal(hold.date, '2026-10-01')
     assert.ok(!unpaid.some((u) => u.overdue))
     const info = spendableToday(10000, {
       bills: asBills,
@@ -57,5 +64,12 @@ describe('obligation start_date', () => {
       transactions: [],
     })
     assert.equal(info.billsBeforePay, 750)
+  })
+
+  it('overdue goal covers the missed cycle so the bill is not held twice', () => {
+    const verizon = { id: 'vz', name: 'Verizon', amount: 280, cadence: 'monthly', due_day: 1, active: true }
+    const goals = [{ name: 'Overdue — Verizon Aug bill', status: 'active', reserved: true, target: 313.68 }]
+    const unpaid = unpaidBills([verizon], [], '2026-09-06', 30, goals)
+    assert.ok(!unpaid.some((u) => u.overdue && String(u.name).includes('Verizon')))
   })
 })

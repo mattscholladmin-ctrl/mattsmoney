@@ -720,7 +720,7 @@ export default function Dashboard({ session, demo = false }) {
     }
     // Bills that still need paying — occurrences with a matching payment
     // already in the transactions feed drop out (they've left the balance).
-    const upcoming = unpaidBills(allBills, data.transactions, today, horizonDays)
+    const upcoming = unpaidBills(allBills, data.transactions, today, horizonDays, data.goals)
     const income = upcomingIncome(data.income, today, horizonDays, data.transactions)
     // Dated "planned" goals are real one-time outflows — fold them into the
     // forecast so the running balance sets them aside like any bill.
@@ -845,8 +845,6 @@ export default function Dashboard({ session, demo = false }) {
       ? spendableToday(startBal, {
           bills: allBills,
           incomes: data.income,
-          // Trip funds were folded into Goals — a trip is a goal with a
-          // deadline; its set-aside is held via the goal earmark instead.
           buckets: [],
           bufferFloor,
           earmarked,
@@ -856,6 +854,7 @@ export default function Dashboard({ session, demo = false }) {
           smoothed: billSmoothedTotal + debtSmoothedTotal,
           transactions: data.transactions,
           fromIso: today,
+          goals: data.goals,
         })
       : null
     // The forecast walks the *total* balance. To show the spendable trough too,
@@ -900,7 +899,7 @@ export default function Dashboard({ session, demo = false }) {
     // paychecks, planned items), no everyday-spending estimate so it shows
     // discrete events. Same starting balance as the forecast.
     const calEvents = mergeTimeline(
-      unpaidBills(allBills, data.transactions, today, 30),
+      unpaidBills(allBills, data.transactions, today, 30, data.goals),
       upcomingIncome(data.income, today, 30, data.transactions),
       datedGoalEvents(data.goals, today, 30, data.transactions)
     )
@@ -916,9 +915,9 @@ export default function Dashboard({ session, demo = false }) {
     const nnHorizon = 90
     const nnPpy = payPeriodsPerYear(data.income)
     const nnIncomeOcc = upcomingIncome(data.income, today, nnHorizon, data.transactions)
-    const nnBillOcc = unpaidBills(data.bills, data.transactions, today, nnHorizon)
+    const nnBillOcc = unpaidBills(data.bills, data.transactions, today, nnHorizon, data.goals)
     const nnDebtBills = debtsAsBills(data.debts, data.goals)
-    const nnDebtOcc = unpaidBills(nnDebtBills, data.transactions, today, nnHorizon)
+    const nnDebtOcc = unpaidBills(nnDebtBills, data.transactions, today, nnHorizon, data.goals)
     // The Debt chip must govern the SAME debts in the baseline and the cycle walk.
     // debtsAsBills already excludes debts whose paydown flows through an installment
     // plan (those ride the goal timeline instead), so the baseline debt sum must
@@ -981,7 +980,8 @@ export default function Dashboard({ session, demo = false }) {
       [...lumpBills, ...debtsAsBills(data.debts, data.goals)],
       data.transactions,
       today,
-      30
+      30,
+      data.goals
     )
     // The Income tile's own "Expected next 30 days" label is a fixed promise,
     // so back it with an actual 30-day window too — not the horizon toggle's

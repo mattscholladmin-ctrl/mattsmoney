@@ -446,7 +446,9 @@ export function obligationSchedule(item = {}, today = isoDate(), { unpaid = true
     return { next_due: start, status: 'pre_start' }
   }
 
-  if (start) {
+  const freq = item.pay_frequency || item.cadence || 'monthly'
+
+  if (start && freq !== 'weekly' && freq !== 'biweekly') {
     const through = isoDate(new Date(parseISO(today).getTime() + 400 * DAY_MS))
     const cycles = obligationCycles(item, through).filter((c) => c >= start)
     const last = [...cycles].reverse().find((c) => c <= today)
@@ -457,21 +459,33 @@ export function obligationSchedule(item = {}, today = isoDate(), { unpaid = true
     return { next_due: upcoming, status: 'due' }
   }
 
-  // Legacy: no start_date. Existing next_payment_date / due_day behavior.
   const from = parseISO(today)
-  const npd = item.next_payment_date || null
-  const freq = item.pay_frequency || 'monthly'
+  const npd = item.next_payment_date || item.anchor || item.anchor_date || start || null
   if (npd && freq === 'biweekly') {
     const d = parseISO(npd)
     while (d < from) d.setDate(d.getDate() + 14)
+    if (start && isoDate(d) < start) {
+      const s = parseISO(start)
+      while (s < from) s.setDate(s.getDate() + 14)
+      return { next_due: isoDate(s), status: today < start ? 'pre_start' : 'due' }
+    }
     return { next_due: isoDate(d), status: 'due' }
   }
-  if (npd && freq === 'weekly') {
-    const d = parseISO(npd)
-    while (d < from) d.setDate(d.getDate() + 7)
-    return { next_due: isoDate(d), status: 'due' }
+  if (freq === 'weekly') {
+    const targetDow = Number(item.due_day)
+    if (Number.isInteger(targetDow) && targetDow >= 0 && targetDow <= 6) {
+      const d = new Date(from)
+      while (d.getDay() !== targetDow) d.setDate(d.getDate() + 1)
+      if (start && isoDate(d) < start) return { next_due: start, status: today < start ? 'pre_start' : 'due' }
+      return { next_due: isoDate(d), status: 'due' }
+    }
+    if (npd) {
+      const d = parseISO(npd)
+      while (d < from) d.setDate(d.getDate() + 7)
+      return { next_due: isoDate(d), status: 'due' }
+    }
   }
-  if (npd) {
+  if (npd && freq !== 'weekly') {
     const d = parseISO(npd)
     while (d < from) d.setMonth(d.getMonth() + 1)
     return { next_due: isoDate(d), status: 'due' }
@@ -1815,7 +1829,7 @@ const OVERDUE_PAID_WINDOW_DAYS = 21
 // any other upcoming item without needing to understand a past-dated event.
 // Skipped when `forward` already has a same-bill occurrence due exactly
 // today — that already covers it, so this doesn't double the bill up.
-export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), horizonDays = 30) {
+export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), horizonDays = 30, goals = []) {
   const preStartIds = new Set()
   const preStartHolds = []
   for (const bill of bills) {
@@ -1824,7 +1838,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
     if (start && fromIso < start) {
       preStartIds.add(bill.id)
       preStartHolds.push({
-        date: fromIso,
+        date: start,
         name: bill.name,
         amount: Number(bill.amount || 0),
         category: bill.category || 'Bills',
@@ -1845,6 +1859,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
   const lookbackFrom = isoDate(new Date(parseISO(fromIso).getTime() - OVERDUE_LOOKBACK_DAYS * DAY_MS))
   for (const bill of bills) {
     if (bill.active === false || dueTodayBillIds.has(bill.id) || preStartIds.has(bill.id)) continue
+    if (overdueGoalCovers(bill, goals)) continue
     const past = billOccurrences(bill, lookbackFrom, OVERDUE_LOOKBACK_DAYS).filter((d) => d < fromIso)
     const mostRecent = past[past.length - 1]
     if (!mostRecent) continue
@@ -1861,6 +1876,22 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
     }
   }
   return [...preStartHolds, ...overdue, ...forward].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+}
+
+function overdueGoalCovers(bill, goals = []) {
+  const billWords = significantWords(bill.name || '').filter(
+    (w) => w.length > 2 && !['overdue', 'bill', 'unpaid', 'payment', 'the', 'and'].includes(w)
+  )
+  if (!billWords.length) return false
+  return (goals || []).some((g) => {
+    if (g.status !== 'active' || g.reserved === false) return false
+    const n = String(g.name || '').toLowerCase()
+    if (!n.includes('overdue')) return false
+    const gWords = significantWords(g.name || '')
+    const shared = billWords.filter((w) => gWords.includes(w) || n.includes(w))
+    if (shared.length >= 2) return true
+    return shared.some((w) => w.length >= 5 || /\d/.test(w))
+  })
 }
 
 function round2(n) {
@@ -2121,7 +2152,7 @@ export function everydayHoldback(budgets = [], transactions = [], { ppy = 26, pe
 
 export function spendableToday(
   startBalance,
-  { bills = [], incomes = [], buckets = [], bufferFloor = 0, earmarked = 0, setAside = 0, goalReserve = 0, everyday = 0, smoothed = 0, transactions = [], fromIso = isoDate(), horizonDays = 60 } = {}
+  { bills = [], incomes = [], buckets = [], bufferFloor = 0, earmarked = 0, setAside = 0, goalReserve = 0, everyday = 0, smoothed = 0, transactions = [], fromIso = isoDate(), horizonDays = 60, goals = [] } = {}
 ) {
   const start = Number(startBalance || 0)
   const floor = Number(bufferFloor || 0)
@@ -2145,10 +2176,10 @@ export function spendableToday(
   const windowEnd = nextIncome
     ? nextIncome.date
     : isoDate(new Date(parseISO(fromIso).getTime() + 31 * DAY_MS))
-  const upBills = unpaidBills(bills, transactions, fromIso, horizonDays)
-  const billsBeforePay = upBills
-    .filter((b) => b.date < windowEnd)
-    .reduce((sum, b) => sum + b.amount, 0)
+  const upBills = unpaidBills(bills, transactions, fromIso, horizonDays, goals)
+  const windowBills = upBills.filter((b) => !b.preStart && b.date < windowEnd)
+  const preStartHeld = upBills.filter((b) => b.preStart).reduce((sum, b) => sum + b.amount, 0)
+  const billsBeforePay = windowBills.reduce((sum, b) => sum + b.amount, 0) + preStartHeld
 
   const tripFunds = buckets.reduce((sum, b) => sum + Number(b.current || 0), 0)
 
