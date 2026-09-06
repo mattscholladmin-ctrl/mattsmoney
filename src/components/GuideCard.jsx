@@ -21,6 +21,13 @@ const SECTIONS = [
             matches it to the bill and releases that money automatically.
           </li>
           <li>
+            <strong>A loan or bill that hasn't started yet</strong> — if it has a
+            <strong> first payment date</strong> still in the future, the app holds
+            that payment now (so you save for it) but does <strong>not</strong> mark
+            it late. You'll see <strong>Starts …</strong> and
+            <strong> First payment … — save $X</strong>, not Past due.
+          </li>
+          <li>
             <strong>Everyday spending you've budgeted</strong> — what's still left in
             this pay period's category budgets (groceries, gas, dining, etc.),
             reset from your last real payday. It's shown as one <em>"Everyday
@@ -246,8 +253,10 @@ const SECTIONS = [
             row (tap the box, tap away to save), tap <strong>Edit</strong> to change
             the name or schedule, or <strong>Delete</strong>. Tap
             <strong> + Add</strong> to enter a new one (name, amount, how often, and
-            the day). The same list is also on Insights → "Recurring bills" if
-            you're already over there.
+            the day). Optional: a <strong>first due date</strong> if it doesn't start
+            until later — until then it's held as save-for, not overdue. The same
+            list is also on Insights → "Recurring bills" if you're already over
+            there.
           </li>
           <li>
             The app also <strong>spots recurring charges</strong> you haven't added
@@ -317,7 +326,8 @@ const SECTIONS = [
           <li>
             A debt with a payment + due date automatically shows up in your next-30-days
             bills and your forecast, so scheduled debt payments are counted like any
-            other obligation.
+            other obligation. If the first payment is still ahead, it shows a
+            <strong> Starts</strong> badge instead of overdue.
           </li>
         </ul>
       </>
@@ -456,12 +466,24 @@ const SECTIONS = [
             <strong> next payment date</strong> so you can see what's coming up.
           </li>
           <li>
+            <strong>First payment date — if it isn't due yet.</strong> On add or edit,
+            set <strong>First payment</strong> to the first day this debt is actually
+            collectible (example: a loan that starts Oct 1). Until that date, Safe to
+            spend <strong>holds the payment</strong> and the tile says
+            <strong> "First payment … — save $X"</strong> with a
+            <strong> Starts</strong> badge. It is <strong>not late</strong>. On that
+            date it becomes a normal due-the-Nth payment. Leave First payment blank
+            if you're already in the cycle. Don't make a separate goal or set-aside
+            for the same first payment — that would hold the money twice.
+          </li>
+          <li>
             <strong>Been paying it a while? Add it with a start date.</strong> When
             you add a debt, fill in the <strong>original amount</strong> and a
-            <strong> "Started on"</strong> date in the past — the app works today's
-            balance forward for you (original amount minus every payment due since
-            then) and projects the payoff. You can still type the balance yourself to
-            override it. Leave the start date blank for a brand-new debt.
+            <strong> "Started on"</strong> date in the past — that's when the loan
+            began, used only to work today's balance forward (original amount minus
+            every payment due since then) and project the payoff. Different from
+            <strong> First payment</strong> above. You can still type the balance
+            yourself to override it. Leave "Started on" blank for a brand-new debt.
           </li>
           <li>
             <strong>Every debt has a progress bar.</strong> Credit cards show
@@ -741,6 +763,41 @@ const SECTIONS = [
     ),
   },
   {
+    title: 'Grok (chat)',
+    body: (
+      <>
+        <p>
+          Grok can talk to this app the same way it talks to Gmail — through the
+          <strong> Matt's Money</strong> connector. It reads live numbers. It only
+          changes something after you say yes in that chat.
+        </p>
+        <ul>
+          <li>
+            Add it once at grok.com/connectors (Custom connector, Matt's Money).
+            After that, any normal Grok chat can use it. You do not paste GitHub
+            or Vercel again for new chats.
+          </li>
+          <li>
+            <strong>Read:</strong> cash, cards, debts, bills, goals, income,
+            set-asides, recent purchases, budgets, credit scores, phases, buffer,
+            and Safe to spend — including a debt's first payment date, next due,
+            and whether it's not-started-yet, due, or late.
+          </li>
+          <li>
+            <strong>Change (after you say yes):</strong> log or edit purchases;
+            add/edit/delete bills, income, accounts, goals, cards, and debts
+            (including first payment date); set-asides; buffer; category budgets;
+            credit scores.
+          </li>
+          <li>
+            Grok does not log into your bank. Bank feeds stay on the Finance /
+            SoFi connector. This app is the plan on top.
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
     title: 'Google Calendar sync',
     body: (
       <>
@@ -816,6 +873,8 @@ const SECTIONS = [
           <li>
             <strong>Safe to spend seems low</strong> — check the breakdown right
             under the number; it lists exactly what's being held back and why.
+            A loan with a first payment still ahead will hold that payment even
+            though it isn't late yet.
           </li>
           <li>
             <strong>A transaction seems to be missing</strong> — the app
