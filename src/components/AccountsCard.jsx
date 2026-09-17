@@ -174,7 +174,8 @@ function AccountRow({ account, goals = [], transactions = [], onOpen }) {
           {account.asOf && (
             <p className="text-xs text-slate-400">
               as of {shortDate(account.asOf)}
-              {account.balanceDetail ? ` · ${account.balanceDetail}` : ''}
+              {account.bankCurrent != null ? ` · bank ${money(account.bankCurrent)}` : ''}
+              {account.pending != null && account.pending > 0 ? ` · pending ${money(account.pending)}` : account.balanceDetail && account.bankCurrent == null ? ` · ${account.balanceDetail}` : ''}
             </p>
           )}
         </div>

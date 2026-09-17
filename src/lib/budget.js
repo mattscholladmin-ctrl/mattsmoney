@@ -52,6 +52,11 @@ export function latestByAccount(balanceEntries = []) {
 }
 
 // Each account with its current balance and the date that balance is from.
+function parseMoneyFromNote(note, label) {
+  const m = String(note || '').match(new RegExp(label + ' \\$([0-9.]+)'))
+  return m ? Number(m[1]) : null
+}
+
 export function accountSummaries(accounts = [], balanceEntries = []) {
   const latest = latestByAccount(balanceEntries)
   return accounts.map((a) => ({
@@ -61,6 +66,8 @@ export function accountSummaries(accounts = [], balanceEntries = []) {
     // "in bank $X · pending $Y" detail carried in the sync note, if any.
     balanceDetail:
       (latest[a.id]?.note || '').split('Auto-synced · ')[1] || null,
+    bankCurrent: parseMoneyFromNote(latest[a.id]?.note, 'in bank'),
+    pending: parseMoneyFromNote(latest[a.id]?.note, 'pending'),
   }))
 }
 
@@ -1824,10 +1831,8 @@ export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(
     if (billId && (t.bill_id === billId || note.includes(`paid:${billId}`))) return true
     const ta = Number(t.amount || 0)
     if (ta <= 0) return false
-    if (!billWords.length) return false
     if (Math.abs(ta - amt) > Math.max(0.5, amt * 0.02)) return false
-    const words = significantWords(t.merchant || '')
-    return words.some((w) => billWords.includes(w))
+    return merchantMatchesBill(occ.name || '', t.merchant || '')
   })
 }
 
@@ -2007,6 +2012,8 @@ const BILL_PAYEE_ALIASES = {
   icloud: ['icloud', 'apple'],
   applecare: ['applecare', 'apple', 'applecare+'],
   apple: ['apple'],
+  amazon: ['amazon', 'prime'],
+  prime: ['amazon', 'prime'],
   instagram: ['instagram', 'meta', 'facebook'],
   netflix: ['netflix'],
   starlink: ['starlink', 'spacex'],
@@ -2031,7 +2038,7 @@ function billPayeeKeys(name) {
   return keys
 }
 
-function merchantMatchesBill(billName, merchant) {
+export function merchantMatchesBill(billName, merchant) {
   const billKeys = billPayeeKeys(billName)
   const merch = normalizeMerchant(merchant || '')
   if (!billKeys.size || !merch) return false

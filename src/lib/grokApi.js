@@ -8,6 +8,7 @@ import {
   currentBalance,
   debtsAsBills,
   obligationSchedule,
+  isBillOccurrencePaid,
   moneyTotals,
   totalEarmarked,
   totalSetAside,
@@ -262,6 +263,8 @@ async function snapshot(db, uid) {
       }),
     bills: billRows.map((b) => {
       const sched = obligationSchedule({ ...b, plan_payment: b.amount }, today)
+      const occ = { ...b, billId: b.id, date: sched.next_due, amount: b.amount, name: b.name }
+      const paid = sched.next_due && isBillOccurrencePaid(occ, txnRows, today)
       return {
         id: b.id,
         name: b.name,
@@ -272,7 +275,7 @@ async function snapshot(db, uid) {
         active: b.active !== false,
         start_date: b.start_date || null,
         next_due: sched.next_due,
-        status: sched.status,
+        status: paid ? 'paid' : sched.status,
       }
     }),
     goals: (goals.data || []).map((g) => ({

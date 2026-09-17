@@ -3,7 +3,7 @@
 // secret key). Mirrors the Google integration's service-role pattern.
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid'
 import { adminClient } from './googleServer.js'
-import { normalizeMerchant } from './budget.js'
+import { normalizeMerchant, merchantMatchesBill } from './budget.js'
 
 export function plaidClient() {
   const env = process.env.PLAID_ENV || 'sandbox'
@@ -443,8 +443,43 @@ export async function syncItemTransactions(uid, item, db = adminClient()) {
     .update({ cursor })
     .eq('item_id', item.item_id)
     .eq('user_id', uid)
+  await alignBillAmountsFromCharges(uid, db)
   return { added: added.length, ready: true }
 }
+
+export async function alignBillAmountsFromCharges(uid, db = adminClient()) {
+  const { data: bills } = await db
+    .from('recurring_bills')
+    .select('id,name,amount,active')
+    .eq('user_id', uid)
+  const { data: txns } = await db
+    .from('transactions')
+    .select('merchant,amount,txn_date')
+    .eq('user_id', uid)
+    .order('txn_date', { ascending: false })
+    .limit(300)
+  const processors = new Set(['apple', 'google', 'amazon'])
+  for (const b of bills || []) {
+    if (b.active === false) continue
+    const bill = String(b.name || '').toLowerCase()
+    const distinctive = bill
+      .replace(/[^a-z0-9+ ]+/g, ' ')
+      .split(' ')
+      .filter((w) => w.length >= 4 && !processors.has(w))
+    const hit = (txns || []).find((t) => {
+      const amt = Number(t.amount || 0)
+      if (!(amt > 0)) return false
+      const merch = String(t.merchant || '').toLowerCase()
+      if (distinctive.length) return distinctive.some((w) => merch.includes(w))
+      return merchantMatchesBill(b.name, t.merchant)
+    })
+    if (!hit) continue
+    const amt = Number(hit.amount)
+    if (Math.abs(amt - Number(b.amount || 0)) < 0.01) continue
+    await db.from('recurring_bills').update({ amount: amt }).eq('id', b.id).eq('user_id', uid)
+  }
+}
+
 
 export async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body
