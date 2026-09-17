@@ -130,7 +130,7 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
         </p>
         {asOf && (
           <p className={`text-[0.7rem] shrink-0 whitespace-nowrap ${asOfStale ? 'text-amber-600' : 'text-slate-400'}`}>
-            {asOfStale ? 'est. ' : 'as of '}{shortDate(asOf)}
+            {asOfStale ? 'Cash is old' : 'as of '}{asOfStale ? '' : shortDate(asOf)}
           </p>
         )}
       </div>
@@ -141,6 +141,11 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
       >
         {negative ? `\u2212${money(Math.abs(spendable))}` : money(spendable)}
       </p>
+      {asOfStale && (
+        <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
+          Cash is old. Bank pull did not finish.
+        </p>
+      )}
 
       {perDay != null && (
         <p className="text-sm mt-2 font-medium text-emerald-700">

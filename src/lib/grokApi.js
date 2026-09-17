@@ -1,6 +1,7 @@
 // Shared Grok door: full read + writes. Used by /api/grok and the MCP connector.
 import crypto from 'node:crypto'
 import { adminClient } from './googleServer.js'
+import { refreshLinkedBanks } from './plaidServer.js'
 import {
   accountSummaries,
   spendableToday,
@@ -89,6 +90,7 @@ async function remove(db, table, uid, id) {
 }
 
 async function snapshot(db, uid) {
+  await refreshLinkedBanks(uid, db)
   const today = isoDate()
   const [
     accounts,
@@ -206,7 +208,7 @@ async function snapshot(db, uid) {
         fromIso: today,
         goals: goalRows,
       })
-      spendable = info?.spendable ?? null
+      spendable = info?.spendable == null ? null : Number(Number(info.spendable).toFixed(2))
     } catch {
       spendable = null
     }

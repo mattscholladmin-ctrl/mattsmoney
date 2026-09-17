@@ -527,8 +527,14 @@ export default function Dashboard({ session, demo = false }) {
   }, [demo, load])
 
   useEffect(() => {
-    load()
-  }, [load])
+    if (demo) {
+      load()
+      return
+    }
+    refreshPlaid()
+      .then(() => load())
+      .catch(() => load())
+  }, [load, demo])
 
   // For "Save each paycheck": the default accounts a move flows between — from your
   // main spendable account, into your main savings (non-spendable) account. Null if
@@ -640,11 +646,9 @@ export default function Dashboard({ session, demo = false }) {
     const now = Date.now()
     if (now - lastPlaidRef.current < 60000) return
     lastPlaidRef.current = now
-    refreshPlaid()
-      .then((r) => {
-        if (r?.synced) load()
-      })
-      .catch(() => {})
+    return refreshPlaid()
+      .then(() => load())
+      .catch(() => load())
   }, [demo, load])
 
   // Auto-pull latest balances + transactions from connected banks on app open.

@@ -464,3 +464,21 @@ export async function readBody(req) {
     return {}
   }
 }
+
+
+export async function refreshLinkedBanks(uid, db = adminClient()) {
+  try {
+    const items = await listItems(uid, db)
+    for (const it of items) {
+      try {
+        await syncItemAccounts(uid, it, db)
+        await syncItemTransactions(uid, it, db)
+      } catch {
+        /* one item must not block the rest */
+      }
+    }
+    return { ok: true, items: items.length }
+  } catch {
+    return { ok: false, items: 0 }
+  }
+}

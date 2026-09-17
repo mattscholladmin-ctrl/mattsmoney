@@ -696,7 +696,7 @@ export function normalizeMerchant(m) {
 const KEYWORD_CATEGORY = [
   ['Gas', ['shell', 'chevron', 'exxon', 'conoco', 'phillips', 'sinclair', 'maverik', 'holiday', 'fuel', 'gas', 'bp', 'texaco', 'marathon', 'circle k', 'valero', 'arco', 'sunoco', 'speedway', 'loaf n jug']],
   ['Dining', ['mcdonald', 'starbucks', 'taco', 'chipotle', 'subway', 'pizza', 'burger', 'wendy', 'dunkin', 'cafe', 'coffee', 'restaurant', 'grill', 'diner', 'deli', 'brewing', 'sonic', 'kfc', 'panera', 'sushi', 'bbq', 'bakery']],
-  ['Groceries', ['market', 'grocery', 'grocer', 'safeway', 'kroger', 'king soopers', 'city market', 'walmart', 'target', 'trader joe', 'whole foods', 'aldi', 'costco', 'sams club', 'natural grocers', 'sprouts']],
+  ['Groceries', ['market', 'grocery', 'grocer', 'safeway', 'kroger', 'king soopers', 'city market', 'walmart', 'target', 'trader joe', 'whole foods', 'aldi', 'costco', 'sams club', 'natural grocers', 'sprouts', 'lagrees', 'stop n save']],
   ['Pet', ['petsmart', 'petco', 'chewy', 'vet', 'veterin']],
   ['Subscriptions', ['netflix', 'spotify', 'hulu', 'disney', 'youtube', 'adobe', 'dropbox', 'patreon', 'squarespace', 'icloud', 'hbo', 'paramount', 'audible']],
   ['Utilities', ['verizon', 'comcast', 'xfinity', 'centurylink', 'utility', 'electric', 'internet']],
@@ -1813,16 +1813,19 @@ export function upcomingBills(bills = [], fromIso = isoDate(), horizonDays = 30)
 const PAID_WINDOW_DAYS = 5
 export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(), windowDays = PAID_WINDOW_DAYS) {
   if (occ.date > todayIso) return false // future bills can't be paid off yet
+  const billId = occ.billId || occ.id
   const from = isoDate(new Date(parseISO(occ.date).getTime() - windowDays * DAY_MS))
   const billWords = significantWords(occ.name || '')
-  if (!billWords.length) return false
   const amt = Number(occ.amount || 0)
   return transactions.some((t) => {
-    const ta = Number(t.amount || 0)
-    if (ta <= 0) return false // outflows only
-    if (Math.abs(ta - amt) > Math.max(0.5, amt * 0.02)) return false
     const d = t.txn_date || ''
     if (d < from || d > todayIso) return false
+    const note = String(t.note || '')
+    if (billId && (t.bill_id === billId || note.includes(`paid:${billId}`))) return true
+    const ta = Number(t.amount || 0)
+    if (ta <= 0) return false
+    if (!billWords.length) return false
+    if (Math.abs(ta - amt) > Math.max(0.5, amt * 0.02)) return false
     const words = significantWords(t.merchant || '')
     return words.some((w) => billWords.includes(w))
   })
@@ -2062,6 +2065,7 @@ export function suggestBillPayment(occ, transactions = [], todayIso = isoDate(),
     const d = t.txn_date || ''
     if (d < from || d > todayIso) continue
     if (rejectedSet.has(rejectKey(billId, t.id))) continue
+    if (billId && String(t.note || '').includes(`reject:${billId}`)) continue
     if (!merchantMatchesBill(occ.name, t.merchant)) continue
     const rel = amt > 0 ? Math.abs(ta - amt) / amt : 1
     if (rel > 0.15 && Math.abs(ta - amt) > 1) continue
@@ -2286,7 +2290,7 @@ export function spendableToday(
   const tripFunds = buckets.reduce((sum, b) => sum + Number(b.current || 0), 0)
 
   const spendable =
-    start - billsBeforePay - laterShare - floor - tripFunds - reserved - held - goalHeld - everydayHeld - smoothedHeld
+    Number((start - billsBeforePay - laterShare - floor - tripFunds - reserved - held - goalHeld - everydayHeld - smoothedHeld).toFixed(2))
 
   return {
     spendable,

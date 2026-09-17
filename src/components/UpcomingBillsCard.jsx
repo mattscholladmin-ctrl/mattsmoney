@@ -31,7 +31,7 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
   const canManage = typeof onChanged === 'function'
   const today = isoDate()
 
-  const persistReject = (billId, txnId) => {
+  const persistReject = async (billId, txnId) => {
     const key = rejectKey(billId, txnId)
     if (!key) return
     setRejected((prev) => {
@@ -40,6 +40,18 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
       localStorage.setItem('budget.rejectedBillMatches', JSON.stringify(next))
       return next
     })
+    if (txnId && billId) {
+      try {
+        const row = transactions.find((t) => t.id === txnId)
+        const note = String(row?.note || '')
+        const tag = `reject:${billId}`
+        if (!note.includes(tag)) {
+          await updateTransaction(txnId, { note: note ? `${note} ${tag}` : tag })
+        }
+      } catch {
+        /* local list still holds on this device */
+      }
+    }
   }
 
   const hidePrompt = (occKey) => {
@@ -164,11 +176,11 @@ export default function UpcomingBillsCard({ upcoming = [], bills = [], transacti
                           onClick={async (e) => {
                             e.stopPropagation()
                             if (confirmedId) {
-                              const name = String(confirmedTxn?.merchant || '')
-                              const tagged = name.toLowerCase().includes(String(b.name).toLowerCase())
-                                ? name
-                                : `${name} · ${b.name}`.trim()
-                              await updateTransaction(confirmedId, { merchant: tagged })
+                              const note = String(confirmedTxn?.note || '')
+                              const tag = `paid:${b.billId || b.id}`
+                              if (!note.includes(tag)) {
+                                await updateTransaction(confirmedId, { note: note ? `${note} ${tag}` : tag })
+                              }
                             }
                             hidePrompt(key)
                             onChanged()
