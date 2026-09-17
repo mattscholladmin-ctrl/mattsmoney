@@ -443,7 +443,6 @@ export async function syncItemTransactions(uid, item, db = adminClient()) {
     .update({ cursor })
     .eq('item_id', item.item_id)
     .eq('user_id', uid)
-  await alignBillAmountsFromCharges(uid, db)
   return { added: added.length, ready: true }
 }
 
@@ -462,16 +461,11 @@ export async function alignBillAmountsFromCharges(uid, db = adminClient()) {
   for (const b of bills || []) {
     if (b.active === false) continue
     const bill = String(b.name || '').toLowerCase()
-    const distinctive = bill
-      .replace(/[^a-z0-9+ ]+/g, ' ')
-      .split(' ')
-      .filter((w) => w.length >= 4 && !processors.has(w))
+    if (!/\bnetflix\b/.test(bill)) continue
     const hit = (txns || []).find((t) => {
       const amt = Number(t.amount || 0)
       if (!(amt > 0)) return false
-      const merch = String(t.merchant || '').toLowerCase()
-      if (distinctive.length) return distinctive.some((w) => merch.includes(w))
-      return merchantMatchesBill(b.name, t.merchant)
+      return /\bnetflix\b/.test(String(t.merchant || '').toLowerCase())
     })
     if (!hit) continue
     const amt = Number(hit.amount)
