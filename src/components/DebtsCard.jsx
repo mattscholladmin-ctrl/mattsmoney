@@ -306,7 +306,8 @@ export default function DebtsCard({ debts, goals = [], debtPayments = [], ppy = 
               <p className="text-sm font-medium text-emerald-700">
                 Debt-free by {monthYear(plan.debtFreeDate)} — about {plan.months}{' '}
                 {plan.months === 1 ? 'month' : 'months'} at your current payments
-                {plan.order.length > 1 ? ' (avalanche order, no extra payment)' : ''}.
+                {plan.order.length > 1 ? ' (avalanche order, no extra payment)' : ''}
+                {plan.scopeNote ? ` · ${plan.scopeNote}` : ''}.
               </p>
               {plan.order.length > 1 && (
                 <p className="text-xs text-slate-400 mt-0.5">

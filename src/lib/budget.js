@@ -1157,7 +1157,8 @@ export function payoffPlan(debts = [], extraPerMonth = 0, strategy = 'avalanche'
     }
     return null
   }
-  const activeAll = (debts || []).filter((d) => d.active !== false && Number(d.balance) > 0)
+  const activeAll = (debts || []).filter((d) => Number(d.balance) > 0)
+  const parkedInPlan = (debts || []).filter((d) => d.active === false && Number(d.balance) > 0)
   // Debts on a fixed schedule (a settlement plan_end_date or a payment-plan
   // series) clear by their OWN deadline — don't drag them through the revolving
   // sim, where a 0%-APR / no-minimum debt would sort to the very end.
@@ -1191,6 +1192,8 @@ export function payoffPlan(debts = [], extraPerMonth = 0, strategy = 'avalanche'
       strategy,
       order: [],
       capped: false,
+      parkedCount: parkedInPlan.length,
+      scopeNote: parkedInPlan.length ? `Includes ${parkedInPlan.length} parked card${parkedInPlan.length === 1 ? '' : 's'}` : null,
     }
   }
   const baseMin = active.reduce((s, d) => s + d.min, 0)
@@ -1239,6 +1242,8 @@ export function payoffPlan(debts = [], extraPerMonth = 0, strategy = 'avalanche'
     strategy,
     order: order.map((d) => ({ name: d.name, balance: d.balance, apr: d.apr, paidMonth: paidMonth[d.name] || month })),
     capped: month >= MAX,
+    parkedCount: parkedInPlan.length,
+    scopeNote: parkedInPlan.length ? `Includes ${parkedInPlan.length} parked card${parkedInPlan.length === 1 ? '' : 's'}` : null,
   }
 }
 

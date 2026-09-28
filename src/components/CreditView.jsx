@@ -56,7 +56,7 @@ export default function CreditView({
   const [logging, setLogging] = useState(false)
   const tilesState = useTileLayout('credit', CREDIT_TILE_IDS, DEFAULT_CREDIT_LAYOUT)
 
-  const cards = debts.filter((d) => !d.is_collection && d.kind === 'card' && d.active !== false)
+  const cards = debts.filter((d) => !d.is_collection && d.kind === 'card')
   const collections = debts.filter((d) => d.is_collection)
 
   const latest = latestPerKey(scores)
@@ -132,7 +132,7 @@ export default function CreditView({
 
         {utilPct === null ? (
           <p className="text-sm text-slate-500">
-            Add a credit limit to your cards below to see your utilization.
+            No card limits on file. Limits already on the Dashboard cards are used when present.
           </p>
         ) : (
           <>

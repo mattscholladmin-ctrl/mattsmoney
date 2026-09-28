@@ -370,6 +370,7 @@ export default function Dashboard({ session, demo = false }) {
       /* ignore */
     }
   }, [counting])
+  const [showMoreDash, setShowMoreDash] = useState(false)
   const [offline, setOffline] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   // Phase plan is hidden by default (Matt found it too noisy); opt back in via
@@ -1063,6 +1064,19 @@ export default function Dashboard({ session, demo = false }) {
       spendByCat: spendByCategory(data.transactions),
       assignment,
       closers,
+      dataGaps: (() => {
+        const gaps = []
+        for (const a of summaries) {
+          if (a.hidden) continue
+          if (a.plaid_account_id && !a.manual) {
+            const hits = (data.transactions || []).some((t) => t.account_id === a.id)
+            if (!hits) gaps.push(`${a.name} is linked but has no transactions in the app.`)
+          } else if (a.asOf && a.asOf < today) {
+            gaps.push(`${a.name} last typed ${a.asOf}.`)
+          }
+        }
+        return gaps.slice(0, 3)
+      })(),
     }
   }, [data, horizon, counting])
 
@@ -1231,7 +1245,7 @@ export default function Dashboard({ session, demo = false }) {
               <Stat label="Total cash" value={money(derived.totals.totalCash)} />
               <Stat label="Spent this month" value={money(derived.monthSpend)} />
               <Stat
-                label="Debt-free"
+                label={derived.plan?.scopeNote ? 'Debt-free *' : 'Debt-free'}
                 value={
                   derived.plan && !derived.plan.capped
                     ? new Date(derived.plan.debtFreeDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
@@ -1273,6 +1287,7 @@ export default function Dashboard({ session, demo = false }) {
                 closers={derived.closers}
                 onPauseGoal={handlePauseGoal}
                 onLogSpend={handleLogSpend}
+                dataGaps={derived.dataGaps}
               />
               <PaycheckAssignment assignment={derived.assignment} />
               </div>
@@ -1307,7 +1322,16 @@ export default function Dashboard({ session, demo = false }) {
 
             {/* Two columns on wide screens, one on phones. Tiles are placed by the
                 saved layout and can be reordered/collapsed via Customize. */}
-            {(() => {
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowMoreDash((v) => !v)}
+                className="text-sm text-slate-600"
+              >
+                {showMoreDash ? 'Hide extra tiles' : 'More on this page'}
+              </button>
+            </div>
+            {showMoreDash && (() => {
               const tileNodes = {
                 accounts: (
                   <AccountsCard

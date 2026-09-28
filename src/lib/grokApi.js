@@ -220,6 +220,8 @@ async function snapshot(db, uid) {
     as_of: today,
     spendable,
     buffer_floor: bufferFloor,
+    cash_total: Number(Number(totals.totalCash || 0).toFixed(2)),
+    cards_count: debtRows.filter((d) => d.kind === 'card').length,
     cash: sums.map((a) => ({
       id: a.id,
       name: a.name,

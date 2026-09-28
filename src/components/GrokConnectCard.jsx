@@ -1,12 +1,13 @@
 // @ts-nocheck
 import { money } from '../lib/format'
+import { moneyTotals } from '../lib/budget'
 
 export default function GrokConnectCard({ data }) {
   const accounts = (data?.accounts || []).filter((a) => !a.hidden)
-  const cards = (data?.debts || []).filter((d) => d.kind === 'card' && d.active !== false)
+  const cards = (data?.debts || []).filter((d) => d.kind === 'card')
   const bills = (data?.bills || []).filter((b) => b.active !== false)
   const goals = (data?.goals || []).filter((g) => g.status === 'active')
-  const cash = (data?.balances || []).reduce((s, b) => s + Number(b.balance || 0), 0)
+  const totals = moneyTotals(accounts, data?.balances || [], data?.debts || [])
 
   return (
     <section className="rounded-2xl bg-white p-5 shadow space-y-3">
@@ -25,7 +26,7 @@ export default function GrokConnectCard({ data }) {
           Grok can see
         </p>
         <p className="text-slate-700">
-          {accounts.length} accounts · {money(cash)} cash
+          {accounts.length} accounts · {money(totals.totalCash)} cash
         </p>
         <p className="text-slate-700">
           {cards.length} cards · {bills.length} bills · {goals.length} goals

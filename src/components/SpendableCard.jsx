@@ -52,7 +52,7 @@ function SmoothBreakdown({ items = [], onSmoothingMove, canMoveSmoothing }) {
   )
 }
 
-export default function SpendableCard({ info, everydayByCat = [], billSmoothed = 0, billSmoothedByItem = [], debtSmoothed = 0, debtSmoothedByItem = [], goalNextPaycheckByItem = [], goalNextPaycheckTotal = 0, onSmoothingMove = null, canMoveSmoothing = false, lowest = null, counting = { goals: true, debt: true }, onCounting = null, hasGoalReserve = false, hasDebtBills = false, asOf = null, asOfStale = false, onEditBudgets = null, closers = null, onPauseGoal = null, onLogSpend = null, nextPayments = [] }) {
+export default function SpendableCard({ info, everydayByCat = [], billSmoothed = 0, billSmoothedByItem = [], debtSmoothed = 0, debtSmoothedByItem = [], goalNextPaycheckByItem = [], goalNextPaycheckTotal = 0, onSmoothingMove = null, canMoveSmoothing = false, lowest = null, counting = { goals: true, debt: true }, onCounting = null, hasGoalReserve = false, hasDebtBills = false, asOf = null, asOfStale = false, onEditBudgets = null, closers = null, onPauseGoal = null, onLogSpend = null, nextPayments = [], dataGaps = [] }) {
   const [showAfford, setShowAfford] = useState(false)
   const [afford, setAfford] = useState('')
   const [what, setWhat] = useState('')
@@ -159,6 +159,11 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
       {asOfStale && (
         <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
           Cash is old. Bank pull did not finish.
+        </p>
+      )}
+      {dataGaps.length > 0 && (
+        <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
+          {dataGaps.join(' ')}
         </p>
       )}
 

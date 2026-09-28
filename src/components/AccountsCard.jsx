@@ -174,13 +174,14 @@ function AccountRow({ account, goals = [], transactions = [], onOpen }) {
           {account.asOf && (
             <p className="text-xs text-slate-400">
               as of {shortDate(account.asOf)}
-              {account.bankCurrent != null ? ` · bank ${money(account.bankCurrent)}` : ''}
-              {account.pending != null && account.pending > 0 ? ` · pending ${money(account.pending)}` : account.balanceDetail && account.bankCurrent == null ? ` · ${account.balanceDetail}` : ''}
+              {account.bankCurrent != null ? ` · Bank current ${money(account.bankCurrent)}` : ''}
+              {account.pending != null && account.pending > 0 ? ` · Pending ${money(account.pending)}` : account.balanceDetail && account.bankCurrent == null ? ` · ${account.balanceDetail}` : ''}
             </p>
           )}
         </div>
-        <span className="font-semibold text-slate-800 shrink-0 pl-2">
-          {money(account.balance)}
+        <span className="font-semibold text-slate-800 shrink-0 pl-2 text-right">
+          <span className="block">{money(account.balance)}</span>
+          <span className="block text-[0.65rem] font-normal text-slate-400">Available</span>
         </span>
       </div>
       {tied.length > 0 && (
@@ -303,7 +304,7 @@ function EditAccountForm({ account, autoFocusScroll = false, onChanged }) {
         hidden,
       })
       // Record a new balance only if it actually changed.
-      if (balance !== '' && Number(balance) !== Number(account.balance ?? 0)) {
+      if (!(account.plaid_account_id && !account.manual) && balance !== '' && Number(balance) !== Number(account.balance ?? 0)) {
         await addBalanceEntry({
           account_id: account.id,
           balance: Number(balance),
@@ -347,8 +348,20 @@ function EditAccountForm({ account, autoFocusScroll = false, onChanged }) {
         onChange={(e) => setName(e.target.value)}
         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
       />
+      {account.plaid_account_id && !account.manual ? (
+        <div className="text-sm text-slate-600 space-y-1 rounded-lg bg-slate-50 px-3 py-2">
+          <p className="flex justify-between"><span>Available</span><span>{money(account.balance)}</span></p>
+          {account.bankCurrent != null && (
+            <p className="flex justify-between"><span>Bank current</span><span>{money(account.bankCurrent)}</span></p>
+          )}
+          {account.pending != null && (
+            <p className="flex justify-between"><span>Pending</span><span>{money(account.pending)}</span></p>
+          )}
+          <p className="text-xs text-slate-400">Bank-linked. Refresh on the Dashboard to update. Not typed here.</p>
+        </div>
+      ) : (
       <label className="block text-sm text-slate-600">
-        Current balance
+        Available
         <input
           type="number"
           step="0.01"
@@ -358,6 +371,7 @@ function EditAccountForm({ account, autoFocusScroll = false, onChanged }) {
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-right"
         />
       </label>
+      )}
       <label className="flex items-center gap-2 text-sm text-slate-600">
         <input
           type="checkbox"
