@@ -5,7 +5,7 @@ import appCss from "../styles.css?url";
 
 const APP_NAME = "Budget";
 
-const THEME_BOOT = `(function(){try{var t=localStorage.getItem("budget.theme")||"midnight";if(t==="aurora"||t==="dark")t="midnight";document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme="midnight"}})();`;
+const THEME_BOOT = `(function(){try{var t=localStorage.getItem("budget.theme")||"midnight";if(["aurora","dark","ivory","high-country","highcountry","high_country"].indexOf(t)>=0)t="midnight";document.documentElement.dataset.theme=t;localStorage.setItem("budget.theme",t)}catch(e){document.documentElement.dataset.theme="midnight"}})();`;
 
 export const Route = createRootRoute({
   head: () => ({
