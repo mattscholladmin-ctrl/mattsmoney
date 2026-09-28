@@ -1318,7 +1318,6 @@ export default function Dashboard({ session, demo = false }) {
                     onChanged={load}
                   />
                 )}
-              </div>
             </div>
 
             {/* Extra tiles stay available under Customize / More. */}
