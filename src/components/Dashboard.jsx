@@ -1232,9 +1232,9 @@ export default function Dashboard({ session, demo = false }) {
         )}
 
         {view === 'dashboard' && (
-          <>
+          <div className="mm-dash">
             {/* Glance strip: the four vitals in one slim row. */}
-            <div className="rounded-2xl bg-white shadow px-5 py-3 grid grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="mm-metrics rounded-2xl bg-white shadow px-5 py-3 grid grid-cols-2 lg:grid-cols-3 gap-3">
               <Stat label="Total cash" value={money(derived.totals.totalCash)} />
               <Stat label="Spent this month" value={money(derived.monthSpend)} />
               <Stat
@@ -1247,10 +1247,7 @@ export default function Dashboard({ session, demo = false }) {
               />
             </div>
 
-            {/* Desktop: hero and forecast share the top row instead of
-                stacking in a narrow strip. Phones keep the single column. */}
-            <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-5 lg:items-start">
-              <div className="space-y-5 min-w-0">
+            <div className="mm-plan min-w-0">
               <SpendableCard
                 info={derived.spendable}
                 nextPayments={(derived.upcomingBills30 || []).filter((b) => !b.overdue).slice(0, 3)}
@@ -1282,10 +1279,21 @@ export default function Dashboard({ session, demo = false }) {
                 onLogSpend={handleLogSpend}
                 dataGaps={derived.dataGaps}
               />
+            </div>
+            <div className="mm-recent min-w-0">
+              <TransactionsCard
+                transactions={data.transactions}
+                categories={categories}
+                goals={data.goals}
+                income={data.income}
+                accounts={data.accounts}
+                balances={data.balances}
+                onOpenAll={() => setView('transactions')}
+                onChanged={load}
+              />
+            </div>
+            <div className="mm-side min-w-0">
               <PaycheckAssignment assignment={derived.assignment} />
-              </div>
-
-              <div className="space-y-5 min-w-0">
                 <ProjectionAlert
                   projection={derived.projection}
                   spendableLowest={derived.spendableLowest}
@@ -1313,8 +1321,7 @@ export default function Dashboard({ session, demo = false }) {
               </div>
             </div>
 
-            {/* Two columns on wide screens, one on phones. Tiles are placed by the
-                saved layout and can be reordered/collapsed via Customize. */}
+            {/* Extra tiles stay available under Customize / More. */}
             <div className="flex justify-end">
               <button
                 type="button"
@@ -1403,11 +1410,12 @@ export default function Dashboard({ session, demo = false }) {
                 />
               )
             })()}
-          </>
+          </div>
         )}
 
         {view === 'transactions' && (
           <Suspense fallback={<PageFallback />}>
+            <div className="mm-page mm-tx">
             <TransactionsView
               transactions={data.transactions}
               categories={categories}
@@ -1420,11 +1428,13 @@ export default function Dashboard({ session, demo = false }) {
               dedupedCount={dedupedCount}
               onChanged={load}
             />
+            </div>
           </Suspense>
         )}
 
         {view === 'checkin' && (
           <Suspense fallback={<PageFallback />}>
+            <div className="mm-page mm-ci">
             <CheckInView
               accounts={data.accounts.filter((a) => !a.hidden)}
               balances={data.balances}
@@ -1440,11 +1450,13 @@ export default function Dashboard({ session, demo = false }) {
               onDone={() => setView('dashboard')}
               onPauseGoal={handlePauseGoal}
             />
+            </div>
           </Suspense>
         )}
 
         {view === 'credit' && (
           <Suspense fallback={<PageFallback />}>
+            <div className="mm-page mm-cr">
             <CreditView
               scores={data.creditScores}
               milestones={data.creditMilestones}
@@ -1453,11 +1465,13 @@ export default function Dashboard({ session, demo = false }) {
               arranging={arranging}
               onChanged={load}
             />
+            </div>
           </Suspense>
         )}
 
         {view === 'insights' && (
           <Suspense fallback={<PageFallback />}>
+            <div className="mm-page mm-in">
             <InsightsView
               transactions={data.transactions}
               budgets={data.budgets}
@@ -1472,10 +1486,12 @@ export default function Dashboard({ session, demo = false }) {
               onChanged={load}
               arranging={arranging}
             />
+            </div>
           </Suspense>
         )}
 
         {view === 'settings' && (
+          <div className="mm-page mm-se">
           <SettingsView
             settings={data.settings}
             bufferFloor={derived.bufferFloor}
@@ -1511,6 +1527,7 @@ export default function Dashboard({ session, demo = false }) {
             }}
             onChanged={load}
           />
+          </div>
         )}
       </main>
 
