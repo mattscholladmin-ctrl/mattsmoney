@@ -270,12 +270,12 @@ function Stat({ label, value, tone = 'ink' }) {
 }
 
 const PAGES = [
-  { id: 'dashboard', label: 'Dashboard', title: 'Budget' },
-  { id: 'transactions', label: 'Transactions', title: 'Transactions' },
+  { id: 'dashboard', label: 'Home', title: 'Budget' },
+  { id: 'transactions', label: 'Activity', title: 'Transactions' },
   { id: 'checkin', label: 'Check-in', title: 'Check-in' },
-  { id: 'credit', label: 'Credit', title: 'Credit recovery' },
-  { id: 'insights', label: 'Insights', title: 'Spending insights' },
-  { id: 'settings', label: 'Settings', title: 'Settings' },
+  { id: 'credit', label: 'Score', title: 'Credit recovery' },
+  { id: 'insights', label: 'Stats', title: 'Spending insights' },
+  { id: 'settings', label: 'More', title: 'Settings' },
 ]
 
 // The reorderable dashboard tiles, their display names, and the default layout.
@@ -1524,7 +1524,9 @@ export default function Dashboard({ session, demo = false }) {
       <BottomNav view={view} setView={setView} shortfall={shortfall} />
 
       {(view === 'dashboard' || view === 'transactions') && (
+        {['dashboard', 'transactions', 'checkin'].includes(view) && (
         <QuickAddFab categories={categories} goals={data.goals} income={data.income} accounts={data.accounts} balances={data.balances} onChanged={load} />
+        )}
       )}
     </div>
   )

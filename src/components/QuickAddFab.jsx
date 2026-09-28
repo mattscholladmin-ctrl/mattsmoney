@@ -14,7 +14,7 @@ export default function QuickAddFab({ categories = [], goals = [], income = [], 
       <button
         onClick={() => setOpen(true)}
         aria-label="Quick add transaction"
-        className="fixed bottom-20 lg:bottom-5 right-5 z-30 w-14 h-14 rounded-full bg-emerald-700 text-white text-3xl leading-none shadow-lg flex items-center justify-center active:scale-95"
+        className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-30 w-14 h-14 rounded-full bg-emerald-700 text-white text-3xl leading-none shadow-lg flex items-center justify-center active:scale-95"
       >
         +
       </button>

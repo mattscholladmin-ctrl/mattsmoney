@@ -900,8 +900,14 @@ export function recurringOutflows(bills = [], transactions = []) {
     source: 'detected',
   }))
   const items = [...fromBills, ...detected].sort((a, b) => b.monthly - a.monthly)
+  const housingRe = /rent|lease|mortgage|storage|electric|insurance|loan|verizon|internet|starlink/i
+  for (const x of items) {
+    x.kind = x.isSub || /subscription/i.test(x.category || '') ? 'sub' : housingRe.test(x.name) ? 'housing' : 'other'
+  }
+  const subs = items.filter((x) => x.kind === 'sub')
   const monthlyTotal = items.reduce((s, x) => s + x.monthly, 0)
-  return { items, monthlyTotal, yearlyTotal: monthlyTotal * 12 }
+  const subMonthly = subs.reduce((s, x) => s + x.monthly, 0)
+  return { items, monthlyTotal, yearlyTotal: monthlyTotal * 12, subMonthly, subYearly: subMonthly * 12 }
 }
 
 // "Save each paycheck": for bills/debts flagged smooth, hold out their per-paycheck
@@ -1125,11 +1131,12 @@ export function unusualCharges(transactions = []) {
     }
     // Bigger than usual: needs enough history to know "normal", and must be a
     // real outlier (variable merchants like groceries naturally swing).
-    if (rows.length >= 5) {
+    if (rows.length >= 8) {
       const med = median(rows.map((r) => Number(r.amount)))
+      if (med < 25) continue
       for (const t of rows) {
         if (!t.txn_date || t.txn_date < recentCutoff) continue
-        if (Number(t.amount) > med * 2.5 && Number(t.amount) - med > 40) {
+        if (Number(t.amount) > med * 4 && Number(t.amount) - med > 60) {
           out.push({ id: t.id, merchant: t.merchant, amount: Number(t.amount), kind: 'high', median: med })
         }
       }

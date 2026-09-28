@@ -109,7 +109,7 @@ export function abbrevMoney(n) {
 }
 
 // points: [{ label, value }]. format(value) -> string for the latest-value tag.
-export function LineChart({ points = [], color = '#22d3ee', format = (v) => v }) {
+export function LineChart({ points = [], color = '#22d3ee', format = (v) => v, axisFormat = null }) {
   if (points.length < 2) {
     return <p className="text-sm text-slate-400">Not enough history yet to chart.</p>
   }
@@ -150,7 +150,7 @@ export function LineChart({ points = [], color = '#22d3ee', format = (v) => v })
         <g key={i}>
           <line x1={padL} y1={y(gv)} x2={W - padR} y2={y(gv)} stroke={gv === 0 ? '#475569' : '#1e293b'} strokeDasharray={gv === 0 ? '3 3' : ''} strokeWidth="1" />
           <text x={padL - 4} y={y(gv) + 3} textAnchor="end" className="fill-slate-500" style={{ fontSize: 9 }}>
-            {abbrevMoney(gv)}
+            {(axisFormat || abbrevMoney)(gv)}
           </text>
         </g>
       ))}
@@ -196,7 +196,7 @@ export function BarChart({ bars = [], color = '#22d3ee', format = abbrevMoney })
         <g key={i}>
           <line x1={padL} y1={y(gv)} x2={W - padR} y2={y(gv)} stroke="#1e293b" strokeWidth="1" />
           <text x={padL - 4} y={y(gv) + 3} textAnchor="end" className="fill-slate-500" style={{ fontSize: 9 }}>
-            {abbrevMoney(gv)}
+            {(axisFormat || abbrevMoney)(gv)}
           </text>
         </g>
       ))}

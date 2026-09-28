@@ -214,7 +214,7 @@ export default function CreditView({
           <p className="text-xs text-slate-400 mb-3">Estimated path if you stay on plan.</p>
           {projPoints.length >= 2 && (
             <div className="mb-3">
-              <LineChart points={projPoints} color="#34d399" format={(v) => String(Math.round(v))} />
+              <LineChart points={projPoints} color="#34d399" format={(v) => String(Math.round(v))} axisFormat={(v) => String(Math.round(v))} />
             </div>
           )}
           <ul className="space-y-2">

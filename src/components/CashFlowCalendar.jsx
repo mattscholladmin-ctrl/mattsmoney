@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { useState } from 'react'
 import { money, shortDate, isoDate } from '../lib/format'
 
 // A day-by-day view of dated money in (paychecks, expected) and out (bills,
@@ -22,6 +23,7 @@ function compactMoney(n) {
 }
 
 function MonthGrid({ byDate, lowestDate }) {
+  const [openIso, setOpenIso] = useState(null)
   // Cells run from the Sunday of the current week. Size the grid to whole weeks
   // that cover the full 30-day horizon — otherwise, on a Fri/Sat, the last days
   // of the horizon (a far-out bill/paycheck, even the "lowest day") fall past a
@@ -65,11 +67,14 @@ function MonthGrid({ byDate, lowestDate }) {
                 .map((p) => `${p.delta > 0 ? '+' : '−'}${money(Math.abs(p.delta))} ${p.name}`)
                 .join('\n') + (balAfter != null ? `\nbalance after ${money(balAfter)}` : '')
             : undefined
+          const net = totalIn - totalOut
           return (
-            <div
+            <button
+              type="button"
               key={c.iso}
+              onClick={() => setOpenIso(openIso === c.iso ? null : c.iso)}
               title={tip}
-              className={`min-h-[4.5rem] p-1 text-left align-top bg-white ${
+              className={`min-h-[3.25rem] p-1 text-left align-top bg-white ${
                 c.inWindow ? '' : 'opacity-45'
               } ${c.isLow ? 'ring-2 ring-inset ring-red-400' : ''}`}
             >
@@ -89,29 +94,35 @@ function MonthGrid({ byDate, lowestDate }) {
                   <span className="text-[0.7rem] uppercase text-slate-400">{c.monthShort}</span>
                 )}
               </div>
-              {totalIn > 0 && (
-                <p className="mt-0.5 text-xs font-semibold leading-tight text-emerald-700 break-words">
-                  +{compactMoney(totalIn)}
-                </p>
-              )}
-              {totalOut > 0 && (
-                <p
-                  className="mt-0.5 text-xs font-semibold leading-tight break-words"
-                  style={{ color: '#a8573f' }}
-                >
-                  −{compactMoney(totalOut)}
+              {c.items.length > 0 && (
+                <p className={`mt-0.5 text-xs font-semibold leading-tight ${net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                  {net >= 0 ? '+' : '−'}{compactMoney(net)}
                 </p>
               )}
               {c.isLow && (
-                <p className="text-[0.7rem] font-medium text-red-600 leading-tight">lowest</p>
+                <span className="inline-block mt-0.5 h-1.5 w-1.5 rounded-full bg-red-500" title="lowest" />
               )}
-            </div>
+            </button>
           )
         })}
       </div>
+      {openIso && byDate[openIso] && (
+        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm">
+          <p className="text-xs text-slate-400 mb-1">{shortDate(openIso)}</p>
+          <ul className="space-y-0.5">
+            {byDate[openIso].map((p, i) => (
+              <li key={i} className="flex justify-between gap-2">
+                <span className="truncate text-slate-600">{p.name}</span>
+                <span className={p.delta >= 0 ? 'text-emerald-700' : 'text-slate-800'}>
+                  {p.delta >= 0 ? '+' : '−'}{money(Math.abs(p.delta))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="text-xs text-slate-400 mt-2">
-        Amounts are rounded to fit — hover a day for the exact breakdown. Red outline
-        = your lowest day.
+        One net number per day. Tap a day for the list. Red ring = lowest day.
       </p>
     </div>
   )

@@ -925,23 +925,23 @@ export default function InsightsView({
           <section className={card}>
             <h2 className="font-semibold text-slate-800 mb-1">Subscriptions &amp; recurring</h2>
             <p className="text-xs text-slate-400 mb-3">
-              Everything that goes out on a schedule, biggest first.
+              Subscriptions only in the top number. Rent and other bills stay in the list below so the total is not a scare figure.
             </p>
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className="rounded-lg bg-slate-100 border border-slate-200 px-3 py-2.5">
-                <p className="text-[0.75rem] uppercase tracking-wide text-slate-400">Per month</p>
-                <p className="text-xl font-bold text-slate-800 cp-mono">{money(recurring.monthlyTotal)}</p>
+                <p className="text-[0.75rem] uppercase tracking-wide text-slate-400">Subscriptions / mo</p>
+                <p className="text-xl font-bold text-slate-800 cp-mono">{money(recurring.subMonthly || 0)}</p>
               </div>
               <div className="rounded-lg bg-slate-100 border border-slate-200 px-3 py-2.5">
-                <p className="text-[0.75rem] uppercase tracking-wide text-slate-400">Per year</p>
-                <p className="text-xl font-bold text-slate-800 cp-mono">{money(recurring.yearlyTotal)}</p>
+                <p className="text-[0.75rem] uppercase tracking-wide text-slate-400">All scheduled / mo</p>
+                <p className="text-xl font-bold text-slate-800 cp-mono">{money(recurring.monthlyTotal)}</p>
               </div>
             </div>
             <ul className="divide-y divide-slate-100">
               {recurring.items.map((r, i) => (
                 <li key={i} className="flex justify-between items-center py-2 text-sm gap-2">
                   <span className="min-w-0 flex items-center gap-2">
-                    <span className="text-slate-700 truncate">{r.name}</span>
+                    <span className="text-slate-700 truncate">{String(r.name || '').replace(/^APP\s+/i, '').split(/\s+/).slice(0, 4).join(' ')}</span>
                     {r.source === 'detected' && (
                       <span className="shrink-0 text-[0.7rem] uppercase tracking-wide text-amber-700">spotted</span>
                     )}
