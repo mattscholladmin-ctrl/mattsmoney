@@ -1242,6 +1242,10 @@ export default function Dashboard({ session, demo = false }) {
               <div className="mm-card">
                 <p className="mm-k">Spent this month</p>
                 <p className="mm-n">{money(derived.monthSpend)}</p>
+                <svg viewBox="0 0 120 28" className="mt-2 w-full h-7" aria-hidden="true">
+                  <path d="M0 22 C 20 20, 30 16, 48 14 S 80 8, 120 6" fill="none" stroke="#3b82f6" strokeWidth="2" />
+                  <path d="M0 24 C 24 22, 40 20, 70 18 S 100 16, 120 14" fill="none" stroke="#525252" strokeWidth="1" strokeDasharray="3 3" />
+                </svg>
                 <p className="mm-muted">This calendar month</p>
               </div>
               <div className="mm-card">
@@ -1296,6 +1300,9 @@ export default function Dashboard({ session, demo = false }) {
                 <button type="button" onClick={() => setView('transactions')} className="mm-muted">View all</button>
               </div>
               <div className="mm-table">
+                <div className="mm-row mm-head">
+                  <span>Merchant</span><span>Category</span><span>Date</span><span>Amount</span>
+                </div>
                 {(data.transactions || []).slice(0, 8).map((tx) => (
                   <div className="mm-row" key={tx.id}>
                     <span className="truncate">{tx.merchant || tx.name || '—'}</span>

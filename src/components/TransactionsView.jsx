@@ -91,6 +91,22 @@ export default function TransactionsView({ transactions = [], categories = [], g
   const total = useMemo(() => filtered.reduce((s, t) => s + Number(t.amount || 0), 0), [filtered])
 
   const shown = filtered.slice(0, page * PAGE)
+  const weekSpend = [0, 0, 0, 0]
+  const now = new Date()
+  const catSpend = {}
+  for (const t of transactions) {
+    const amt = Number(t.amount || 0)
+    if (amt <= 0) continue
+    const d = t.txn_date ? new Date(`${t.txn_date}T00:00:00`) : null
+    if (d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+      weekSpend[Math.min(3, Math.floor((d.getDate() - 1) / 7))] += amt
+    }
+    const c = catOf(t) || 'Other'
+    catSpend[c] = (catSpend[c] || 0) + amt
+  }
+  const topCats = Object.entries(catSpend).sort((a, b) => b[1] - a[1]).slice(0, 5)
+  const weekMax = Math.max(1, ...weekSpend)
+  const catColors = ['#3b82f6', '#059669', '#9f1239', '#22d3ee', '#7c3aed']
   function signedMoney(t) {
     const a = Number(t.amount || 0)
     if (a > 0) return `−${money(a)}`
@@ -99,7 +115,7 @@ export default function TransactionsView({ transactions = [], categories = [], g
   }
 
   return (
-    <div className="space-y-4">
+    <div className="mm-tx-layout">
       <ReviewQueue transactions={transactions} bills={bills} upcoming={upcoming} accounts={accounts} onChanged={onChanged} />
       <section className="rounded-2xl bg-white p-5 shadow space-y-3">
         <div className="flex items-center justify-between gap-2">
@@ -159,6 +175,15 @@ export default function TransactionsView({ transactions = [], categories = [], g
           )}
         </div>
 
+        <div className="mm-weeks">
+          {weekSpend.map((v, i) => (
+            <div key={i} className="mm-week">
+              <div className="mm-week-bar" style={{ height: `${Math.max(8, (v / weekMax) * 72)}px` }} />
+              <span>W{i + 1}</span>
+            </div>
+          ))}
+        </div>
+
         <div className="flex justify-between items-center text-sm text-slate-500">
           <span>
             {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
@@ -193,89 +218,15 @@ export default function TransactionsView({ transactions = [], categories = [], g
         {filtered.length === 0 ? (
           <p className="text-sm text-slate-400">No matching transactions.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <div className="mm-txn-grid">
             {shown.map((t) => (
-              <li key={t.id} className="flex justify-between items-center py-2.5 gap-2">
-                <div className="min-w-0 flex-1">
-                  <button onClick={() => setEditing(t)} className="text-left w-full block">
-                    <span className="flex items-center gap-2">
-                      <span className="min-w-0 text-sm text-slate-800 truncate">{t.merchant}</span>
-                      {t.pending && (
-                        <span className="shrink-0 text-[0.65rem] font-medium text-amber-700 bg-amber-100 rounded px-1.5 py-px">
-                          pending
-                        </span>
-                      )}
-                    </span>
-                    <p className="text-xs text-slate-400">
-                      {shortDate(t.txn_date)}
-                      {t.pending ? ' · not final yet' : ''}
-                    </p>
-                  </button>
-                  {/* Change category inline without opening the editor */}
-                  <select
-                    value={catOf(t)}
-                    onChange={async (e) => {
-                      const prev = catOf(t)
-                      const next = e.target.value
-                      await updateTransaction(t.id, { category: next })
-                      setUndoCat({ id: t.id, prev })
-                      onChanged()
-                    }}
-                    className="mt-1 text-xs rounded border border-slate-200 bg-white text-slate-600 px-1.5 py-0.5 max-w-[11rem]"
-                  >
-                    {!allCats.includes(catOf(t)) && (
-                      <option value={catOf(t)}>{catOf(t)}</option>
-                    )}
-                    {allCats.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                  {/* Money in: tag which income source it came from. */}
-                  {Number(t.amount) < 0 && (
-                    <select
-                      value={t.income_source || ''}
-                      onChange={async (e) => {
-                        const source = e.target.value
-                        await updateTransaction(t.id, { income_source: source })
-                        // Same depositor, still untagged → tag them all the same
-                        // way, past and (via sync learning) future.
-                        if (source) {
-                          await setIncomeSources(
-                            sameDepositorUntagged(transactions, t.merchant, t.id),
-                            source
-                          )
-                        }
-                        onChanged()
-                      }}
-                      className="mt-1 ml-1 text-xs rounded border border-emerald-200 bg-white text-emerald-700 px-1.5 py-0.5 max-w-[11rem]"
-                    >
-                      <option value="">+ income source</option>
-                      {t.income_source && !sourceOptions.includes(t.income_source) && (
-                        <option value={t.income_source}>{t.income_source}</option>
-                      )}
-                      {sourceOptions.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 pl-1 shrink-0">
-                  <span className={`text-sm ${Number(t.amount) < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>{signedMoney(t)}</span>
-                  <button
-                    onClick={() => removeTxn(t)}
-                    className="text-xs text-slate-300 hover:text-red-600"
-                    aria-label="Delete"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </li>
+              <button key={t.id} type="button" onClick={() => setEditing(t)} className="mm-txn-card">
+                <span className={`mm-txn-amt ${Number(t.amount) < 0 ? 'text-emerald-400' : ''}`}>{signedMoney(t)}</span>
+                <span className="mm-txn-name">{t.merchant}</span>
+                <span className="mm-muted">{shortDate(t.txn_date)}{t.pending ? ' · pending' : ''}</span>
+              </button>
             ))}
-          </ul>
+          </div>
         )}
         {shown.length < filtered.length && (
           <button type="button" onClick={() => setPage((n) => n + 1)} className="mt-3 w-full text-sm text-emerald-700 font-medium">
@@ -296,6 +247,23 @@ export default function TransactionsView({ transactions = [], categories = [], g
           </button>
         )}
       </section>
+
+      <aside className="mm-card mm-tx-side">
+        <p className="mm-k">Top categories</p>
+        <ul className="mt-3 space-y-3">
+          {topCats.map(([name, spent], i) => (
+            <li key={name}>
+              <div className="flex justify-between text-sm mb-1">
+                <span>{name}</span>
+                <b>{money(spent)}</b>
+              </div>
+              <div className="h-1.5 rounded-full" style={{ background: 'var(--track, #242424)' }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, (spent / (topCats[0][1] || 1)) * 100)}%`, background: catColors[i] }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </aside>
 
       {editing && (
         <EditTransactionModal

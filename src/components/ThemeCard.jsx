@@ -2,19 +2,18 @@
 import { useState } from 'react'
 
 const THEMES = [
-  { id: 'midnight', label: 'Dark', hint: 'Approved dark' },
-  { id: 'clean', label: 'Clean', hint: 'Elegant light' },
-  { id: 'cyberpunk', label: 'Cyberpunk', hint: 'Neon dark' },
-  { id: 'punk', label: 'Punk', hint: 'Bold & loud' },
+  { id: 'midnight', label: 'Dark', hint: 'Dollarwise dark', swatch: '#141414' },
+  { id: 'clean', label: 'Clean', hint: 'Elegant light', swatch: '#f3efe6' },
+  { id: 'cyberpunk', label: 'Cyberpunk', hint: 'Neon dark', swatch: '#061018' },
+  { id: 'punk', label: 'Punk', hint: 'Bold', swatch: '#14060c' },
 ]
 
-const OLD = ['aurora', 'dark', 'ivory', 'high-country', 'highcountry', 'high_country']
-
+// Theme picker. Sets data-theme on <html> (CSS in index.css reacts) and
+// remembers the choice in localStorage (index.html applies it on next load).
 export default function ThemeCard() {
-  const [theme, setTheme] = useState(() => {
-    const t = document.documentElement.dataset.theme || 'midnight'
-    return OLD.includes(t) ? 'midnight' : t
-  })
+  const [theme, setTheme] = useState(
+    () => document.documentElement.dataset.theme || 'clean'
+  )
 
   function pick(id) {
     document.documentElement.dataset.theme = id
@@ -44,7 +43,8 @@ export default function ThemeCard() {
                 : 'border-slate-300'
             }`}
           >
-            <div className="font-semibold text-slate-800">{t.label}</div>
+            <div className="h-8 rounded-md mb-2 border border-white/10" style={{ background: t.swatch }} />
+            <div className="font-semibold">{t.label}</div>
             <div className="text-xs text-slate-500">{t.hint}</div>
           </button>
         ))}

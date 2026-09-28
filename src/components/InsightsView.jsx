@@ -422,6 +422,19 @@ export default function InsightsView({
         </div>
       </div>
 
+      <section className="mm-card">
+        <p className="mm-k">Cash flow</p>
+        <div className="mm-flow">
+          {bars.map((b) => (
+            <div key={b.label} className="mm-flow-col">
+              <div className="mm-flow-bar" style={{ height: `${Math.max(8, (b.value / Math.max(1, ...bars.map((x) => x.value))) * 96)}px`, background: b.highlight ? '#059669' : '#9f1239' }} />
+              <span>{b.label}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mm-muted" style={{ marginTop: 8 }}>Wine is spend. Green is this month.</p>
+      </section>
+
       {(() => {
         const tiles = {
         wheregoes: catRows.length === 0 ? null : (
@@ -505,7 +518,7 @@ export default function InsightsView({
         <section className={card}>
           <h2 className="font-semibold text-slate-800 mb-1">Month by month</h2>
           <p className="text-xs text-slate-400 mb-3">Total spending per month (current month highlighted).</p>
-          <BarChart bars={bars} color="#22d3ee" />
+          <BarChart bars={bars} color="#9f1239" />
         </section>
         ),
 
@@ -925,23 +938,23 @@ export default function InsightsView({
           <section className={card}>
             <h2 className="font-semibold text-slate-800 mb-1">Subscriptions &amp; recurring</h2>
             <p className="text-xs text-slate-400 mb-3">
-              Subscriptions only in the top number. Rent and other bills stay in the list below so the total is not a scare figure.
+              Everything that goes out on a schedule, biggest first.
             </p>
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className="rounded-lg bg-slate-100 border border-slate-200 px-3 py-2.5">
-                <p className="text-[0.75rem] uppercase tracking-wide text-slate-400">Subscriptions / mo</p>
-                <p className="text-xl font-bold text-slate-800 cp-mono">{money(recurring.subMonthly || 0)}</p>
+                <p className="text-[0.75rem] uppercase tracking-wide text-slate-400">Per month</p>
+                <p className="text-xl font-bold text-slate-800 cp-mono">{money(recurring.monthlyTotal)}</p>
               </div>
               <div className="rounded-lg bg-slate-100 border border-slate-200 px-3 py-2.5">
-                <p className="text-[0.75rem] uppercase tracking-wide text-slate-400">All scheduled / mo</p>
-                <p className="text-xl font-bold text-slate-800 cp-mono">{money(recurring.monthlyTotal)}</p>
+                <p className="text-[0.75rem] uppercase tracking-wide text-slate-400">Per year</p>
+                <p className="text-xl font-bold text-slate-800 cp-mono">{money(recurring.yearlyTotal)}</p>
               </div>
             </div>
             <ul className="divide-y divide-slate-100">
               {recurring.items.map((r, i) => (
                 <li key={i} className="flex justify-between items-center py-2 text-sm gap-2">
                   <span className="min-w-0 flex items-center gap-2">
-                    <span className="text-slate-700 truncate">{String(r.name || '').replace(/^APP\s+/i, '').split(/\s+/).slice(0, 4).join(' ')}</span>
+                    <span className="text-slate-700 truncate">{r.name}</span>
                     {r.source === 'detected' && (
                       <span className="shrink-0 text-[0.7rem] uppercase tracking-wide text-amber-700">spotted</span>
                     )}
