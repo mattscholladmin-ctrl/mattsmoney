@@ -1118,7 +1118,7 @@ export default function Dashboard({ session, demo = false }) {
     (data.accounts.length === 0 || data.income.length === 0 || data.bills.length === 0)
 
   return (
-    <div className="min-h-screen bg-slate-100 lg:pl-56">
+    <div className="mm-app min-h-screen bg-slate-100">
       {/* Phone/tablet: top bar. Desktop gets the sidebar below instead. */}
       <header className={`${chrome} text-white px-4 py-2.5 flex items-center gap-3 sticky top-0 z-10 lg:hidden`}>
         <span className="font-bold text-lg shrink-0 flex items-center gap-1.5">
@@ -1152,47 +1152,48 @@ export default function Dashboard({ session, demo = false }) {
       </header>
 
       {/* Desktop: fixed left sidebar — classic finance-app layout. */}
-      <aside className={`hidden lg:flex fixed inset-y-0 left-0 z-20 w-56 flex-col ${chrome} text-white px-3 py-5`}>
-        <span className="font-bold text-xl px-3 flex items-center gap-1.5">
+      <aside className={`hidden lg:flex mm-aside flex-col ${chrome}`}>
+        <span className="font-bold text-xl px-1 flex items-center gap-1.5">
           Budget
           {syncing && <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" title="Syncing…" />}
         </span>
         {safeNow != null && (
-          <button
-            onClick={() => setView('dashboard')}
-            className="text-left px-3 mt-4 pb-4 border-b border-white/10"
-          >
-            <span className="block text-[0.7rem] uppercase tracking-widest text-white/50">
-              Safe to spend
-            </span>
-            <span className={`text-2xl font-bold ${safeNow < 0 ? 'text-red-300' : ''}`}>
+          <button onClick={() => setView('dashboard')} className="mm-sts text-left">
+            <span className="mm-k">Safe to spend</span>
+            <span className={`block text-[30px] leading-none font-bold tracking-tight ${safeNow < 0 ? 'text-red-400' : ''}`}>
               {money(safeNow)}
             </span>
+            <span className="mm-muted">Until payday</span>
           </button>
         )}
-        <nav className="flex flex-col gap-1 mt-4">
+        <nav className="flex flex-col gap-0.5 mt-1">
           {PAGES.map((p) => {
             const active = view === p.id
             return (
               <button
                 key={p.id}
                 onClick={() => setView(p.id)}
-                className={`text-left text-sm rounded-lg px-3 py-2 transition ${
-                  active
-                    ? 'bg-white/10 font-semibold'
-                    : 'text-white/70 hover:text-white hover:bg-white/5'
-                }`}
+                className={`mm-nav ${active ? 'on' : ''}`}
               >
                 {p.label}
               </button>
             )
           })}
         </nav>
+        <div className="mm-foot">
+          <div className="mm-k">Accounts</div>
+          {(derived.summaries || []).filter((a) => !a.hidden).slice(0, 5).map((a) => (
+            <div key={a.id} className="mm-acct">
+              <span>{a.name}</span>
+              <b>{money(a.balance)}</b>
+            </div>
+          ))}
+        </div>
         {['dashboard', 'settings', 'insights', 'credit'].includes(view) && (
           <button
             onClick={() => setArranging((a) => !a)}
-            className={`mt-auto flex items-center gap-2 text-sm rounded-lg px-3 py-2 transition ${
-              arranging ? 'bg-white/15 font-semibold' : 'text-white/70 hover:text-white hover:bg-white/5'
+            className={`mt-3 flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${
+              arranging ? 'bg-white/15 font-semibold' : 'opacity-70'
             }`}
           >
             <SlidersIcon arranging={arranging} />
@@ -1208,13 +1209,7 @@ export default function Dashboard({ session, demo = false }) {
       )}
 
 
-      <main
-        className={`mx-auto p-4 sm:p-5 space-y-5 pb-28 lg:pb-12 ${
-          ['dashboard', 'insights', 'credit', 'transactions', 'settings'].includes(view)
-            ? 'max-w-xl lg:max-w-none lg:px-8'
-            : 'max-w-xl lg:max-w-3xl'
-        }`}
-      >
+      <main className="mm-main mx-auto p-4 sm:p-5 space-y-4 pb-28 lg:pb-6">
         {notice && (
           <div
             className={`rounded-xl px-4 py-3 text-sm font-medium ${
