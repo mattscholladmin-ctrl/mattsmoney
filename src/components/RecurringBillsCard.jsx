@@ -166,6 +166,7 @@ function AddBillForm({ onChanged, onDone }) {
   const [dueDay, setDueDay] = useState('1')
   const [startDate, setStartDate] = useState('')
   const [busy, setBusy] = useState(false)
+  const [amtDraft, setAmtDraft] = useState(String(bill.amount))
   const [error, setError] = useState(null)
 
   async function add(e) {
@@ -219,6 +220,7 @@ function BillRow({ bill, ppy = 26, onChanged }) {
   const [dueDay, setDueDay] = useState(String(bill.due_day))
   const [startDate, setStartDate] = useState(bill.start_date || '')
   const [busy, setBusy] = useState(false)
+  const [amtDraft, setAmtDraft] = useState(String(bill.amount))
 
   // Inline amount edit — tap the box, tap away to save (like budgets). Sends the
   // full row so nothing else gets blanked.
@@ -279,11 +281,14 @@ function BillRow({ bill, ppy = 26, onChanged }) {
               type="number"
               step="0.01"
               inputMode="decimal"
-              defaultValue={bill.amount}
-              onBlur={(e) => saveAmount(e.target.value)}
+              value={amtDraft}
+              onChange={(e) => setAmtDraft(e.target.value)}
               className="w-16 text-right outline-none"
-              title="Change the amount — tap away to save"
+              title="Change the amount, then Save"
             />
+            {Number(amtDraft) !== Number(bill.amount) && (
+              <button type="button" onClick={() => saveAmount(amtDraft)} className="text-xs font-medium text-emerald-700">Save</button>
+            )}
           </span>
           <button onClick={() => setEditing(true)} className="text-xs text-emerald-700 font-medium">Edit</button>
           <button onClick={remove} className="text-xs text-red-600">Delete</button>

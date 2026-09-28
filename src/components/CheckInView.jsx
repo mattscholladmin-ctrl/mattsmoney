@@ -178,7 +178,7 @@ export default function CheckInView({
           <p className="text-sm font-semibold text-emerald-800 mb-2">
             Since your last check-in
             <span className="font-normal text-emerald-700">
-              {' '}· {recap.days} {recap.days === 1 ? 'day' : 'days'} ago ({shortDate(recap.since)})
+              {' '}· {recap.days} {recap.days === 1 ? 'day' : 'days'} ({shortDate(recap.since)} → today). Transfers not counted as spend.
             </span>
           </p>
           <div className="grid grid-cols-3 gap-2 text-center">
@@ -309,6 +309,18 @@ export default function CheckInView({
             <p className={`text-2xl font-bold mt-1 leading-tight ${toneHead}`}>{verdict.headline}</p>
             <p className={`text-sm mt-2 ${toneKicker}`}>{verdict.detail}</p>
           </div>
+
+          {assignment && (
+            <div className="rounded-xl border border-slate-200 p-3">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Where the last paycheck went</p>
+              <p className="text-sm text-slate-700">
+                {assignment.name || 'Paycheck'} {assignment.date ? `· ${shortDate(assignment.date)}` : ''} · {money(assignment.amount)}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                Left free {money(assignment.free)}
+              </p>
+            </div>
+          )}
 
           {soon.length > 0 && (
             <div>

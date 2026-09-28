@@ -1337,6 +1337,8 @@ export function checkInRecap(transactions = [], balances = [], today = isoDate()
   let spent = 0
   let income = 0
   for (const t of inWindow) {
+    const cat = String(t.category || '').trim().toLowerCase()
+    if (NON_SPENDING.has(cat) || cat.includes('transfer')) continue
     const a = Number(t.amount || 0)
     if (a >= 0) spent += a
     else income += -a
@@ -1376,6 +1378,50 @@ export function sameDepositorUntagged(transactions = [], merchant, excludeId = n
 // Categories that are NOT real spending — moving your own money (transfers) or
 // paying down debt (tracked separately in Debts). They're kept out of every spending
 // total and the category breakdown so they can't inflate "where it goes".
+
+// Opposite-signed same-day moves between own accounts.
+export function pairTransfers(transactions = [], accounts = []) {
+  const names = (accounts || []).map((a) => normalizeMerchant(a.name)).filter(Boolean)
+  const looksXfer = (m) => {
+    const n = normalizeMerchant(m)
+    if (!n) return false
+    if (n.includes('transfer') || n.includes('from checking') || n.includes('to savings') || n.includes('from savings') || n.includes('to checking')) return true
+    return names.some((nm) => nm.length >= 4 && n.includes(nm))
+  }
+  const rows = [...(transactions || [])].filter((t) => t.txn_date && Number(t.amount || 0) !== 0)
+  const used = new Set()
+  const pairs = []
+  for (let i = 0; i < rows.length; i++) {
+    const a = rows[i]
+    if (used.has(a.id)) continue
+    const aa = Number(a.amount)
+    for (let j = i + 1; j < rows.length; j++) {
+      const b = rows[j]
+      if (used.has(b.id)) continue
+      if (a.txn_date !== b.txn_date) continue
+      const bb = Number(b.amount)
+      if (aa * bb >= 0) continue
+      if (Math.abs(Math.abs(aa) - Math.abs(bb)) > 0.05) continue
+      if (!looksXfer(a.merchant) && !looksXfer(b.merchant)) continue
+      const already = [a, b].every((t) => String(t.category || '').toLowerCase().includes('transfer'))
+      if (already) continue
+      used.add(a.id)
+      used.add(b.id)
+      const out = aa > 0 ? a : b
+      const inn = aa > 0 ? b : a
+      pairs.push({
+        date: a.txn_date,
+        amount: Math.abs(aa),
+        outId: out.id,
+        inId: inn.id,
+        label: `${out.merchant || 'Out'} → ${inn.merchant || 'In'}`,
+      })
+      break
+    }
+  }
+  return pairs
+}
+
 export const NON_SPENDING = new Set(['transfer', 'transfers', 'transfer out', 'debt', 'debt payment', 'debt payments', 'loan payments'])
 
 export function spendByCategory(transactions = [], mk = monthKey(), fromIso = null) {

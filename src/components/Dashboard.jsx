@@ -1422,6 +1422,8 @@ export default function Dashboard({ session, demo = false }) {
               income={data.income}
               accounts={data.accounts}
               balances={data.balances}
+              bills={data.bills}
+              upcoming={derived.upcomingBills30}
               dedupedCount={dedupedCount}
               onChanged={load}
             />

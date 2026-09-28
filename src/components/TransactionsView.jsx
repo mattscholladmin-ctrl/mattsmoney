@@ -2,12 +2,13 @@
 import { useMemo, useState } from 'react'
 import { money, shortDate, isoDate } from '../lib/format'
 import { addTransaction, updateTransaction, deleteTransaction, addBalanceEntry, setTransactionCategories, setIncomeSources, incrementGoalCurrent } from '../lib/api'
-import { categorySuggestions, sameDepositorUntagged, cashReversal, cleanCategory, cleanCategoriesFor, needsCategory } from '../lib/budget'
+import { categorySuggestions, sameDepositorUntagged, cashReversal, cleanCategory, cleanCategoriesFor, needsCategory, mostRecentPaydayIso } from '../lib/budget'
 import { downloadCSV, printTransactionsPDF } from '../lib/export'
 import Modal from './Modal'
+import ReviewQueue from './ReviewQueue'
 
 // Full, searchable/filterable transaction history with edit + export.
-export default function TransactionsView({ transactions = [], categories = [], goals = [], income = [], accounts = [], balances = [], dedupedCount = 0, onChanged }) {
+export default function TransactionsView({ transactions = [], categories = [], goals = [], income = [], accounts = [], balances = [], bills = [], upcoming = [], dedupedCount = 0, onChanged }) {
   // Delete a transaction; if it came from a cash account, restore that balance.
   async function removeTxn(t) {
     const rev = cashReversal(t, accounts, balances)
@@ -40,6 +41,11 @@ export default function TransactionsView({ transactions = [], categories = [], g
   const [suggesting, setSuggesting] = useState(false) // auto-categorize preview open
   const [applying, setApplying] = useState(false)
   const [applyError, setApplyError] = useState(null)
+  const payday = mostRecentPaydayIso(income)
+  const [sincePay, setSincePay] = useState(true)
+  const [page, setPage] = useState(1)
+  const [undoCat, setUndoCat] = useState(null)
+  const PAGE = 50
 
   // Confident category guesses for transactions still sitting in "Other".
   const suggestions = useMemo(() => categorySuggestions(transactions), [transactions])
@@ -74,17 +80,27 @@ export default function TransactionsView({ transactions = [], categories = [], g
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return transactions.filter((t) => {
+      if (sincePay && payday && t.txn_date && t.txn_date < payday) return false
       if (cat && catOf(t) !== cat) return false
       if (!q) return true
       const hay = `${t.merchant || ''} ${t.note || ''} ${catOf(t)}`.toLowerCase()
       return hay.includes(q)
     })
-  }, [transactions, query, cat, cleanCat])
+  }, [transactions, query, cat, cleanCat, sincePay, payday])
 
   const total = useMemo(() => filtered.reduce((s, t) => s + Number(t.amount || 0), 0), [filtered])
 
+  const shown = filtered.slice(0, page * PAGE)
+  function signedMoney(t) {
+    const a = Number(t.amount || 0)
+    if (a > 0) return `−${money(a)}`
+    if (a < 0) return `+${money(-a)}`
+    return money(0)
+  }
+
   return (
     <div className="space-y-4">
+      <ReviewQueue transactions={transactions} bills={bills} upcoming={upcoming} accounts={accounts} onChanged={onChanged} />
       <section className="rounded-2xl bg-white p-5 shadow space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold text-slate-800">Transactions</h2>
@@ -113,6 +129,10 @@ export default function TransactionsView({ transactions = [], categories = [], g
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
         />
 
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input type="checkbox" checked={sincePay} onChange={(e) => { setSincePay(e.target.checked); setPage(1) }} />
+          Since last paycheck{payday ? ` (${payday})` : ''}
+        </label>
         <div className="flex gap-2">
           <select
             value={cat}
@@ -174,7 +194,7 @@ export default function TransactionsView({ transactions = [], categories = [], g
           <p className="text-sm text-slate-400">No matching transactions.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {filtered.map((t) => (
+            {shown.map((t) => (
               <li key={t.id} className="flex justify-between items-center py-2.5 gap-2">
                 <div className="min-w-0 flex-1">
                   <button onClick={() => setEditing(t)} className="text-left w-full block">
@@ -195,7 +215,10 @@ export default function TransactionsView({ transactions = [], categories = [], g
                   <select
                     value={catOf(t)}
                     onChange={async (e) => {
-                      await updateTransaction(t.id, { category: e.target.value })
+                      const prev = catOf(t)
+                      const next = e.target.value
+                      await updateTransaction(t.id, { category: next })
+                      setUndoCat({ id: t.id, prev })
                       onChanged()
                     }}
                     className="mt-1 text-xs rounded border border-slate-200 bg-white text-slate-600 px-1.5 py-0.5 max-w-[11rem]"
@@ -241,7 +264,7 @@ export default function TransactionsView({ transactions = [], categories = [], g
                   )}
                 </div>
                 <div className="flex items-center gap-3 pl-1 shrink-0">
-                  <span className="text-sm text-slate-700">{money(t.amount)}</span>
+                  <span className={`text-sm ${Number(t.amount) < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>{signedMoney(t)}</span>
                   <button
                     onClick={() => removeTxn(t)}
                     className="text-xs text-slate-300 hover:text-red-600"
@@ -253,6 +276,24 @@ export default function TransactionsView({ transactions = [], categories = [], g
               </li>
             ))}
           </ul>
+        )}
+        {shown.length < filtered.length && (
+          <button type="button" onClick={() => setPage((n) => n + 1)} className="mt-3 w-full text-sm text-emerald-700 font-medium">
+            Show more ({filtered.length - shown.length} left)
+          </button>
+        )}
+        {undoCat && (
+          <button
+            type="button"
+            className="mt-2 text-xs text-slate-500"
+            onClick={async () => {
+              await updateTransaction(undoCat.id, { category: undoCat.prev })
+              setUndoCat(null)
+              onChanged()
+            }}
+          >
+            Undo last category
+          </button>
         )}
       </section>
 
