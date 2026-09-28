@@ -377,3 +377,28 @@ html[data-theme="punk"] .mm-main {
 
 .mm-plan .text-5xl { display: none; }
 .mm-spend { box-shadow: none !important; border: 1px solid var(--line, #2a2a2a) !important; background: var(--card, #101010) !important; }
+
+.mm-card {
+  background: var(--card, #101010);
+  border: 1px solid var(--line, #2a2a2a);
+  border-radius: 12px;
+  padding: 14px;
+}
+.mm-n { font-size: 28px; font-weight: 700; letter-spacing: -0.04em; }
+.mm-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--row, #262626);
+  font-size: 14px;
+}
+.mm-row .sw, .sw {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px;
+}
+.mm-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+@media (max-width: 900px) {
+  .mm-metrics { grid-template-columns: 1fr; }
+  .mm-dash { grid-template-columns: 1fr !important; }
+  .mm-side { grid-column: 1 !important; grid-row: auto !important; }
+}
