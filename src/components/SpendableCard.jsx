@@ -88,8 +88,18 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
     )
   }
 
-  const { spendable, start, floor, billsBeforePay, laterShare = 0, laterItems = [], tripFunds, earmarked = 0, setAside = 0, everyday = 0, nextIncome } = info
+  const { spendable, start, floor, billsBeforePay, laterShare = 0, laterItems = [], tripFunds, earmarked = 0, setAside = 0, everyday = 0, nextIncome, goalReserve = 0 } = info
   const negative = spendable <= 0
+  const spoken = Math.max(0, Number(billsBeforePay || 0)) + Math.max(0, Number(laterShare || 0)) + Math.max(0, Number(goalReserve || 0)) + Math.max(0, Number(everyday || 0))
+  const leftover = Math.max(0, Number(spendable || 0))
+  const ringTotal = spoken + leftover || 1
+  const p1 = (Math.max(0, Number(billsBeforePay || 0)) / ringTotal) * 100
+  const p2 = (Math.max(0, Number(laterShare || 0)) / ringTotal) * 100
+  const p3 = (Math.max(0, Number(goalReserve || 0)) / ringTotal) * 100
+  const p4 = (Math.max(0, Number(everyday || 0)) / ringTotal) * 100
+  const ringStyle = {
+    background: `conic-gradient(#3b82f6 0 ${p1}%, #7c3aed ${p1}% ${p1+p2}%, #ca8a04 ${p1+p2}% ${p1+p2+p3}%, #059669 ${p1+p2+p3}% ${p1+p2+p3+p4}%, #3f3f46 ${p1+p2+p3+p4}% 100%)`,
+  }
 
   // #1 Daily allowance: split what's safe to spend evenly over the days left
   // until the next paycheck, so there's a simple "spend this much a day" number.
@@ -125,7 +135,13 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
     lowSafeAfter < 0
 
   return (
-    <section className="@container min-w-0 rounded-2xl p-5 sm:p-6 shadow-xl bg-white">
+    <section className="mm-spend @container min-w-0 rounded-2xl p-5 sm:p-6 shadow-xl bg-white">
+      <div className="mm-spend-grid">
+      <div className="mm-ring-col">
+        <div className="mm-ring" style={ringStyle}><i /></div>
+        <p className="mm-muted" style={{ textAlign: 'center', marginTop: 8 }}>Cash already spoken for</p>
+      </div>
+      <div className="mm-spend-body">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[0.7rem] uppercase tracking-widest text-slate-500 whitespace-nowrap">
           Safe to spend
@@ -585,6 +601,8 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
               </div>
             )}
           </div>
+      </div>
+      </div>
       </div>
     </section>
   )
