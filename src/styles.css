@@ -20,8 +20,29 @@
   }
 }
 
-/* react-grid-layout items are position:absolute with a fixed height. Content
-   must not clip during Customize; the default view no longer uses RGL. */
+/* Shell chrome — theme-aware sidebar/header, not a green bar. */
+.mm-chrome {
+  background: #191919;
+  color: #f5f5f5;
+}
+html[data-theme="clean"] .mm-chrome {
+  background: #efe8dc;
+  color: #161513;
+}
+html[data-theme="midnight"] .mm-chrome,
+html[data-theme="dark"] .mm-chrome {
+  background: #191919;
+  color: #f5f5f5;
+}
+html[data-theme="cyberpunk"] .mm-chrome {
+  background: #07151e;
+  color: #e8fbff;
+}
+html[data-theme="punk"] .mm-chrome {
+  background: #1a0910;
+  color: #fff5f8;
+}
+
 .react-grid-item {
   overflow: visible;
 }
@@ -29,7 +50,6 @@
   position: relative;
 }
 
-/* Aurora — fifth theme: Colorado dawn, cool sky over warm horizon */
 html[data-theme="aurora"] body {
   color: #e8f4ff;
   background-color: #07131c;
