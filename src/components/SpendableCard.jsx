@@ -52,7 +52,7 @@ function SmoothBreakdown({ items = [], onSmoothingMove, canMoveSmoothing }) {
   )
 }
 
-export default function SpendableCard({ info, everydayByCat = [], billSmoothed = 0, billSmoothedByItem = [], debtSmoothed = 0, debtSmoothedByItem = [], goalNextPaycheckByItem = [], goalNextPaycheckTotal = 0, onSmoothingMove = null, canMoveSmoothing = false, lowest = null, counting = { goals: true, debt: true }, onCounting = null, hasGoalReserve = false, hasDebtBills = false, asOf = null, asOfStale = false, onEditBudgets = null, closers = null, onPauseGoal = null, onLogSpend = null }) {
+export default function SpendableCard({ info, everydayByCat = [], billSmoothed = 0, billSmoothedByItem = [], debtSmoothed = 0, debtSmoothedByItem = [], goalNextPaycheckByItem = [], goalNextPaycheckTotal = 0, onSmoothingMove = null, canMoveSmoothing = false, lowest = null, counting = { goals: true, debt: true }, onCounting = null, hasGoalReserve = false, hasDebtBills = false, asOf = null, asOfStale = false, onEditBudgets = null, closers = null, onPauseGoal = null, onLogSpend = null, nextPayments = [] }) {
   const [showAfford, setShowAfford] = useState(false)
   const [afford, setAfford] = useState('')
   const [what, setWhat] = useState('')
@@ -62,6 +62,8 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
   const [showDebtBreak, setShowDebtBreak] = useState(false)
   const [showGoalsBreak, setShowGoalsBreak] = useState(false)
   const [showLater, setShowLater] = useState(false)
+  const [showFormula, setShowFormula] = useState(false)
+  const [showClosers, setShowClosers] = useState(false)
 
   // Nothing set up yet. This used to render nothing at all — which meant a new
   // account never saw the single number the whole app is built around, and had
@@ -127,6 +129,14 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
       <div className="flex items-center justify-between gap-3">
         <p className="text-[0.7rem] uppercase tracking-widest text-slate-500 whitespace-nowrap">
           Safe to spend
+          <button
+            type="button"
+            onClick={() => setShowFormula((v) => !v)}
+            className="ml-2 text-slate-400 hover:text-slate-600 align-middle"
+            aria-label="How this number is calculated"
+          >
+            ⓘ
+          </button>
         </p>
         {asOf && (
           <p className={`text-[0.7rem] shrink-0 whitespace-nowrap ${asOfStale ? 'text-amber-600' : 'text-slate-400'}`}>
@@ -141,6 +151,11 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
       >
         {negative ? `\u2212${money(Math.abs(spendable))}` : money(spendable)}
       </p>
+      {showFormula && (
+        <p className="mt-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2">
+          Cash minus buffer, reserved goals, set-asides, bills due before the next paycheck, and this paycheck&apos;s share of later bills, debt, and goals.
+        </p>
+      )}
       {asOfStale && (
         <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
           Cash is old. Bank pull did not finish.
@@ -158,36 +173,6 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
           <p className="text-sm text-red-800 font-medium">
             {money(Math.abs(spendable))} short of covering bills and reserve before payday.
           </p>
-          {closers && closers.plan.length > 0 && (
-            <ul className="mt-2 space-y-1.5">
-              {closers.plan.map((a) => (
-                <li key={a.id} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="text-red-800 min-w-0">
-                    {a.label}
-                    <span className="text-red-600/80"> · frees {money(a.frees)}</span>
-                  </span>
-                  {a.kind === 'pause-goal' && onPauseGoal && (
-                    <button
-                      type="button"
-                      onClick={() => onPauseGoal(a.goalId)}
-                      className="shrink-0 text-xs font-semibold text-red-800 border border-red-300 rounded-full px-2.5 py-1 min-h-11"
-                    >
-                      Pause
-                    </button>
-                  )}
-                  {a.kind === 'hide-debt' && onCounting && (
-                    <button
-                      type="button"
-                      onClick={() => onCounting((c) => ({ ...c, debt: false }))}
-                      className="shrink-0 text-xs font-semibold text-red-800 border border-red-300 rounded-full px-2.5 py-1 min-h-11"
-                    >
-                      Leave out
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       ) : (
         <p className="text-sm mt-3 text-slate-600">
@@ -368,6 +353,12 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
             <span className="text-slate-800">−{money(tripFunds)}</span>
           </li>
         )}
+        <li className="flex justify-between border-t border-slate-200 pt-2 mt-2 font-medium">
+          <span className="text-slate-700">= Safe to spend</span>
+          <span className={negative ? 'text-red-600' : 'text-slate-800'}>
+            {negative ? `−${money(Math.abs(spendable))}` : money(spendable)}
+          </span>
+        </li>
       </ul>
 
       {/* On-the-fly toggles: include/exclude goals & debt from the number above,
@@ -400,6 +391,65 @@ export default function SpendableCard({ info, everydayByCat = [], billSmoothed =
             >
               {counting.debt ? '● Debt' : '○ Debt'}
             </button>
+          )}
+        </div>
+      )}
+
+      {nextPayments.length > 0 && (
+        <div className="mt-3 border-t border-slate-200 pt-3">
+          <p className="text-sm font-semibold text-slate-800 mb-1">Next payments</p>
+          <ul className="space-y-1 text-sm">
+            {nextPayments.map((p) => (
+              <li key={p.id || p.name + p.date} className="flex justify-between gap-2">
+                <span className="text-slate-600 min-w-0 truncate">
+                  {p.name}
+                  <span className="text-slate-400"> · {shortDate(p.date || p.originalDate)}</span>
+                </span>
+                <span className="shrink-0 text-slate-800">{money(p.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {closers && closers.plan.length > 0 && (
+        <div className="mt-3 border-t border-slate-200 pt-3">
+          <button
+            type="button"
+            onClick={() => setShowClosers((v) => !v)}
+            className="text-sm text-slate-600"
+          >
+            {showClosers ? '▾' : '▸'} Ways to close the gap
+          </button>
+          {showClosers && (
+            <ul className="mt-2 space-y-1.5">
+              {closers.plan.map((a) => (
+                <li key={a.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-slate-700 min-w-0">
+                    {a.label}
+                    <span className="text-slate-400"> · frees {money(a.frees)}</span>
+                  </span>
+                  {a.kind === 'pause-goal' && onPauseGoal && (
+                    <button
+                      type="button"
+                      onClick={() => onPauseGoal(a.goalId)}
+                      className="shrink-0 text-xs font-semibold text-slate-700 border border-slate-300 rounded-full px-2.5 py-1 min-h-11"
+                    >
+                      Pause
+                    </button>
+                  )}
+                  {a.kind === 'hide-debt' && onCounting && (
+                    <button
+                      type="button"
+                      onClick={() => onCounting((c) => ({ ...c, debt: false }))}
+                      className="shrink-0 text-xs font-semibold text-slate-700 border border-slate-300 rounded-full px-2.5 py-1 min-h-11"
+                    >
+                      Leave out
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}

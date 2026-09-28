@@ -2263,8 +2263,15 @@ export function spendableToday(
   for (const b of upBills) {
     const due = b.originalDate || b.date
     if (b.overdue) continue
+    // First payment before the next paycheck is a live bill this window,
+    // not a later share. Sep 28 + first due Oct 1 + payday Oct 8 = hold full.
     if (b.preStart) {
-      later.push({ ...b, due })
+      if (due <= windowEnd) {
+        thisWindow.push(b)
+        windowBillIds.add(b.billId || b.id)
+      } else {
+        later.push({ ...b, due })
+      }
       continue
     }
     if (due <= windowEnd) {

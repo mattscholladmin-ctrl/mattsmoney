@@ -837,9 +837,11 @@ export default function Dashboard({ session, demo = false }) {
     // The Debt "Counting" chip governs ALL your debt — lump payments AND anything
     // you've smoothed — so it stays a quick on/off even when every active debt is
     // smoothed; the Bills portion is never affected by that chip.
-    const billSmoothedItems = (smoothed.byItem || []).filter((s) => String(s.id).startsWith('bill-'))
+    const windowEnd = nextPay && nextPay.date
+    const stillSaving = (row) => !windowEnd || !row.nextDue || row.nextDue > windowEnd
+    const billSmoothedItems = (smoothed.byItem || []).filter((s) => String(s.id).startsWith('bill-') && stillSaving(s))
     const debtSmoothedItems = (smoothed.byItem || [])
-      .filter((s) => String(s.id).startsWith('debt-'))
+      .filter((s) => String(s.id).startsWith('debt-') && stillSaving(s))
       .map((s) => ({ ...s, perPaycheck: Number(s.slice || s.perPaycheck || 0) }))
     const billSmoothedTotal = Math.round(billSmoothedItems.reduce((s, x) => s + Number(x.perPaycheck || 0), 0) * 100) / 100
     const debtSmoothedPotential = Math.round(debtSmoothedItems.reduce((s, x) => s + Number(x.perPaycheck || 0), 0) * 100) / 100
@@ -980,6 +982,11 @@ export default function Dashboard({ session, demo = false }) {
           ),
         }
       : null
+    if (newNormal && spendable) {
+      newNormal.perPaycheck.bills = Number(spendable.laterShare || 0) + billSmoothedTotal
+      newNormal.perPaycheck.debt = debtSmoothedTotal
+      newNormal.perPaycheck.goal = goalReserve
+    }
     // The Dashboard "Next 30 days of bills" tile: view-only, always shows recurring
     // bills PLUS arranged debt payments (not goals), independent of the counting
     // chip. 30-day window regardless of the horizon toggle.
@@ -1239,6 +1246,7 @@ export default function Dashboard({ session, demo = false }) {
               <div className="space-y-5 min-w-0">
               <SpendableCard
                 info={derived.spendable}
+                nextPayments={(derived.upcomingBills30 || []).filter((b) => !b.overdue).slice(0, 3)}
                 everydayByCat={derived.everydayByCat}
                 onEditBudgets={() => setView('insights')}
                 billSmoothed={derived.billSmoothed}

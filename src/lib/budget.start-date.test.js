@@ -108,6 +108,19 @@ describe('paycheck-share safe to spend', () => {
     assert.equal(info.laterShare, 0)
   })
 
+  it('Sep 28: Oct 1 first payment before Oct 8 payday is held in full', () => {
+    const asBills = debtsAsBills([loan])
+    const info = spendableToday(10000, {
+      bills: asBills,
+      incomes: [smr],
+      fromIso: '2026-09-28',
+      bufferFloor: 0,
+      transactions: [],
+    })
+    assert.equal(info.billsBeforePay, 750)
+    assert.equal(info.laterShare, 0)
+  })
+
   it('Sep 6: bill due before next paycheck is held in full', () => {
     const hinge = { id: 'h', name: 'Hinge+', amount: 19.99, cadence: 'monthly', due_day: 9, start_date: '2026-08-09', active: true }
     const info = spendableToday(10000, {
