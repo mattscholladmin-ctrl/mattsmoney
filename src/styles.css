@@ -20,7 +20,6 @@
   }
 }
 
-/* Shell chrome — theme-aware sidebar/header, not a green bar. */
 .mm-chrome {
   background: #191919;
   color: #f5f5f5;
@@ -41,6 +40,43 @@ html[data-theme="cyberpunk"] .mm-chrome {
 html[data-theme="punk"] .mm-chrome {
   background: #1a0910;
   color: #fff5f8;
+}
+
+aside.bg-red-900,
+header.bg-red-900,
+nav.bg-red-900,
+aside.bg-emerald-800,
+header.bg-emerald-800,
+nav.bg-emerald-800 {
+  background: #191919 !important;
+  color: #f5f5f5 !important;
+}
+html[data-theme="clean"] aside.bg-red-900,
+html[data-theme="clean"] header.bg-red-900,
+html[data-theme="clean"] nav.bg-red-900,
+html[data-theme="clean"] aside.bg-emerald-800,
+html[data-theme="clean"] header.bg-emerald-800,
+html[data-theme="clean"] nav.bg-emerald-800 {
+  background: #efe8dc !important;
+  color: #161513 !important;
+}
+html[data-theme="cyberpunk"] aside.bg-red-900,
+html[data-theme="cyberpunk"] header.bg-red-900,
+html[data-theme="cyberpunk"] nav.bg-red-900,
+html[data-theme="cyberpunk"] aside.bg-emerald-800,
+html[data-theme="cyberpunk"] header.bg-emerald-800,
+html[data-theme="cyberpunk"] nav.bg-emerald-800 {
+  background: #07151e !important;
+  color: #e8fbff !important;
+}
+html[data-theme="punk"] aside.bg-red-900,
+html[data-theme="punk"] header.bg-red-900,
+html[data-theme="punk"] nav.bg-red-900,
+html[data-theme="punk"] aside.bg-emerald-800,
+html[data-theme="punk"] header.bg-emerald-800,
+html[data-theme="punk"] nav.bg-emerald-800 {
+  background: #1a0910 !important;
+  color: #fff5f8 !important;
 }
 
 .react-grid-item {
