@@ -1118,7 +1118,7 @@ export default function Dashboard({ session, demo = false }) {
     (data.accounts.length === 0 || data.income.length === 0 || data.bills.length === 0)
 
   return (
-    <div className="mm-app min-h-screen bg-slate-100">
+    <div className="mm-app min-h-screen lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:h-screen lg:overflow-hidden">
       {/* Phone/tablet: top bar. Desktop gets the sidebar below instead. */}
       <header className={`${chrome} text-white px-4 py-2.5 flex items-center gap-3 sticky top-0 z-10 lg:hidden`}>
         <span className="font-bold text-lg shrink-0 flex items-center gap-1.5">
@@ -1209,7 +1209,7 @@ export default function Dashboard({ session, demo = false }) {
       )}
 
 
-      <main className="mm-main mx-auto p-4 sm:p-5 space-y-4 pb-28 lg:pb-6">
+      <main className="mm-main w-full max-w-none m-0 p-4 sm:p-4 space-y-3 pb-28 lg:pb-4 min-w-0">
         {notice && (
           <div
             className={`rounded-xl px-4 py-3 text-sm font-medium ${
@@ -1232,19 +1232,27 @@ export default function Dashboard({ session, demo = false }) {
         )}
 
         {view === 'dashboard' && (
-          <div className="mm-dash">
-            {/* Glance strip: the four vitals in one slim row. */}
-            <div className="mm-metrics rounded-2xl bg-white shadow px-5 py-3 grid grid-cols-2 lg:grid-cols-3 gap-3">
-              <Stat label="Total cash" value={money(derived.totals.totalCash)} />
-              <Stat label="Spent this month" value={money(derived.monthSpend)} />
-              <Stat
-                label={derived.plan?.scopeNote ? 'Debt-free *' : 'Debt-free'}
-                value={
-                  derived.plan && !derived.plan.capped
+          <div className="mm-dash w-full">
+            <div className="mm-metrics grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <p className="mm-k">Cash</p>
+                <p className="text-2xl font-bold tracking-tight">{money(derived.totals.totalCash)}</p>
+                <p className="mm-muted mt-1">On hand today</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <p className="mm-k">Spent this month</p>
+                <p className="text-2xl font-bold tracking-tight">{money(derived.monthSpend)}</p>
+                <p className="mm-muted mt-1">This calendar month</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <p className="mm-k">{derived.plan?.scopeNote ? 'Debt-free *' : 'Debt-free'}</p>
+                <p className="text-2xl font-bold tracking-tight">
+                  {derived.plan && !derived.plan.capped
                     ? new Date(derived.plan.debtFreeDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
-                    : '—'
-                }
-              />
+                    : '—'}
+                </p>
+                <p className="mm-muted mt-1">On the current plan</p>
+              </div>
             </div>
 
             <div className="mm-plan min-w-0">
@@ -1293,8 +1301,24 @@ export default function Dashboard({ session, demo = false }) {
               />
             </div>
             <div className="mm-side min-w-0">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <p className="mm-k">Next</p>
+                {((derived.upcomingBills30 || []).filter((b) => !b.overdue).slice(0, 3)).length === 0 ? (
+                  <p className="mm-muted mt-2">No bills waiting on an answer.</p>
+                ) : (
+                  <ul className="mt-2 space-y-2 text-sm">
+                    {(derived.upcomingBills30 || []).filter((b) => !b.overdue).slice(0, 3).map((b) => (
+                      <li key={b.id || b.name} className="flex justify-between gap-2">
+                        <span className="truncate">{b.name}{b.nextDue || b.due ? ` · ${String(b.nextDue || b.due).slice(5)}` : ''}</span>
+                        <span className="shrink-0">{money(b.amount || b.min_payment || 0)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button type="button" onClick={() => setView('insights')} className="mt-3 text-sm underline opacity-80">Review bills</button>
+              </div>
               <PaycheckAssignment assignment={derived.assignment} />
-                <ProjectionAlert
+              <ProjectionAlert
                   projection={derived.projection}
                   spendableLowest={derived.spendableLowest}
                   runway={derived.runway}
@@ -1310,105 +1334,7 @@ export default function Dashboard({ session, demo = false }) {
                   bufferFloor={derived.bufferFloor}
                   hasBudgets={data.budgets.length > 0}
                 />
-
-                {showPhase && (
-                  <PhaseCard
-                    phaseInfo={derived.phaseInfo}
-                    phases={data.phases}
-                    onChanged={load}
-                  />
-                )}
             </div>
-
-            {/* Extra tiles stay available under Customize / More. */}
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowMoreDash((v) => !v)}
-                className="text-sm text-slate-600"
-              >
-                {showMoreDash ? 'Hide extra tiles' : 'More on this page'}
-              </button>
-            </div>
-            {showMoreDash && (() => {
-              const tileNodes = {
-                accounts: (
-                  <AccountsCard
-                    accounts={data.accounts}
-                    balances={data.balances}
-                    debts={data.debts}
-                    goals={data.goals}
-                    transactions={data.transactions}
-                    onRefresh={refreshNow}
-                    refreshing={refreshing}
-                    onChanged={load}
-                  />
-                ),
-                income: (
-                  <IncomeCard
-                    income={data.income}
-                    upcomingIncome={derived.upcomingIncome30}
-                    shortfalls={derived.incomeShortfallList}
-                    goals={data.goals}
-                    debts={data.debts}
-                    transactions={data.transactions}
-                    onChanged={load}
-                  />
-                ),
-                goals: (
-                  <GoalsCard
-                    goals={data.goals}
-                    transactions={data.transactions}
-                    debts={data.debts}
-                    accounts={data.accounts}
-                    balances={data.balances}
-                    payPeriodsPerYear={payPeriodsPerYear(data.income)}
-                    countingGoals={counting.goals}
-                    onChanged={load}
-                  />
-                ),
-                setaside: (
-                  <SetAsideCard setAsides={data.setAsides} onChanged={load} />
-                ),
-                monthspend: (
-                  <SpentThisMonthTile
-                    transactions={data.transactions}
-                    total={derived.monthSpend}
-                  />
-                ),
-                bills: (
-                  <UpcomingBillsCard
-                    upcoming={derived.upcomingBills30}
-                    bills={data.bills}
-                    transactions={data.transactions}
-                    ppy={derived.newNormal?.ppy || 26}
-                    onChanged={load}
-                  />
-                ),
-                debts: <DebtsCard debts={data.debts} goals={data.goals} debtPayments={data.debtPayments} ppy={payPeriodsPerYear(data.income)} onChanged={load} />,
-                transactions: (
-                  <TransactionsCard
-                    transactions={data.transactions}
-                    categories={categories}
-                    goals={data.goals}
-                    income={data.income}
-                    accounts={data.accounts}
-                    balances={data.balances}
-                    onOpenAll={() => setView('transactions')}
-                    onChanged={load}
-                  />
-                ),
-                cashflow: <CashFlowCalendar cashflow={derived.cashflow} />,
-              }
-              return (
-                <TileColumns
-                  names={TILE_NAMES}
-                  tiles={tileNodes}
-                  tilesState={dashTiles}
-                  arranging={arranging}
-                />
-              )
-            })()}
           </div>
         )}
 
