@@ -342,3 +342,30 @@ html[data-theme="cyberpunk"] .mm-main,
 html[data-theme="punk"] .mm-main {
   background: var(--bg);
 }
+
+.mm-spend-grid {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+@media (max-width: 700px) {
+  .mm-spend-grid { grid-template-columns: 1fr; }
+  .mm-ring-col { margin: 0 auto; }
+}
+.mm-ring {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+}
+.mm-ring i {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: var(--card, #101010);
+  display: block;
+}
+.mm-ring-col { min-width: 150px; }
