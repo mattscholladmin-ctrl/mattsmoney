@@ -203,3 +203,12 @@ html[data-theme="aurora"] .ring-emerald-500 {
     min-height: 100%;
   }
 }
+
+html[data-theme="midnight"] .rounded-2xl.bg-white.shadow,
+html[data-theme="midnight"] .rounded-2xl.bg-white {
+  box-shadow: none;
+  border: 1px solid #2a2a2a;
+}
+html[data-theme="midnight"] .min-h-screen.bg-slate-100 {
+  background: #141414;
+}
