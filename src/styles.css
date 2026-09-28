@@ -301,3 +301,44 @@ html[data-theme="punk"] {
   color: var(--nav, #cfcfcf);
 }
 .mm-acct b { color: var(--fg, #fff); }
+
+@media (min-width: 1024px) {
+  .mm-dash {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 12px;
+    min-height: calc(100vh - 32px);
+  }
+  .mm-metrics { grid-column: 1; }
+  .mm-plan { grid-column: 1; }
+  .mm-recent { grid-column: 1; min-height: 0; }
+  .mm-side { grid-column: 2; grid-row: 1 / span 3; display: flex; flex-direction: column; gap: 12px; }
+  .mm-page {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 12px;
+    min-height: calc(100vh - 32px);
+    align-items: start;
+  }
+  .mm-page > * { min-width: 0; }
+}
+html[data-theme="clean"] .rounded-2xl.bg-white,
+html[data-theme="cyberpunk"] .rounded-2xl.bg-white,
+html[data-theme="punk"] .rounded-2xl.bg-white,
+html[data-theme="midnight"] .rounded-2xl.bg-white {
+  box-shadow: none;
+  border: 1px solid var(--line, #2a2a2a);
+  background: var(--card, #101010);
+}
+html[data-theme="clean"] .mm-app,
+html[data-theme="cyberpunk"] .mm-app,
+html[data-theme="punk"] .mm-app {
+  background: var(--bg);
+  color: var(--fg);
+}
+html[data-theme="clean"] .mm-main,
+html[data-theme="cyberpunk"] .mm-main,
+html[data-theme="punk"] .mm-main {
+  background: var(--bg);
+}
