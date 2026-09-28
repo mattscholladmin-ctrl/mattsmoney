@@ -302,13 +302,18 @@ html[data-theme="punk"] {
 }
 .mm-acct b { color: var(--fg, #fff); }
 
-@media (min-width: 1024px) {
-  .mm-dash {
+.mm-dash {
+    width: 100%;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
     grid-template-rows: auto auto minmax(0, 1fr);
     gap: 12px;
     min-height: calc(100vh - 32px);
+  }
+@media (min-width: 1024px) {
+  .mm-dash {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
   }
   .mm-metrics { grid-column: 1; }
   .mm-plan { grid-column: 1; }
@@ -369,3 +374,6 @@ html[data-theme="punk"] .mm-main {
   display: block;
 }
 .mm-ring-col { min-width: 150px; }
+
+.mm-plan .text-5xl { display: none; }
+.mm-spend { box-shadow: none !important; border: 1px solid var(--line, #2a2a2a) !important; background: var(--card, #101010) !important; }
