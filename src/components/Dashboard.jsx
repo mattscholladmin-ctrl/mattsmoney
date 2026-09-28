@@ -97,9 +97,7 @@ const NAV_ICONS = {
 function BottomNav({ view, setView, shortfall }) {
   return (
     <nav
-      className={`lg:hidden fixed bottom-0 inset-x-0 z-20 text-white border-t border-white/10 flex ${
-        shortfall ? 'bg-red-900' : 'bg-emerald-800'
-      }`}
+      className="lg:hidden fixed bottom-0 inset-x-0 z-20 mm-chrome border-t border-white/10 flex"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {PAGES.map((p) => {
@@ -270,12 +268,12 @@ function Stat({ label, value, tone = 'ink' }) {
 }
 
 const PAGES = [
-  { id: 'dashboard', label: 'Home', title: 'Budget' },
-  { id: 'transactions', label: 'Activity', title: 'Transactions' },
+  { id: 'dashboard', label: 'Dashboard', title: 'Budget' },
+  { id: 'transactions', label: 'Transactions', title: 'Transactions' },
   { id: 'checkin', label: 'Check-in', title: 'Check-in' },
-  { id: 'credit', label: 'Score', title: 'Credit recovery' },
-  { id: 'insights', label: 'Stats', title: 'Spending insights' },
-  { id: 'settings', label: 'More', title: 'Settings' },
+  { id: 'credit', label: 'Credit', title: 'Credit recovery' },
+  { id: 'insights', label: 'Insights', title: 'Spending insights' },
+  { id: 'settings', label: 'Settings', title: 'Settings' },
 ]
 
 // The reorderable dashboard tiles, their display names, and the default layout.
@@ -1111,7 +1109,7 @@ export default function Dashboard({ session, demo = false }) {
 
   const safeNow = derived.spendable ? derived.spendable.spendable : null
   const shortfall = safeNow != null && safeNow < 0
-  const chrome = shortfall ? 'bg-red-900' : 'bg-emerald-800'
+  const chrome = 'mm-chrome'
   // First-run: until there's an account, an income source AND at least one
   // bill, Safe to spend can't mean anything — so show the setup path instead
   // of leaving a new account staring at a page of empty tiles.
