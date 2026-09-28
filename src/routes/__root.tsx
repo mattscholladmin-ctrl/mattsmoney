@@ -5,7 +5,7 @@ import appCss from "../styles.css?url";
 
 const APP_NAME = "Budget";
 
-const THEME_BOOT = `(function(){try{document.documentElement.dataset.theme=localStorage.getItem("budget.theme")||"clean"}catch(e){document.documentElement.dataset.theme="clean"}})();`;
+const THEME_BOOT = `(function(){try{var t=localStorage.getItem("budget.theme")||"midnight";if(t==="aurora"||t==="dark")t="midnight";document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme="midnight"}})();`;
 
 export const Route = createRootRoute({
   head: () => ({

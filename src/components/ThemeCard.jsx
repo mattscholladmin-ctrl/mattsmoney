@@ -2,18 +2,18 @@
 import { useState } from 'react'
 
 const THEMES = [
+  { id: 'midnight', label: 'Dark', hint: 'Approved dark' },
   { id: 'clean', label: 'Clean', hint: 'Elegant light' },
-  { id: 'midnight', label: 'Midnight', hint: 'Elegant dark' },
   { id: 'cyberpunk', label: 'Cyberpunk', hint: 'Neon dark' },
   { id: 'punk', label: 'Punk', hint: 'Bold & loud' },
-  { id: 'aurora', label: 'Aurora', hint: 'Dawn sky' },
 ]
 
-// Theme picker. Sets data-theme on <html> (CSS in index.css reacts) and
-// remembers the choice in localStorage (index.html applies it on next load).
 export default function ThemeCard() {
   const [theme, setTheme] = useState(
-    () => document.documentElement.dataset.theme || 'clean'
+    () => {
+      const t = document.documentElement.dataset.theme || 'midnight'
+      return t === 'aurora' || t === 'dark' ? 'midnight' : t
+    }
   )
 
   function pick(id) {
