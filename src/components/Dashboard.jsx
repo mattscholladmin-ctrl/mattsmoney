@@ -1359,7 +1359,6 @@ export default function Dashboard({ session, demo = false }) {
 
         {view === 'transactions' && (
           <Suspense fallback={<PageFallback />}>
-            <div className="mm-page mm-tx">
             <TransactionsView
               transactions={data.transactions}
               categories={categories}
@@ -1372,13 +1371,11 @@ export default function Dashboard({ session, demo = false }) {
               dedupedCount={dedupedCount}
               onChanged={load}
             />
-            </div>
           </Suspense>
         )}
 
         {view === 'checkin' && (
           <Suspense fallback={<PageFallback />}>
-            <div className="mm-page mm-ci">
             <CheckInView
               accounts={data.accounts.filter((a) => !a.hidden)}
               balances={data.balances}
@@ -1394,13 +1391,11 @@ export default function Dashboard({ session, demo = false }) {
               onDone={() => setView('dashboard')}
               onPauseGoal={handlePauseGoal}
             />
-            </div>
           </Suspense>
         )}
 
         {view === 'credit' && (
           <Suspense fallback={<PageFallback />}>
-            <div className="mm-page mm-cr">
             <CreditView
               scores={data.creditScores}
               milestones={data.creditMilestones}
@@ -1409,13 +1404,11 @@ export default function Dashboard({ session, demo = false }) {
               arranging={arranging}
               onChanged={load}
             />
-            </div>
           </Suspense>
         )}
 
         {view === 'insights' && (
           <Suspense fallback={<PageFallback />}>
-            <div className="mm-page mm-in">
             <InsightsView
               transactions={data.transactions}
               budgets={data.budgets}
@@ -1430,12 +1423,10 @@ export default function Dashboard({ session, demo = false }) {
               onChanged={load}
               arranging={arranging}
             />
-            </div>
           </Suspense>
         )}
 
         {view === 'settings' && (
-          <div className="mm-page mm-se">
           <SettingsView
             settings={data.settings}
             bufferFloor={derived.bufferFloor}
@@ -1471,7 +1462,6 @@ export default function Dashboard({ session, demo = false }) {
             }}
             onChanged={load}
           />
-          </div>
         )}
       </main>
 

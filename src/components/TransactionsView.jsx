@@ -220,11 +220,32 @@ export default function TransactionsView({ transactions = [], categories = [], g
         ) : (
           <div className="mm-txn-grid">
             {shown.map((t) => (
-              <button key={t.id} type="button" onClick={() => setEditing(t)} className="mm-txn-card">
-                <span className={`mm-txn-amt ${Number(t.amount) < 0 ? 'text-emerald-400' : ''}`}>{signedMoney(t)}</span>
-                <span className="mm-txn-name">{t.merchant}</span>
-                <span className="mm-muted">{shortDate(t.txn_date)}{t.pending ? ' · pending' : ''}</span>
-              </button>
+              <div key={t.id} className="mm-txn-card">
+                <button type="button" onClick={() => setEditing(t)} className="text-left">
+                  <span className={`mm-txn-amt block ${Number(t.amount) < 0 ? 'text-emerald-400' : ''}`}>{signedMoney(t)}</span>
+                  <span className="mm-txn-name block">{t.merchant}</span>
+                  <span className="mm-muted block">{shortDate(t.txn_date)}{t.pending ? ' · pending' : ''}</span>
+                </button>
+                <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+                  <select
+                    value={catOf(t)}
+                    onChange={async (e) => {
+                      const prev = catOf(t)
+                      const next = e.target.value
+                      await updateTransaction(t.id, { category: next })
+                      setUndoCat({ id: t.id, prev })
+                      onChanged()
+                    }}
+                    className="min-w-0 flex-1 text-xs rounded border px-1 py-0.5"
+                  >
+                    {!allCats.includes(catOf(t)) && <option value={catOf(t)}>{catOf(t)}</option>}
+                    {allCats.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => removeTxn(t)} className="text-xs opacity-60" aria-label="Delete">✕</button>
+                </div>
+              </div>
             ))}
           </div>
         )}
