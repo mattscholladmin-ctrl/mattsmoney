@@ -170,40 +170,10 @@ export default function CheckInView({
         : 'text-emerald-900'
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow">
-      <h2 className="font-semibold text-slate-800 mb-4">Check-in</h2>
-
-      {step === 1 && recap && (
-        <div className="mb-4 rounded-xl bg-emerald-50 border border-emerald-200 p-4">
-          <p className="text-sm font-semibold text-emerald-800 mb-2">
-            Since your last check-in
-            <span className="font-normal text-emerald-700">
-              {' '}· {recap.days} {recap.days === 1 ? 'day' : 'days'} ({shortDate(recap.since)} → today). Transfers not counted as spend.
-            </span>
-          </p>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-[0.75rem] uppercase tracking-wide text-slate-500">Spent</p>
-              <p className="text-lg font-bold text-slate-800">{money(recap.spent)}</p>
-            </div>
-            <div>
-              <p className="text-[0.75rem] uppercase tracking-wide text-slate-500">Income</p>
-              <p className="text-lg font-bold text-slate-800">{money(recap.income)}</p>
-            </div>
-            <div>
-              <p className="text-[0.75rem] uppercase tracking-wide text-slate-500">Net</p>
-              <p className={`text-lg font-bold ${recap.net < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
-                {recap.net < 0 ? '−' : '+'}{money(Math.abs(recap.net))}
-              </p>
-            </div>
-          </div>
-          <p className="text-xs text-slate-400 mt-2">
-            {recap.count} {recap.count === 1 ? 'transaction' : 'transactions'} logged in that time.
-          </p>
-        </div>
-      )}
-
-      {step === 1 && (
+    <div className="mm-split">
+    <section className="mm-card">
+      <p className="mm-k">Accounts</p>
+      <p className="mm-muted" style={{ margin: '6px 0 12px' }}>Bank balances stay. Type cash the bank does not sync.</p>
         <div className="mb-4 rounded-xl bg-slate-50 border border-slate-200 p-4">
           <p className="text-sm font-semibold text-slate-700 mb-2">Before you start, gather:</p>
           <ul className="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
@@ -214,7 +184,6 @@ export default function CheckInView({
             <li>Latest credit scores, if you want to log them (Credit page)</li>
           </ul>
         </div>
-      )}
 
       {step === 1 ? (
         <form onSubmit={saveBalance} className="space-y-4 text-slate-700">
@@ -373,5 +342,40 @@ export default function CheckInView({
         </div>
       )}
     </section>
+    <aside className="space-y-3">
+      {recap && (
+        <section className="mm-card">
+          <p className="mm-k">Since last check-in</p>
+          <p className={`mm-n ${recap.net < 0 ? 'text-red-500' : ''}`}>{recap.net < 0 ? '−' : '+'}{money(Math.abs(recap.net))}</p>
+          <p className="mm-muted">Income {money(recap.income)} · spent {money(recap.spent)}</p>
+          <div className="mm-flow" style={{ height: 88 }}>
+            <div className="mm-flow-col">
+              <div className="mm-flow-bar" style={{ height: `${Math.max(8, (recap.income / Math.max(recap.income, recap.spent, 1)) * 72)}px`, background: '#059669' }} />
+              <span>In</span>
+            </div>
+            <div className="mm-flow-col">
+              <div className="mm-flow-bar" style={{ height: `${Math.max(8, (recap.spent / Math.max(recap.income, recap.spent, 1)) * 72)}px`, background: '#9f1239' }} />
+              <span>Out</span>
+            </div>
+          </div>
+        </section>
+      )}
+      <section className="mm-card">
+        <p className="mm-k">Still open</p>
+        {(upcoming || []).slice(0, 6).length === 0 ? (
+          <p className="mm-muted" style={{ marginTop: 8 }}>Nothing open.</p>
+        ) : (
+          <ul>
+            {(upcoming || []).slice(0, 6).map((b) => (
+              <li key={`${b.billId || b.name}-${b.date}`} className="mm-row">
+                <span className="truncate">{b.name}</span>
+                <b>{money(b.amount)}</b>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </aside>
+    </div>
   )
 }

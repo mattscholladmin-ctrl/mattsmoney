@@ -270,15 +270,40 @@ export default function CreditView({
       ),
   }
 
-  return (
-    <div className="space-y-4">
-      <TileColumns
-        names={CREDIT_TILE_NAMES}
-        tiles={tiles}
-        tilesState={tilesState}
-        arranging={arranging}
-      />
+  if (arranging) {
+    return (
+      <div className="space-y-4">
+        <TileColumns names={CREDIT_TILE_NAMES} tiles={tiles} tilesState={tilesState} arranging={arranging} />
+        {logging && <LogScoreModal onClose={() => setLogging(false)} onChanged={onChanged} />}
+      </div>
+    )
+  }
 
+  const loans = debts.filter((d) => d.kind !== 'card' && !d.is_collection && d.active !== false)
+
+  return (
+    <div className="mm-split">
+      <div className="space-y-3">
+        {tiles.scores}
+        {loans.map((loan) => (
+          <section key={loan.id} className="mm-card">
+            <p className="mm-k">{loan.name}</p>
+            <p className="mm-n">{money(loan.balance || 0)}</p>
+            <p className="mm-muted">
+              {money(loan.plan_payment || loan.min_payment || 0)} / mo
+              {loan.start_date ? ` · first due ${shortDate(loan.start_date)}` : ''}
+              {loan.due_day ? ` · due the ${loan.due_day}` : ''}
+            </p>
+          </section>
+        ))}
+        {tiles.projection}
+        {tiles.plan}
+      </div>
+      <div className="space-y-3">
+        {tiles.utilization}
+        {tiles.cards}
+        {tiles.collections}
+      </div>
       {logging && <LogScoreModal onClose={() => setLogging(false)} onChanged={onChanged} />}
     </div>
   )

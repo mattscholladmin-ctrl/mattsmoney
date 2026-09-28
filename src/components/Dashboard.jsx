@@ -1554,13 +1554,35 @@ function SettingsView({ settings, bufferFloor, email, showPhase, onTogglePhase, 
       </Suspense>
     ),
   }
+  if (arranging) {
+    return (
+      <TileColumns
+        names={SETTINGS_TILE_NAMES}
+        tiles={tiles}
+        tilesState={tilesState}
+        arranging={arranging}
+      />
+    )
+  }
+
   return (
-    <TileColumns
-      names={SETTINGS_TILE_NAMES}
-      tiles={tiles}
-      tilesState={tilesState}
-      arranging={arranging}
-    />
+    <div className="mm-split">
+      <div className="space-y-3">
+        {tiles.acctorder}
+        {tiles.buffer}
+        {tiles.dashprefs}
+        {tiles.yourdata}
+      </div>
+      <div className="space-y-3">
+        {tiles.theme}
+        {tiles.guide}
+        {tiles.grok}
+        {tiles.bank}
+        {tiles.notifications}
+        {tiles.calendar}
+        {tiles.account}
+      </div>
+    </div>
   )
 }
 
