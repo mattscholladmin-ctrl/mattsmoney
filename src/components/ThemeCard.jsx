@@ -8,13 +8,13 @@ const THEMES = [
   { id: 'punk', label: 'Punk', hint: 'Bold & loud' },
 ]
 
+const OLD = ['aurora', 'dark', 'ivory', 'high-country', 'highcountry', 'high_country']
+
 export default function ThemeCard() {
-  const [theme, setTheme] = useState(
-    () => {
-      const t = document.documentElement.dataset.theme || 'midnight'
-      return t === 'aurora' || t === 'dark' ? 'midnight' : t
-    }
-  )
+  const [theme, setTheme] = useState(() => {
+    const t = document.documentElement.dataset.theme || 'midnight'
+    return OLD.includes(t) ? 'midnight' : t
+  })
 
   function pick(id) {
     document.documentElement.dataset.theme = id
