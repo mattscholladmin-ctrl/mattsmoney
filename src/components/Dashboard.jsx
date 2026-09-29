@@ -1118,7 +1118,7 @@ export default function Dashboard({ session, demo = false }) {
     (data.accounts.length === 0 || data.income.length === 0 || data.bills.length === 0)
 
   return (
-    <div className="mm-app min-h-screen lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:h-screen lg:overflow-hidden">
+    <div className="mm-app min-h-screen lg:grid lg:grid-cols-[252px_minmax(0,1fr)] lg:h-screen lg:overflow-hidden">
       {/* Phone/tablet: top bar. Desktop gets the sidebar below instead. */}
       <header className={`${chrome} text-white px-4 py-2.5 flex items-center gap-3 sticky top-0 z-10 lg:hidden`}>
         <span className="font-bold text-lg shrink-0 flex items-center gap-1.5">
@@ -1184,7 +1184,7 @@ export default function Dashboard({ session, demo = false }) {
           <div className="mm-k">Accounts</div>
           {(derived.summaries || []).filter((a) => !a.hidden).slice(0, 5).map((a) => (
             <div key={a.id} className="mm-acct">
-              <span>{a.name}</span>
+              <span className="truncate">{a.name}</span>
               <b>{money(a.balance)}</b>
             </div>
           ))}
@@ -1265,7 +1265,7 @@ export default function Dashboard({ session, demo = false }) {
                   }).join(' ')
                   const pace = pts.map((_, i) => ((i + 1) / pts.length) * (pts[pts.length - 1] || 0))
                   return (
-                    <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 w-full h-7" aria-hidden="true">
+                    <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 w-full h-14" aria-hidden="true">
                       <path d={line(pace)} fill="none" stroke="#525252" strokeWidth="1" strokeDasharray="3 3" />
                       <path d={line(pts)} fill="none" stroke="#3b82f6" strokeWidth="2" />
                     </svg>
@@ -1303,7 +1303,7 @@ export default function Dashboard({ session, demo = false }) {
                       return `conic-gradient(#3b82f6 0 ${a}%, #7c3aed ${a}% ${a+b}%, #ca8a04 ${a+b}% ${a+b+c}%, #059669 ${a+b+c}% ${a+b+c+d}%, #3f3f46 ${a+b+c+d}% 100%)`
                     })()
                   }}><i /></div>
-                  <p className="mm-muted" style={{ textAlign: 'center', marginTop: 8 }}>Cash already spoken for</p>
+                  <p className="mm-ring-cap">Cash already spoken for</p>
                 </div>
                 <div>
                   <p className="mm-k">Where the number comes from</p>
