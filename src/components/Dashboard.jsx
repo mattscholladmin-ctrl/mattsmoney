@@ -1135,7 +1135,7 @@ export default function Dashboard({ session, demo = false }) {
             </span>
           </button>
         )}
-        {['dashboard', 'settings', 'insights', 'credit'].includes(view) && (
+        {['settings', 'insights', 'credit'].includes(view) && (
           <button
             onClick={() => setArranging((a) => !a)}
             aria-label={arranging ? 'Done customizing layout' : 'Customize layout'}
@@ -1180,32 +1180,7 @@ export default function Dashboard({ session, demo = false }) {
             )
           })}
         </nav>
-        {view === 'dashboard' && (
-        <div className="mm-foot">
-          <div className="mm-k">Accounts</div>
-          {(derived.summaries || [])
-            .filter((a) => !a.hidden)
-            .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
-            .map((a) => (
-            <div key={a.id}>
-              <div className="mm-acct">
-                <span className="truncate">{a.name}</span>
-                <b>{a.balance == null ? '—' : money(a.balance)}</b>
-              </div>
-              {a.availableMissing ? (
-                <div className="mm-muted" style={{ fontSize: '0.7rem', marginTop: -2 }}>
-                  current
-                </div>
-              ) : a.bankCurrent != null ? (
-                <div className="mm-muted" style={{ fontSize: '0.75rem', marginTop: -2 }}>
-                  Current {money(a.bankCurrent)}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-        )}
-        {['dashboard', 'settings', 'insights', 'credit'].includes(view) && (
+        {['settings', 'insights', 'credit'].includes(view) && (
           <button
             onClick={() => setArranging((a) => !a)}
             className={`mt-3 flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${
@@ -1398,13 +1373,21 @@ export default function Dashboard({ session, demo = false }) {
                 {(derived.summaries || [])
                   .filter((a) => !a.hidden)
                   .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
-                  .map((a) => (
+                  .map((a) => {
+                    const kind = a.availableMissing
+                      ? 'current'
+                      : (a.bankCurrent != null ? 'available' : null)
+                    const counted = countsAsSpendable(a) ? 'in safe to spend' : 'not in safe to spend'
+                    return (
                     <div key={a.id} className="mm-acct-cell">
                       <span className="truncate">{a.name}</span>
-                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
-                      {a.availableMissing && <em>current</em>}
+                      <span className="mm-acct-fig">
+                        <b>{a.balance == null ? '—' : money(a.balance)}</b>
+                        <em>{kind ? `${kind} · ${counted}` : counted}</em>
+                      </span>
                     </div>
-                  ))}
+                    )
+                  })}
               </div>
             </div>
 

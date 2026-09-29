@@ -372,10 +372,26 @@ html[data-theme="punk"] {
 .mm-col .mm-acct-cell {
   flex-direction: row;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  padding: 8px 0;
+  padding: 7px 0;
   border-bottom: 1px solid var(--row, #262626);
+}
+.mm-acct-fig {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  text-align: right;
+  gap: 1px;
+}
+.mm-acct-fig b { line-height: 1.1; }
+.mm-acct-fig em {
+  color: var(--mute);
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.68rem;
+  line-height: 1.2;
 }
 @media (min-width: 1024px) {
   .mm-main {

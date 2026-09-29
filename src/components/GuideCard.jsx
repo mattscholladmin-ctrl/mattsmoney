@@ -131,8 +131,10 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          The Accounts tile lists every connected account with its latest balance
-          and shows total spendable, total cash, total debt, and net worth.
+          The Accounts tile on the dashboard lists every connected account.
+          The dollar amounts line up in one column. Under each number, a faint
+          note says whether that figure is available or current, and whether
+          the account is in safe to spend. Accounts are not repeated in the menu.
         </p>
         <ul>
           <li>
@@ -710,11 +712,11 @@ const SECTIONS = [
       <>
         <ul>
           <li>
-            <strong>Rearrange any page</strong> — tap the sliders icon (bottom of
-            the sidebar on a computer, top bar on the phone), then just
-            <strong> drag tiles</strong> where you want them — any column, any
-            spot. On the phone, press and hold a tile, then drag. Tap it again
-            when done. Each page and screen size saves its own layout.
+            <strong>Rearrange Credit, Insights, and Settings</strong> — tap the
+            sliders icon, then drag tiles. The dashboard does not rearrange;
+            that page has a fixed layout. On the phone, press and hold a tile,
+            then drag. Tap the icon again when done. Each of those pages saves
+            its own layout.
           </li>
           <li>
             Columns adapt to your screen: one on the phone, two on a laptop,
