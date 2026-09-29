@@ -1118,7 +1118,7 @@ export default function Dashboard({ session, demo = false }) {
     (data.accounts.length === 0 || data.income.length === 0 || data.bills.length === 0)
 
   return (
-    <div className="mm-app min-h-screen lg:grid lg:grid-cols-[252px_minmax(0,1fr)] lg:h-screen lg:overflow-hidden">
+    <div className="mm-app min-h-screen lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:h-screen lg:overflow-hidden">
       {/* Phone/tablet: top bar. Desktop gets the sidebar below instead. */}
       <header className={`${chrome} text-white px-4 py-2.5 flex items-center gap-3 sticky top-0 z-10 lg:hidden`}>
         <span className="font-bold text-lg shrink-0 flex items-center gap-1.5">
