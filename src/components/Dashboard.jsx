@@ -1186,22 +1186,17 @@ export default function Dashboard({ session, demo = false }) {
             <div key={a.id}>
               <div className="mm-acct">
                 <span className="truncate">{a.name}</span>
-                {a.availableMissing ? (
-                  <b className="text-red-400">Missing</b>
-                ) : (
-                  <b>{money(a.balance)}</b>
-                )}
+                <b>{a.balance == null ? '—' : money(a.balance)}</b>
               </div>
-              {a.bankCurrent != null && (
+              {a.availableMissing ? (
+                <div className="text-red-400" style={{ fontSize: '0.75rem', marginTop: -2 }}>
+                  Current · available not sent
+                </div>
+              ) : a.bankCurrent != null ? (
                 <div className="mm-muted" style={{ fontSize: '0.75rem', marginTop: -2 }}>
                   Current {money(a.bankCurrent)}
                 </div>
-              )}
-              {a.availableMissing && (
-                <div className="text-red-400" style={{ fontSize: '0.75rem' }}>
-                  Available was not sent
-                </div>
-              )}
+              ) : null}
             </div>
           ))}
         </div>
@@ -1257,14 +1252,13 @@ export default function Dashboard({ session, demo = false }) {
                 </p>
                 <p className="mm-muted">Until payday</p>
                 {(derived.summaries || []).filter((a) => !a.hidden).map((a) => (
-                  <div className="mm-row" key={a.id}>
-                    <span className="truncate">{a.name}</span>
-                    {a.availableMissing ? (
-                      <b className="text-red-500">
-                        No available{a.bankCurrent != null ? ` · ${money(a.bankCurrent)} current` : ''}
-                      </b>
-                    ) : (
-                      <b>{money(a.balance)}</b>
+                  <div key={a.id}>
+                    <div className="mm-row">
+                      <span className="truncate">{a.name}</span>
+                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
+                    </div>
+                    {a.availableMissing && (
+                      <p className="text-red-500 text-xs -mt-1 mb-1">Current · available not sent</p>
                     )}
                   </div>
                 ))}

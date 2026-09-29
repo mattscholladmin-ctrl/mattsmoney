@@ -68,14 +68,23 @@ export function accountSummaries(accounts = [], balanceEntries = []) {
     const entry = latest[a.id]
     const note = entry?.note || ''
     const availableMissing = /available missing/.test(note)
+    const bankCurrent = parseMoneyFromNote(note, 'current') ?? parseMoneyFromNote(note, 'in bank')
+    const stored = entry && entry.balance != null && entry.balance !== '' ? Number(entry.balance) : null
+    // Available is the figure when the bank sent it. When it did not, the
+    // imported current balance is still the account balance. The toggle
+    // decides whether that balance counts in safe-to-spend.
+    const balance = !entry
+      ? null
+      : availableMissing
+        ? (bankCurrent != null ? bankCurrent : stored)
+        : stored
     return {
       ...a,
-      // Available only. A missing available is not filled in with current.
-      balance: !entry || availableMissing ? null : Number(entry.balance),
+      balance,
       availableMissing,
       asOf: entry?.as_of || null,
       balanceDetail: note.split('Auto-synced · ')[1] || null,
-      bankCurrent: parseMoneyFromNote(note, 'current') ?? parseMoneyFromNote(note, 'in bank'),
+      bankCurrent,
       pending: parseMoneyFromNote(note, 'pending'),
     }
   })
@@ -170,7 +179,7 @@ export function goalPaycheckShare(goals = [], transactions = [], ppy = 26, incom
 
 export function moneyTotals(accounts = [], balanceEntries = [], debts = []) {
   const summaries = accountSummaries(accounts, balanceEntries)
-  const usable = (a) => a.balance != null && !a.availableMissing
+  const usable = (a) => a.balance != null && !Number.isNaN(Number(a.balance))
   const spendableCash = summaries
     .filter((a) => countsAsSpendable(a) && usable(a))
     .reduce((s, a) => s + a.balance, 0)

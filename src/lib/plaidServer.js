@@ -258,7 +258,9 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
       const current = a.balances.current
       const available = a.balances.available
       const missing = available == null
-      const cash = missing ? Number(current ?? 0) : Number(available)
+      // Keep the imported number either way. Available when the bank sent it,
+      // otherwise current. The note says which one it is.
+      const cash = missing ? (current == null ? null : Number(current)) : Number(available)
       let note = missing ? 'Auto-synced · available missing' : 'Auto-synced · available'
       if (current != null) note += ` · current $${Number(current).toFixed(2)}`
       const { data: prev } = await db
@@ -268,38 +270,24 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
+      const prevBal = prev && prev.balance != null && prev.balance !== '' ? Number(prev.balance) : null
       const same =
         prev &&
         prev.as_of === today &&
         (prev.note || '') === note &&
-        (missing ? /available missing/.test(prev.note || '') : Number(prev.balance) === cash)
+        prevBal === cash
       if (!same) {
-        // Write the correct row first, then drop the other rows from today
-        // so a same-day guess cannot stay on screen.
-        let inserted = await db
+        const inserted = await db
           .from('balance_entries')
           .insert({
             user_id: uid,
             account_id: id,
-            balance: missing ? null : cash,
+            balance: cash,
             as_of: today,
             note,
           })
           .select('id')
           .single()
-        if (inserted.error && missing) {
-          inserted = await db
-            .from('balance_entries')
-            .insert({
-              user_id: uid,
-              account_id: id,
-              balance: 0,
-              as_of: today,
-              note,
-            })
-            .select('id')
-            .single()
-        }
         if (!inserted.error && inserted.data?.id) {
           await db
             .from('balance_entries')
