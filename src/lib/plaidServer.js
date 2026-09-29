@@ -140,8 +140,25 @@ export async function syncItemTransactions(uid, item, db = adminClient()) {
   const ups = [...added, ...modified]
   if (ups.length) {
     const ids = ups.map((t) => t.transaction_id)
+    const pendingIds = ups.map((t) => t.pending_transaction_id).filter(Boolean)
     const { data: existing } = await db.from('transactions').select('plaid_transaction_id').in('plaid_transaction_id', ids)
     const have = new Set((existing || []).map((e) => e.plaid_transaction_id))
+    let pendingHave = new Set()
+    if (pendingIds.length) {
+      const { data: pendingRows } = await db.from('transactions').select('plaid_transaction_id').in('plaid_transaction_id', pendingIds)
+      pendingHave = new Set((pendingRows || []).map((e) => e.plaid_transaction_id))
+    }
+    const promote = ups.filter((t) => t.pending_transaction_id && pendingHave.has(t.pending_transaction_id))
+    for (const t of promote) {
+      const patch = { plaid_transaction_id: t.transaction_id, txn_date: t.authorized_date || t.date, amount: t.amount, pending: !!t.pending }
+      let { error } = await db.from('transactions').update(patch).eq('plaid_transaction_id', t.pending_transaction_id).eq('user_id', uid)
+      if (error && /pending/.test(error.message || '')) {
+        const { pending, ...rest } = patch
+        ;({ error } = await db.from('transactions').update(rest).eq('plaid_transaction_id', t.pending_transaction_id).eq('user_id', uid))
+      }
+      if (error) throw new Error(error.message)
+      have.add(t.transaction_id)
+    }
     const tagByMerchant = {}
     try {
       const { data: tagged } = await db.from('transactions').select('merchant,income_source').eq('user_id', uid).not('income_source', 'is', null).lt('amount', 0).order('created_at', { ascending: false }).limit(500)
