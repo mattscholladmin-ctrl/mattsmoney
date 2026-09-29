@@ -377,6 +377,14 @@ html[data-theme="punk"] {
   padding: 8px 0;
   border-bottom: 1px solid var(--row, #262626);
 }
+@media (min-width: 901px) {
+  .mm-body.mm-home { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+.mm-home .mm-col:first-child > .mm-card:first-child .mm-n { font-size: 3.3rem; }
+.mm-home .mm-spend-grid { grid-template-columns: 148px minmax(0, 1fr); gap: 16px; }
+.mm-home .mm-ring, .mm-home .mm-ring-cap { width: 132px; }
+.mm-home .mm-ring { height: 132px; }
+.mm-home .mm-ring i { width: 80px; height: 80px; }
 @media (min-width: 1024px) {
   .mm-main {
     height: 100vh;

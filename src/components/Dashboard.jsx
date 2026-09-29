@@ -1249,31 +1249,44 @@ export default function Dashboard({ session, demo = false }) {
 
         {view === 'dashboard' && (
           <div className="mm-dash w-full">
-            <div className="mm-metrics">
-              <div className="mm-card">
-                <p className="mm-k">Safe to spend</p>
-                <p className={`mm-n ${(derived.spendable && derived.spendable.spendable) < 0 ? 'text-red-500' : ''}`}>
-                  {money((derived.spendable && derived.spendable.spendable) || 0)}
-                </p>
-                <p className="mm-muted">Until payday</p>
-              </div>
-              <div className="mm-card">
-                <p className="mm-k">Spent this month</p>
-                <p className="mm-n">{money(derived.monthSpend)}</p>
-                <p className="mm-muted">Posted this month</p>
-              </div>
-              <div className="mm-card">
-                <p className="mm-k">{derived.plan?.scopeNote ? 'Debt-free *' : 'Debt-free'}</p>
-                <p className="mm-n">
-                  {derived.plan && !derived.plan.capped
-                    ? new Date(derived.plan.debtFreeDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
-                    : '—'}
-                </p>
-                <p className="mm-muted">On the current plan</p>
+            <div className="mm-body mm-home">
+              <div className="mm-col">
+                <div className="mm-card">
+                  <p className="mm-k">Safe to spend</p>
+                  <p className={`mm-n ${(derived.spendable && derived.spendable.spendable) < 0 ? 'text-red-500' : ''}`}>
+                    {money((derived.spendable && derived.spendable.spendable) || 0)}
+                  </p>
+                  <p className="mm-muted">Until payday</p>
+                  <div className="mm-row">
+                    <span>Spent this month</span>
+                    <b>{money(derived.monthSpend)}</b>
+                  </div>
+                  <div className="mm-row" style={{ borderBottom: 'none' }}>
+                    <span>{derived.plan?.scopeNote ? 'Debt-free *' : 'Debt-free'}</span>
+                    <b>
+                      {derived.plan && !derived.plan.capped
+                        ? new Date(derived.plan.debtFreeDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+                        : '—'}
+                    </b>
+                  </div>
+                </div>
+            <div className="mm-accounts mm-card">
+              <p className="mm-k">Accounts</p>
+              <div className="mm-acct-grid">
+                {(derived.summaries || [])
+                  .filter((a) => !a.hidden)
+                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+                  .map((a) => (
+                    <div key={a.id} className="mm-acct-cell">
+                      <span className="truncate">{a.name}</span>
+                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
+                      {a.availableMissing && <em>current</em>}
+                    </div>
+                  ))}
               </div>
             </div>
 
-            <div className="mm-body">
+              </div>
               <div className="mm-col">
             <div className="mm-plan mm-card">
               <div className="mm-spend-grid">
@@ -1360,52 +1373,13 @@ export default function Dashboard({ session, demo = false }) {
                 }).join(' ')
                 const pace = pts.map((_, i) => ((i + 1) / pts.length) * (pts[pts.length - 1] || 0))
                 return (
-                  <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 w-full" style={{ height: 220 }} aria-hidden="true">
+                  <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="mt-2 w-full" style={{ width: '100%', height: 180 }} aria-hidden="true">
                     <path d={line(pace)} fill="none" stroke="#525252" strokeWidth="1.5" strokeDasharray="4 4" />
                     <path d={line(pts)} fill="none" stroke="#3b82f6" strokeWidth="2.5" />
                   </svg>
                 )
               })()}
               <p className="mm-muted">Blue is actual. Dashed is even pace.</p>
-            </div>
-
-            <div className="mm-recent mm-card">
-              <div className="flex justify-between items-center mb-2">
-                <p className="mm-k">Recent</p>
-                <button type="button" onClick={() => setView('transactions')} className="mm-muted">View all</button>
-              </div>
-              <div className="mm-table">
-                <div className="mm-row mm-head">
-                  <span>Merchant</span><span>Category</span><span>Status</span><span>Date</span><span>Amount</span>
-                </div>
-                {(data.transactions || []).slice(0, 12).map((tx) => (
-                  <div className="mm-row" key={tx.id}>
-                    <span className="truncate">{tx.merchant || tx.name || '—'}</span>
-                    <span className="mm-muted truncate">{tx.category || ''}</span>
-                    <span className="mm-muted">{tx.pending ? 'Pending' : 'Posted'}</span>
-                    <span className="mm-muted">{String(tx.txn_date || tx.date || '').slice(5)}</span>
-                    <b className={(tx.amount || 0) < 0 ? 'text-emerald-400' : ''}>{money(Math.abs(tx.amount || 0))}</b>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-              </div>
-              <div className="mm-col">
-            <div className="mm-accounts mm-card">
-              <p className="mm-k">Accounts</p>
-              <div className="mm-acct-grid">
-                {(derived.summaries || [])
-                  .filter((a) => !a.hidden)
-                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
-                  .map((a) => (
-                    <div key={a.id} className="mm-acct-cell">
-                      <span className="truncate">{a.name}</span>
-                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
-                      {a.availableMissing && <em>current</em>}
-                    </div>
-                  ))}
-              </div>
             </div>
 
             <div className="mm-rail">
@@ -1463,6 +1437,27 @@ export default function Dashboard({ session, demo = false }) {
             </div>
               </div>
             </div>
+            <div className="mm-recent mm-card">
+              <div className="flex justify-between items-center mb-2">
+                <p className="mm-k">Recent</p>
+                <button type="button" onClick={() => setView('transactions')} className="mm-muted">View all</button>
+              </div>
+              <div className="mm-table">
+                <div className="mm-row mm-head">
+                  <span>Merchant</span><span>Category</span><span>Status</span><span>Date</span><span>Amount</span>
+                </div>
+                {(data.transactions || []).slice(0, 12).map((tx) => (
+                  <div className="mm-row" key={tx.id}>
+                    <span className="truncate">{tx.merchant || tx.name || '—'}</span>
+                    <span className="mm-muted truncate">{tx.category || ''}</span>
+                    <span className="mm-muted">{tx.pending ? 'Pending' : 'Posted'}</span>
+                    <span className="mm-muted">{String(tx.txn_date || tx.date || '').slice(5)}</span>
+                    <b className={(tx.amount || 0) < 0 ? 'text-emerald-400' : ''}>{money(Math.abs(tx.amount || 0))}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         )}
 
