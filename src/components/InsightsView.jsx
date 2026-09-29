@@ -414,11 +414,8 @@ export default function InsightsView({
           <p className="text-2xl font-bold text-slate-800 mt-1">{cur.count}</p>
         </div>
         <div className={card}>
-          <p className="text-xs text-slate-400">Top category</p>
-          <p className="text-lg font-bold text-slate-800 mt-1 truncate">
-            {catRows[0] ? catRows[0].category : '—'}
-          </p>
-          {catRows[0] && <p className="text-xs text-slate-400">{money(catRows[0].spent)}</p>}
+          <p className="text-xs text-slate-400">Safe to spend</p>
+          <p className={`text-2xl font-bold mt-1 ${(safeToSpend || 0) < 0 ? 'text-red-500' : 'text-slate-800'}`}>{safeToSpend == null ? '—' : money(safeToSpend)}</p>
         </div>
       </div>
 
@@ -434,21 +431,6 @@ export default function InsightsView({
         </div>
         <p className="mm-muted" style={{ marginTop: 8 }}>Wine is spend. Green is this month.</p>
       </section>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="mm-card">
-          <p className="mm-k">Spent</p>
-          <p className="mm-n">{money(cur.total)}</p>
-        </div>
-        <div className="mm-card">
-          <p className="mm-k">Safe to spend</p>
-          <p className={`mm-n ${(safeToSpend || 0) < 0 ? 'text-red-500' : ''}`}>{safeToSpend == null ? '—' : money(safeToSpend)}</p>
-        </div>
-        <div className="mm-card">
-          <p className="mm-k">Transactions</p>
-          <p className="mm-n">{cur.count}</p>
-        </div>
-      </div>
 
       <section className="mm-card">
         <p className="mm-k">Spend vs budget</p>

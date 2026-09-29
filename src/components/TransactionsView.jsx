@@ -177,15 +177,6 @@ export default function TransactionsView({ transactions = [], categories = [], g
           )}
         </div>
 
-        <div className="mm-weeks">
-          {weekSpend.map((v, i) => (
-            <div key={i} className="mm-week">
-              <div className="mm-week-bar" style={{ height: `${Math.max(12, (v / weekMax) * 128)}px` }} />
-              <span>W{i + 1}</span>
-            </div>
-          ))}
-        </div>
-
         <div className="flex justify-between items-center text-sm text-slate-500">
           <span>
             {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
@@ -215,6 +206,35 @@ export default function TransactionsView({ transactions = [], categories = [], g
           </button>
         </div>
       </section>
+
+      <section className="mm-card">
+        <p className="mm-k">This month</p>
+        <div className="mm-weeks">
+          {weekSpend.map((v, i) => (
+            <div key={i} className="mm-week">
+              <div className="mm-week-bar" style={{ height: `${Math.max(12, (v / weekMax) * 128)}px` }} />
+              <span>W{i + 1}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <aside className="mm-card">
+        <p className="mm-k">Top categories</p>
+        <ul className="mm-cat-row">
+          {topCats.map(([name, spent], i) => (
+            <li key={name}>
+              <div className="flex justify-between text-sm mb-1 gap-2">
+                <span className="truncate">{name}</span>
+                <b>{money(spent)}</b>
+              </div>
+              <div className="h-1.5 rounded-full" style={{ background: 'var(--track, #242424)' }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, (spent / (topCats[0][1] || 1)) * 100)}%`, background: catColors[i] }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </aside>
 
       <section className="mm-tx-list rounded-2xl bg-white p-5 shadow">
         {filtered.length === 0 ? (
@@ -270,23 +290,6 @@ export default function TransactionsView({ transactions = [], categories = [], g
           </button>
         )}
       </section>
-
-      <aside className="mm-card mm-tx-side">
-        <p className="mm-k">Top categories</p>
-        <ul className="mt-3 space-y-3">
-          {topCats.map(([name, spent], i) => (
-            <li key={name}>
-              <div className="flex justify-between text-sm mb-1">
-                <span>{name}</span>
-                <b>{money(spent)}</b>
-              </div>
-              <div className="h-1.5 rounded-full" style={{ background: 'var(--track, #242424)' }}>
-                <div className="h-full rounded-full" style={{ width: `${Math.min(100, (spent / (topCats[0][1] || 1)) * 100)}%`, background: catColors[i] }} />
-              </div>
-            </li>
-          ))}
-        </ul>
-      </aside>
 
       {editing && (
         <EditTransactionModal

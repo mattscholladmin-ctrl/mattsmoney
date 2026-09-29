@@ -188,7 +188,7 @@ export default function CheckInView({
   const dayMax = Math.max(1, ...dayBars.flatMap((d) => [d.inn, d.out]))
 
   return (
-    <div className="mm-split">
+    <div className="mm-stack">
     <section className="mm-card">
       <p className="mm-k">Accounts</p>
       <p className="mm-muted" style={{ margin: '6px 0 12px' }}>Bank balances stay. Type cash the bank does not sync.</p>

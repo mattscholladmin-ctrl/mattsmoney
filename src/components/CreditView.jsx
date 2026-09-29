@@ -115,7 +115,7 @@ export default function CreditView({
         )}
 
         {latest.length > 0 && (
-          <ul className="space-y-2">
+          <ul className="mm-score-list">
             {latest.map((s) => (
               <li key={s.id} className="flex items-center justify-between text-sm">
                 <span className="text-slate-600">
@@ -220,11 +220,11 @@ export default function CreditView({
           <h2 className="font-semibold text-slate-800 mb-1">Score projection</h2>
           <p className="text-xs text-slate-400 mb-3">Estimated path if you stay on plan.</p>
           {projPoints.length >= 2 && (
-            <div className="mb-3">
-              <LineChart points={projPoints} color="#34d399" format={(v) => String(Math.round(v))} axisFormat={(v) => String(Math.round(v))} />
-            </div>
-          )}
-          <ul className="space-y-2">
+            <div className="mm-pair-inner">
+              <div>
+                <LineChart points={projPoints} color="#34d399" format={(v) => String(Math.round(v))} axisFormat={(v) => String(Math.round(v))} />
+              </div>
+              <ul className="space-y-2">
             {milestones.map((m) => (
               <li key={m.id} className="flex items-center justify-between text-sm">
                 <label className="flex items-center gap-2 text-slate-600">
@@ -242,38 +242,43 @@ export default function CreditView({
                 <span className="font-semibold text-slate-700">{m.target_score}</span>
               </li>
             ))}
-          </ul>
+              </ul>
+            </div>
+          )}
         </section>
       ),
 
     plan:
       phases.length === 0 ? null : (
-        <>
-          {phases.map((phase) => (
-        <section key={phase} className="rounded-2xl bg-white p-5 shadow">
-          <h2 className="font-semibold text-slate-800 mb-3">{phase}</h2>
-          <ul className="space-y-2.5">
-            {tasks
-              .filter((t) => t.phase === phase)
-              .map((t) => (
-                <li key={t.id}>
-                  <label className="flex items-start gap-2.5 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={!!t.done}
-                      onChange={(e) => toggleCreditTask(t.id, e.target.checked).then(onChanged)}
-                      className="h-4 w-4 mt-0.5 rounded border-slate-300 text-emerald-600 shrink-0"
-                    />
-                    <span className={t.done ? 'line-through text-slate-400' : 'text-slate-700'}>
-                      {t.label}
-                    </span>
-                  </label>
-                </li>
-              ))}
-          </ul>
+        <section className="rounded-2xl bg-white p-5 shadow">
+          <h2 className="font-semibold text-slate-800 mb-3">Credit plan</h2>
+          <div className="mm-phases">
+            {phases.map((phase) => (
+              <div key={phase}>
+                <h3 className="font-semibold text-slate-800 mb-3">{phase}</h3>
+                <ul className="space-y-2.5">
+                  {tasks
+                    .filter((t) => t.phase === phase)
+                    .map((t) => (
+                      <li key={t.id}>
+                        <label className="flex items-start gap-2.5 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={!!t.done}
+                            onChange={(e) => toggleCreditTask(t.id, e.target.checked).then(onChanged)}
+                            className="h-4 w-4 mt-0.5 rounded border-slate-300 text-emerald-600 shrink-0"
+                          />
+                          <span className={t.done ? 'line-through text-slate-400' : 'text-slate-700'}>
+                            {t.label}
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </section>
-          ))}
-        </>
       ),
   }
 
@@ -289,13 +294,15 @@ export default function CreditView({
   const loans = debts.filter((d) => d.kind !== 'card' && !d.is_collection && d.active !== false)
 
   return (
-    <div className="mm-board">
+    <div className="mm-stack">
       {tiles.scores}
       {tiles.utilization}
       {tiles.projection}
       {tiles.cards}
       {tiles.collections}
-      {loans.map((loan) => (
+      {loans.length > 0 && (
+        <div className="mm-loan-row">
+          {loans.map((loan) => (
         <section key={loan.id} className="mm-card">
           <p className="mm-k">{loan.name}</p>
           <p className="mm-n">{money(loan.balance || 0)}</p>
@@ -317,6 +324,8 @@ export default function CreditView({
           </div>
         </section>
       ))}
+        </div>
+      )}
       {tiles.plan}
       {logging && <LogScoreModal onClose={() => setLogging(false)} onChanged={onChanged} />}
     </div>
