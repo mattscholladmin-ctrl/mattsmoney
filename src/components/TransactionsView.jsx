@@ -116,8 +116,10 @@ export default function TransactionsView({ transactions = [], categories = [], g
 
   return (
     <div className="mm-tx-layout">
+      <div className="mm-tx-review">
       <ReviewQueue transactions={transactions} bills={bills} upcoming={upcoming} accounts={accounts} onChanged={onChanged} />
-      <section className="rounded-2xl bg-white p-5 shadow space-y-3">
+      </div>
+      <section className="mm-tx-tools rounded-2xl bg-white p-5 shadow space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold text-slate-800">Transactions</h2>
           <div className="flex items-center gap-2 shrink-0">
@@ -214,7 +216,7 @@ export default function TransactionsView({ transactions = [], categories = [], g
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow">
+      <section className="mm-tx-list rounded-2xl bg-white p-5 shadow">
         {filtered.length === 0 ? (
           <p className="text-sm text-slate-400">No matching transactions.</p>
         ) : (

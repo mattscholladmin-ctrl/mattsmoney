@@ -1254,20 +1254,6 @@ export default function Dashboard({ session, demo = false }) {
                   {money((derived.spendable && derived.spendable.spendable) || 0)}
                 </p>
                 <p className="mm-muted">Until payday</p>
-                {(derived.summaries || [])
-                  .filter((a) => !a.hidden)
-                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
-                  .map((a) => (
-                  <div key={a.id}>
-                    <div className="mm-row">
-                      <span className="truncate">{a.name}</span>
-                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
-                    </div>
-                    {a.availableMissing && (
-                      <p className="mm-muted text-xs -mt-1 mb-1">current</p>
-                    )}
-                  </div>
-                ))}
               </div>
               <div className="mm-card">
                 <p className="mm-k">Spent this month</p>
@@ -1311,6 +1297,22 @@ export default function Dashboard({ session, demo = false }) {
                     : '—'}
                 </p>
                 <p className="mm-muted">On the current plan</p>
+              </div>
+            </div>
+
+            <div className="mm-accounts mm-card">
+              <p className="mm-k">Accounts</p>
+              <div className="mm-acct-grid">
+                {(derived.summaries || [])
+                  .filter((a) => !a.hidden)
+                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+                  .map((a) => (
+                    <div key={a.id} className="mm-acct-cell">
+                      <span className="truncate">{a.name}</span>
+                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
+                      {a.availableMissing && <em>current</em>}
+                    </div>
+                  ))}
               </div>
             </div>
 
