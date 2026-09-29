@@ -184,8 +184,58 @@ export async function syncItemTransactions(uid, item, db = adminClient()) {
     }
   }
   if (removed.length) await db.from('transactions').delete().in('plaid_transaction_id', removed.map((t) => t.transaction_id))
+  await collapsePostedTwins(uid, db)
   await db.from('plaid_items').update({ cursor }).eq('item_id', item.item_id).eq('user_id', uid)
   return { added: added.length, ready: true }
+}
+
+function familyName(a, b) {
+  const na = normalizeMerchant(a)
+  const nb = normalizeMerchant(b)
+  if (!na || !nb) return false
+  if (na === nb) return true
+  if (na.includes(nb) || nb.includes(na)) return true
+  const wa = na.split(' ').filter((w) => w.length > 2)
+  const wb = nb.split(' ').filter((w) => w.length > 2)
+  if (!wa.length || !wb.length) return false
+  return wa.every((w) => wb.includes(w)) || wb.every((w) => wa.includes(w))
+}
+
+function preferRow(a, b) {
+  if (Boolean(a.pending) !== Boolean(b.pending)) return a.pending ? b : a
+  const aBills = String(a.category || '').toLowerCase() === 'bills' || /paid:/.test(String(a.note || ''))
+  const bBills = String(b.category || '').toLowerCase() === 'bills' || /paid:/.test(String(b.note || ''))
+  if (aBills !== bBills) return aBills ? a : b
+  return a
+}
+
+async function collapsePostedTwins(uid, db) {
+  const { data: rows } = await db.from('transactions').select('id,merchant,amount,txn_date,pending,category,note').eq('user_id', uid).order('txn_date', { ascending: false }).limit(400)
+  const list = rows || []
+  const drop = []
+  const used = new Set()
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i]
+    if (used.has(a.id)) continue
+    for (let j = i + 1; j < list.length; j++) {
+      const b = list[j]
+      if (used.has(b.id)) continue
+      if (Number(a.amount || 0).toFixed(2) !== Number(b.amount || 0).toFixed(2)) continue
+      const da = Date.parse(a.txn_date)
+      const dbv = Date.parse(b.txn_date)
+      if (!Number.isFinite(da) || !Number.isFinite(dbv) || Math.abs(da - dbv) > 5 * 86400000) continue
+      if (!familyName(a.merchant, b.merchant)) continue
+      const pendingPair = Boolean(a.pending) !== Boolean(b.pending)
+      const splitCats = String(a.category || '').toLowerCase() !== String(b.category || '').toLowerCase() &&
+        [a, b].some((t) => /^(bills|housing|health)$/i.test(String(t.category || '')) || /paid:/.test(String(t.note || '')))
+      if (!pendingPair && !splitCats) continue
+      const keep = preferRow(a, b)
+      const loser = keep === a ? b : a
+      drop.push(loser.id)
+      used.add(loser.id)
+    }
+  }
+  if (drop.length) await db.from('transactions').delete().in('id', drop)
 }
 export async function alignBillAmountsFromCharges(uid, db = adminClient()) {
   const { data: bills } = await db.from('recurring_bills').select('id,name,amount,active').eq('user_id', uid)
