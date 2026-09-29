@@ -295,37 +295,32 @@ export default function CreditView({
 
   return (
     <div className="mm-stack">
-      {tiles.scores}
-      {tiles.utilization}
-      {tiles.projection}
-      {tiles.cards}
-      {tiles.collections}
-      {loans.length > 0 && (
-        <div className="mm-loan-row">
-          {loans.map((loan) => (
-        <section key={loan.id} className="mm-card">
-          <p className="mm-k">{loan.name}</p>
-          <p className="mm-n">{money(loan.balance || 0)}</p>
-          <p className="mm-muted">
-            {money(loan.plan_payment || loan.min_payment || 0)} / mo
-            {loan.start_date ? ` · first due ${shortDate(loan.start_date)}` : ''}
-            {loan.due_day ? ` · due the ${loan.due_day}` : ''}
-          </p>
-          <div className="mm-flow" style={{ height: 72, marginTop: 10 }}>
-            {Array.from({ length: 6 }, (_, i) => {
-              const pay = Number(loan.plan_payment || loan.min_payment || 0)
-              return (
-                <div key={i} className="mm-flow-col">
-                  <div className="mm-flow-bar" style={{ height: pay > 0 ? 48 : 8, background: '#9f1239' }} />
-                  <span>M{i + 1}</span>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      ))}
+      <div className="mm-body">
+        <div className="mm-col">
+          {tiles.scores}
+          {tiles.projection}
         </div>
-      )}
+        <div className="mm-col">
+          {tiles.utilization}
+          {tiles.cards}
+          {tiles.collections}
+          {loans.length > 0 && (
+            <div className="mm-loan-row">
+              {loans.map((loan) => (
+                <section key={loan.id} className="mm-card">
+                  <p className="mm-k">{loan.name}</p>
+                  <p className="mm-n">{money(loan.balance || 0)}</p>
+                  <p className="mm-muted">
+                    {money(loan.plan_payment || loan.min_payment || 0)} / mo
+                    {loan.start_date ? ` · first due ${shortDate(loan.start_date)}` : ''}
+                    {loan.due_day ? ` · due the ${loan.due_day}` : ''}
+                  </p>
+                </section>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
       {tiles.plan}
       {logging && <LogScoreModal onClose={() => setLogging(false)} onChanged={onChanged} />}
     </div>

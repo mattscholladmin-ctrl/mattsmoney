@@ -1271,56 +1271,8 @@ export default function Dashboard({ session, demo = false }) {
               </div>
             </div>
 
-            <div className="mm-pace mm-card">
-              <p className="mm-k">Spent this month</p>
-              {(() => {
-                const now = new Date()
-                const days = now.getDate()
-                const byDay = Array.from({ length: days }, () => 0)
-                for (const t of data.transactions || []) {
-                  if (!t.txn_date) continue
-                  const dt = new Date(`${t.txn_date}T00:00:00`)
-                  if (dt.getMonth() !== now.getMonth() || dt.getFullYear() !== now.getFullYear()) continue
-                  const amt = Number(t.amount || 0)
-                  if (amt > 0) byDay[dt.getDate() - 1] += amt
-                }
-                let run = 0
-                const pts = byDay.map((v) => { run += v; return run })
-                const max = Math.max(1, ...pts, 1)
-                const w = 640
-                const h = 72
-                const line = (arr) => arr.map((v, i) => {
-                  const x = arr.length === 1 ? 0 : (i / (arr.length - 1)) * w
-                  const y = h - (v / max) * (h - 8) - 4
-                  return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
-                }).join(' ')
-                const pace = pts.map((_, i) => ((i + 1) / pts.length) * (pts[pts.length - 1] || 0))
-                return (
-                  <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 w-full" style={{ height: 88 }} aria-hidden="true">
-                    <path d={line(pace)} fill="none" stroke="#525252" strokeWidth="1.5" strokeDasharray="4 4" />
-                    <path d={line(pts)} fill="none" stroke="#3b82f6" strokeWidth="2.5" />
-                  </svg>
-                )
-              })()}
-              <p className="mm-muted">Blue is actual. Dashed is even pace.</p>
-            </div>
-
-            <div className="mm-accounts mm-card">
-              <p className="mm-k">Accounts</p>
-              <div className="mm-acct-grid">
-                {(derived.summaries || [])
-                  .filter((a) => !a.hidden)
-                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
-                  .map((a) => (
-                    <div key={a.id} className="mm-acct-cell">
-                      <span className="truncate">{a.name}</span>
-                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
-                      {a.availableMissing && <em>current</em>}
-                    </div>
-                  ))}
-              </div>
-            </div>
-
+            <div className="mm-body">
+              <div className="mm-col">
             <div className="mm-plan mm-card">
               <div className="mm-spend-grid">
                 <div className="mm-ring-col">
@@ -1381,6 +1333,40 @@ export default function Dashboard({ session, demo = false }) {
               </div>
             </div>
 
+            <div className="mm-pace mm-card">
+              <p className="mm-k">Spent this month</p>
+              {(() => {
+                const now = new Date()
+                const days = now.getDate()
+                const byDay = Array.from({ length: days }, () => 0)
+                for (const t of data.transactions || []) {
+                  if (!t.txn_date) continue
+                  const dt = new Date(`${t.txn_date}T00:00:00`)
+                  if (dt.getMonth() !== now.getMonth() || dt.getFullYear() !== now.getFullYear()) continue
+                  const amt = Number(t.amount || 0)
+                  if (amt > 0) byDay[dt.getDate() - 1] += amt
+                }
+                let run = 0
+                const pts = byDay.map((v) => { run += v; return run })
+                const max = Math.max(1, ...pts, 1)
+                const w = 640
+                const h = 160
+                const line = (arr) => arr.map((v, i) => {
+                  const x = arr.length === 1 ? 0 : (i / (arr.length - 1)) * w
+                  const y = h - (v / max) * (h - 8) - 4
+                  return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
+                }).join(' ')
+                const pace = pts.map((_, i) => ((i + 1) / pts.length) * (pts[pts.length - 1] || 0))
+                return (
+                  <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 w-full" style={{ height: 220 }} aria-hidden="true">
+                    <path d={line(pace)} fill="none" stroke="#525252" strokeWidth="1.5" strokeDasharray="4 4" />
+                    <path d={line(pts)} fill="none" stroke="#3b82f6" strokeWidth="2.5" />
+                  </svg>
+                )
+              })()}
+              <p className="mm-muted">Blue is actual. Dashed is even pace.</p>
+            </div>
+
             <div className="mm-recent mm-card">
               <div className="flex justify-between items-center mb-2">
                 <p className="mm-k">Recent</p>
@@ -1390,7 +1376,7 @@ export default function Dashboard({ session, demo = false }) {
                 <div className="mm-row mm-head">
                   <span>Merchant</span><span>Category</span><span>Status</span><span>Date</span><span>Amount</span>
                 </div>
-                {(data.transactions || []).slice(0, 8).map((tx) => (
+                {(data.transactions || []).slice(0, 12).map((tx) => (
                   <div className="mm-row" key={tx.id}>
                     <span className="truncate">{tx.merchant || tx.name || '—'}</span>
                     <span className="mm-muted truncate">{tx.category || ''}</span>
@@ -1399,6 +1385,24 @@ export default function Dashboard({ session, demo = false }) {
                     <b className={(tx.amount || 0) < 0 ? 'text-emerald-400' : ''}>{money(Math.abs(tx.amount || 0))}</b>
                   </div>
                 ))}
+              </div>
+            </div>
+
+              </div>
+              <div className="mm-col">
+            <div className="mm-accounts mm-card">
+              <p className="mm-k">Accounts</p>
+              <div className="mm-acct-grid">
+                {(derived.summaries || [])
+                  .filter((a) => !a.hidden)
+                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+                  .map((a) => (
+                    <div key={a.id} className="mm-acct-cell">
+                      <span className="truncate">{a.name}</span>
+                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
+                      {a.availableMissing && <em>current</em>}
+                    </div>
+                  ))}
               </div>
             </div>
 
@@ -1453,6 +1457,8 @@ export default function Dashboard({ session, demo = false }) {
                   <span>Debt counted</span>
                   <button type="button" onClick={() => setCounting((c) => ({ ...c, debt: !c.debt }))}>{counting.debt ? 'On' : 'Off'}</button>
                 </div>
+              </div>
+            </div>
               </div>
             </div>
           </div>

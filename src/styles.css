@@ -333,29 +333,55 @@ html[data-theme="punk"] {
 
 .mm-dash {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mm-metrics {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 0;
+  background: var(--card, #101010);
+  border: 1px solid var(--line, #2a2a2a);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.mm-metrics .mm-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none !important;
+  padding: 1.35rem 1.5rem 1.2rem;
+}
+.mm-metrics .mm-card + .mm-card { border-left: 1px solid var(--line, #2a2a2a); }
+.mm-metrics .mm-n { font-size: 2.6rem; }
+.mm-metrics .mm-card:first-child .mm-n { font-size: 3.4rem; }
+.mm-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
   gap: 16px;
   align-items: start;
 }
+.mm-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.mm-col .mm-acct-grid { grid-template-columns: 1fr; margin-top: 4px; }
+.mm-col .mm-acct-cell {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--row, #262626);
+}
 @media (min-width: 1024px) {
-  .mm-dash {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .mm-main {
+    height: 100vh;
+    overflow: auto;
   }
-  .mm-metrics {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
-    align-items: start;
-  }
-  .mm-pace { grid-column: 1 / -1; grid-row: 2; }
-  .mm-accounts { grid-column: 1 / -1; grid-row: 3; }
-  .mm-plan { grid-column: 1 / span 2; grid-row: 4; align-self: start; }
-  .mm-rail { grid-column: 3 / span 2; grid-row: 4; display: flex; flex-direction: column; gap: 16px; align-self: start; }
-  .mm-recent { grid-column: 1 / -1; grid-row: 5; }
   .mm-page {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -386,8 +412,8 @@ html[data-theme="punk"] .mm-main {
 
 .mm-spend-grid {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 28px;
   align-items: center;
 }
 @media (max-width: 700px) {
@@ -395,16 +421,16 @@ html[data-theme="punk"] .mm-main {
   .mm-ring-col { margin: 0 auto; }
 }
 .mm-ring {
-  width: 168px;
-  height: 168px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
   margin: 0 auto;
   display: grid;
   place-items: center;
 }
 .mm-ring i {
-  width: 104px;
-  height: 104px;
+  width: 124px;
+  height: 124px;
   border-radius: 50%;
   background: var(--card, #101010);
   display: block;
@@ -531,7 +557,7 @@ html[data-theme] textarea {
 @media (max-width: 900px) {
   .mm-cat-row, .mm-score-list { grid-template-columns: 1fr; }
 }
-.mm-weeks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; height: 160px; }
+.mm-weeks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; height: 220px; }
 .mm-week { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; color: var(--mute); font-size: 0.85rem; }
 .mm-week-bar { width: 100%; border-radius: 8px 8px 3px 3px; background: #9f1239; }
 .mm-txn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
@@ -571,8 +597,8 @@ html[data-theme] textarea {
 }
 .mm-board > * { min-width: 0; }
 @media (max-width: 900px) {
-  .mm-board, .mm-split, .mm-dash, .mm-phases, .mm-settings-grid, .mm-pair-inner { grid-template-columns: 1fr; }
-  .mm-metrics, .mm-plan, .mm-recent, .mm-pace, .mm-accounts, .mm-rail { grid-column: auto !important; grid-row: auto !important; }
+  .mm-board, .mm-split, .mm-phases, .mm-settings-grid, .mm-pair-inner, .mm-metrics, .mm-body { grid-template-columns: 1fr; }
+  .mm-metrics .mm-card + .mm-card { border-left: none; border-top: 1px solid var(--line, #2a2a2a); }
   .mm-rail { display: flex; flex-direction: column; gap: 16px; }
 }
 .mm-split > *,
