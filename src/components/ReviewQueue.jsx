@@ -149,7 +149,7 @@ export default function ReviewQueue({
   }
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow space-y-3">
+    <section className="mm-card space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-slate-800">Review</h2>
         <p className="text-xs text-slate-400">{Math.min(idx + 1, items.length)} of {items.length}</p>

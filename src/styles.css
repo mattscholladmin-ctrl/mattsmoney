@@ -609,7 +609,8 @@ html[data-theme] textarea {
   border-radius: 20px;
   overflow: hidden;
 }
-.mm-hero-2 { grid-template-columns: 1.6fr 1fr; }
+.mm-score-band { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.mm-score-band .mm-n { font-size: 2rem !important; }
 .mm-hero-4 { grid-template-columns: 1.4fr 1fr 1fr 1fr; }
 .mm-page-hero > * {
   background: transparent !important;

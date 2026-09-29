@@ -130,7 +130,7 @@ export default function TransactionsView({ transactions = [], categories = [], g
       </div>
       <div className="mm-page-split">
         <div className="mm-page-col">
-      <section className="mm-tx-tools rounded-2xl bg-white p-5 shadow space-y-3">
+      <section className="mm-card mm-tx-tools space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold text-slate-800">Transactions</h2>
           <div className="flex items-center gap-2 shrink-0">
@@ -251,37 +251,36 @@ export default function TransactionsView({ transactions = [], categories = [], g
         </div>
       </div>
 
-      <section className="mm-tx-list rounded-2xl bg-white p-5 shadow">
+      <section className="mm-card mm-tx-list">
         {filtered.length === 0 ? (
-          <p className="text-sm text-slate-400">No matching transactions.</p>
+          <p className="mm-muted">No matching transactions.</p>
         ) : (
-          <div className="mm-txn-grid">
+          <div className="mm-table">
+            <div className="mm-row mm-head">
+              <span>Merchant</span><span>Category</span><span>Date</span><span></span><span>Amount</span>
+            </div>
             {shown.map((t) => (
-              <div key={t.id} className="mm-txn-card">
-                <button type="button" onClick={() => setEditing(t)} className="text-left">
-                  <span className={`mm-txn-amt block ${Number(t.amount) < 0 ? 'text-emerald-400' : ''}`}>{signedMoney(t)}</span>
-                  <span className="mm-txn-name block">{t.merchant}</span>
-                  <span className="mm-muted block">{shortDate(t.txn_date)}{t.pending ? ' · pending' : ''}</span>
-                </button>
-                <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                  <select
-                    value={catOf(t)}
-                    onChange={async (e) => {
-                      const prev = catOf(t)
-                      const next = e.target.value
-                      await updateTransaction(t.id, { category: next })
-                      setUndoCat({ id: t.id, prev })
-                      onChanged()
-                    }}
-                    className="min-w-0 flex-1 text-xs rounded border px-1 py-0.5"
-                  >
-                    {!allCats.includes(catOf(t)) && <option value={catOf(t)}>{catOf(t)}</option>}
-                    {allCats.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <button type="button" onClick={() => removeTxn(t)} className="text-xs opacity-60" aria-label="Delete">✕</button>
-                </div>
+              <div className="mm-row" key={t.id}>
+                <button type="button" onClick={() => setEditing(t)} className="truncate text-left">{t.merchant || '—'}</button>
+                <select
+                  value={catOf(t)}
+                  onChange={async (e) => {
+                    const prev = catOf(t)
+                    const next = e.target.value
+                    await updateTransaction(t.id, { category: next })
+                    setUndoCat({ id: t.id, prev })
+                    onChanged()
+                  }}
+                  className="min-w-0 text-xs rounded border px-1 py-1"
+                >
+                  {!allCats.includes(catOf(t)) && <option value={catOf(t)}>{catOf(t)}</option>}
+                  {allCats.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <span className="mm-muted">{shortDate(t.txn_date)}{t.pending ? ' · pending' : ''}</span>
+                <button type="button" onClick={() => removeTxn(t)} className="text-xs opacity-60" aria-label="Delete">✕</button>
+                <b className={Number(t.amount) < 0 ? 'text-emerald-400' : ''}>{signedMoney(t)}</b>
               </div>
             ))}
           </div>

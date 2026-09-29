@@ -109,12 +109,12 @@ export function abbrevMoney(n) {
 }
 
 // points: [{ label, value }]. format(value) -> string for the latest-value tag.
-export function LineChart({ points = [], color = '#22d3ee', format = (v) => v, axisFormat = null }) {
+export function LineChart({ points = [], color = '#22d3ee', format = (v) => v, axisFormat = null, height = 160 }) {
   if (points.length < 2) {
     return <p className="text-sm text-slate-400">Not enough history yet to chart.</p>
   }
   const W = 320
-  const H = 160
+  const H = height
   const padL = 32
   const padR = 8
   const padT = 16
@@ -139,7 +139,7 @@ export function LineChart({ points = [], color = '#22d3ee', format = (v) => v, a
   const step = Math.max(1, Math.round(points.length / 4))
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 160 }}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height }}>
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.35" />

@@ -216,15 +216,10 @@ export default function CheckInView({
     <section className="mm-card">
       <p className="mm-k">Accounts</p>
       <p className="mm-muted" style={{ margin: '6px 0 12px' }}>Bank balances stay. Type cash the bank does not sync.</p>
-        <div className="mb-4 rounded-xl bg-slate-50 border border-slate-200 p-4">
-          <p className="text-sm font-semibold text-slate-700 mb-2">Before you start, gather:</p>
-          <ul className="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
-            <li>Cash or any account the bank does not already sync</li>
-            <li>Your transactions/receipts since the last check-in</li>
-            <li>Any side income received, and which source it came from</li>
-            <li>Any subscriptions or bills you started, paused, or cancelled</li>
-            <li>Latest credit scores, if you want to log them (Credit page)</li>
-          </ul>
+        <div className="mm-check-grid" style={{ marginBottom: 16 }}>
+          {['Cash the bank does not sync', 'Receipts since last check-in', 'Side income and the source', 'Bills you started or cancelled', 'Credit scores, if you want them logged'].map((line) => (
+            <p key={line} className="mm-muted">{line}</p>
+          ))}
         </div>
 
       {step === 1 ? (

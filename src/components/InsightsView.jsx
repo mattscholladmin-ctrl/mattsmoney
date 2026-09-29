@@ -376,7 +376,7 @@ export default function InsightsView({
     )
   }
 
-  const card = 'rounded-2xl bg-white p-5 shadow'
+  const card = 'mm-card'
 
   return (
     <div className="space-y-4">
@@ -1005,13 +1005,31 @@ export default function InsightsView({
         </section>
         ),
         }
-        return (
+        return arranging ? (
           <TileColumns
             names={INSIGHTS_TILE_NAMES}
             tiles={tiles}
             tilesState={tilesState}
             arranging={arranging}
           />
+        ) : (
+          <div className="mm-page-split">
+            <div className="mm-page-col">
+              {tiles.wheregoes}
+              {tiles.monthly}
+              {tiles.networth}
+              {tiles.setbudgets}
+              {tiles.recurringbills}
+            </div>
+            <div className="mm-page-col">
+              {tiles.merchants}
+              {tiles.budget}
+              {tiles.whatif}
+              {tiles.payoff}
+              {tiles.newnormal}
+              {tiles.unusual}
+            </div>
+          </div>
         )
       })()}
     </div>

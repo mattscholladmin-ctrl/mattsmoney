@@ -250,8 +250,8 @@ export default function CreditView({
 
     plan:
       phases.length === 0 ? null : (
-        <section className="rounded-2xl bg-white p-5 shadow">
-          <h2 className="font-semibold text-slate-800 mb-3">Credit plan</h2>
+        <section className="mm-card">
+          <p className="mm-k">Credit plan</p>
           <div className="mm-phases">
             {phases.map((phase) => (
               <div key={phase}>
@@ -292,36 +292,96 @@ export default function CreditView({
   }
 
   const loans = debts.filter((d) => d.kind !== 'card' && !d.is_collection && d.active !== false)
+  const nextMile = milestones.find((m) => !m.achieved) || null
 
   return (
     <div className="mm-stack">
-      {tiles.scores}
-      <div className="mm-page-split">
-        <div className="mm-page-col">
-          {tiles.projection}
+      <div className="mm-page-hero">
+        <div className="mm-card">
+          <div className="flex items-center justify-between">
+            <p className="mm-k">Credit score</p>
+            <button type="button" onClick={() => setLogging(true)} className="mm-muted">Log scores</button>
+          </div>
+          <p className="mm-n">{primary ? primary.score : '—'}</p>
+          <p className="mm-muted">
+            {primary ? `${primary.bureau} · ${band(primary.score).label} · ${shortDate(primary.checked_on)}` : 'No score logged yet'}
+          </p>
         </div>
-        <div className="mm-page-col">
-          {tiles.utilization}
-          {tiles.cards}
-          {tiles.collections}
-          {loans.length > 0 && (
-            <div className="mm-loan-row" style={{ gridTemplateColumns: '1fr' }}>
-              {loans.map((loan) => (
-                <section key={loan.id} className="mm-card">
-                  <p className="mm-k">{loan.name}</p>
-                  <p className="mm-n">{money(loan.balance || 0)}</p>
-                  <p className="mm-muted">
-                    {money(loan.plan_payment || loan.min_payment || 0)} / mo
-                    {loan.start_date ? ` · first due ${shortDate(loan.start_date)}` : ''}
-                    {loan.due_day ? ` · due the ${loan.due_day}` : ''}
-                  </p>
-                </section>
-              ))}
-            </div>
-          )}
+        <div className="mm-card">
+          <p className="mm-k">Utilization</p>
+          <p className="mm-n">{utilPct == null ? '—' : `${utilPct}%`}</p>
+          <p className="mm-muted">
+            {utilPct == null ? 'No card limits on file' : `${money(totalBal)} of ${money(totalLimit)}`}
+          </p>
+        </div>
+        <div className="mm-card">
+          <p className="mm-k">Next on the plan</p>
+          <p className="mm-n">{nextMile ? nextMile.target_score : '—'}</p>
+          <p className="mm-muted">{nextMile ? nextMile.name : 'No open milestone'}</p>
         </div>
       </div>
+
+      {latest.length > 0 && (
+        <div className="mm-page-hero mm-score-band">
+          {latest.map((s) => (
+            <div key={s.id} className="mm-card">
+              <p className="mm-k">{s.bureau}</p>
+              <p className="mm-n">{s.score}</p>
+              <p className="mm-muted">{s.model} · {shortDate(s.checked_on)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mm-page-split">
+        <section className="mm-card">
+          <p className="mm-k">If you stay on plan</p>
+          {projPoints.length >= 2 ? (
+            <LineChart points={projPoints} color="#34d399" height={280} format={(v) => String(Math.round(v))} axisFormat={(v) => String(Math.round(v))} />
+          ) : (
+            <p className="mm-muted">Not enough dated milestones to chart.</p>
+          )}
+        </section>
+        <section className="mm-card">
+          <p className="mm-k">Milestones</p>
+          <ul className="mt-2">
+            {milestones.map((m) => (
+              <li key={m.id} className="mm-row">
+                <label className="flex items-center gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={!!m.achieved}
+                    onChange={(e) => toggleMilestone(m.id, e.target.checked).then(onChanged)}
+                  />
+                  <span className={m.achieved ? 'line-through truncate' : 'truncate'}>
+                    {m.name}{m.target_date ? ` · ${shortDate(m.target_date)}` : ''}
+                  </span>
+                </label>
+                <b>{m.target_score}</b>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
       {tiles.plan}
+      {tiles.cards}
+      {tiles.collections}
+      {loans.length > 0 && (
+        <div className="mm-loan-row">
+          {loans.map((loan) => (
+            <section key={loan.id} className="mm-card">
+              <p className="mm-k">{loan.name}</p>
+              <p className="mm-n">{money(loan.balance || 0)}</p>
+              <p className="mm-muted">
+                {money(loan.plan_payment || loan.min_payment || 0)} / mo
+                {loan.start_date ? ` · first due ${shortDate(loan.start_date)}` : ''}
+                {loan.due_day ? ` · due the ${loan.due_day}` : ''}
+              </p>
+            </section>
+          ))}
+        </div>
+      )}
       {logging && <LogScoreModal onClose={() => setLogging(false)} onChanged={onChanged} />}
     </div>
   )
