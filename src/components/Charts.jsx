@@ -174,7 +174,7 @@ export function LineChart({ points = [], color = '#22d3ee', format = (v) => v, a
 }
 
 // bars: [{ label, value, highlight }]. Vertical bars with value + axis labels.
-export function BarChart({ bars = [], color = '#22d3ee', format = abbrevMoney }) {
+export function BarChart({ bars = [], color = '#22d3ee', format = abbrevMoney, axisFormat = null }) {
   if (!bars.length) return <p className="text-sm text-slate-400">Not enough data yet.</p>
   const W = 340
   const H = 180

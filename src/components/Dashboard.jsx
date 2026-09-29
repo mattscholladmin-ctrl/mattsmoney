@@ -1242,11 +1242,36 @@ export default function Dashboard({ session, demo = false }) {
               <div className="mm-card">
                 <p className="mm-k">Spent this month</p>
                 <p className="mm-n">{money(derived.monthSpend)}</p>
-                <svg viewBox="0 0 120 28" className="mt-2 w-full h-7" aria-hidden="true">
-                  <path d="M0 22 C 20 20, 30 16, 48 14 S 80 8, 120 6" fill="none" stroke="#3b82f6" strokeWidth="2" />
-                  <path d="M0 24 C 24 22, 40 20, 70 18 S 100 16, 120 14" fill="none" stroke="#525252" strokeWidth="1" strokeDasharray="3 3" />
-                </svg>
-                <p className="mm-muted">This calendar month</p>
+                {(() => {
+                  const now = new Date()
+                  const days = now.getDate()
+                  const byDay = Array.from({ length: days }, () => 0)
+                  for (const t of data.transactions || []) {
+                    if (!t.txn_date) continue
+                    const dt = new Date(`${t.txn_date}T00:00:00`)
+                    if (dt.getMonth() !== now.getMonth() || dt.getFullYear() !== now.getFullYear()) continue
+                    const amt = Number(t.amount || 0)
+                    if (amt > 0) byDay[dt.getDate() - 1] += amt
+                  }
+                  let run = 0
+                  const pts = byDay.map((v) => { run += v; return run })
+                  const max = Math.max(1, ...pts, 1)
+                  const w = 120
+                  const h = 28
+                  const line = (arr) => arr.map((v, i) => {
+                    const x = arr.length === 1 ? 0 : (i / (arr.length - 1)) * w
+                    const y = h - (v / max) * (h - 4) - 2
+                    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
+                  }).join(' ')
+                  const pace = pts.map((_, i) => ((i + 1) / pts.length) * (pts[pts.length - 1] || 0))
+                  return (
+                    <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 w-full h-7" aria-hidden="true">
+                      <path d={line(pace)} fill="none" stroke="#525252" strokeWidth="1" strokeDasharray="3 3" />
+                      <path d={line(pts)} fill="none" stroke="#3b82f6" strokeWidth="2" />
+                    </svg>
+                  )
+                })()}
+                <p className="mm-muted">Blue is actual. Dashed is even pace.</p>
               </div>
               <div className="mm-card">
                 <p className="mm-k">{derived.plan?.scopeNote ? 'Debt-free *' : 'Debt-free'}</p>
@@ -1301,12 +1326,13 @@ export default function Dashboard({ session, demo = false }) {
               </div>
               <div className="mm-table">
                 <div className="mm-row mm-head">
-                  <span>Merchant</span><span>Category</span><span>Date</span><span>Amount</span>
+                  <span>Merchant</span><span>Category</span><span>Status</span><span>Date</span><span>Amount</span>
                 </div>
                 {(data.transactions || []).slice(0, 8).map((tx) => (
                   <div className="mm-row" key={tx.id}>
                     <span className="truncate">{tx.merchant || tx.name || '—'}</span>
                     <span className="mm-muted truncate">{tx.category || ''}</span>
+                    <span className="mm-muted">{tx.pending ? 'Pending' : 'Posted'}</span>
                     <span className="mm-muted">{String(tx.txn_date || tx.date || '').slice(5)}</span>
                     <b className={(tx.amount || 0) < 0 ? 'text-emerald-400' : ''}>{money(Math.abs(tx.amount || 0))}</b>
                   </div>
@@ -1568,6 +1594,14 @@ function SettingsView({ settings, bufferFloor, email, showPhase, onTogglePhase, 
   return (
     <div className="mm-split">
       <div className="space-y-3">
+        <section className="mm-card">
+          <p className="mm-k">How the number is built</p>
+          <div className="mm-row"><span><i className="sw" style={{ background: '#3b82f6' }} />Bills before payday</span></div>
+          <div className="mm-row"><span><i className="sw" style={{ background: '#7c3aed' }} />Saving toward later bills</span></div>
+          <div className="mm-row"><span><i className="sw" style={{ background: '#ca8a04' }} />Saving toward goals</span></div>
+          <div className="mm-row"><span><i className="sw" style={{ background: '#059669' }} />Everyday leftover</span></div>
+          <p className="mm-muted">Buffer held back: {money(bufferFloor || 0)}. Goal and debt toggles are on the dashboard.</p>
+        </section>
         {tiles.acctorder}
         {tiles.buffer}
         {tiles.dashprefs}

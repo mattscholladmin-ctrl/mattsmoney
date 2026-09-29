@@ -89,19 +89,26 @@ export default function CreditView({
         </div>
 
         {primary ? (
-          <div className="mb-4">
-            <p className="text-xs text-slate-400">
-              {primary.bureau} · {primary.model}
-            </p>
-            <div className="flex items-end gap-3">
-              <span className="text-5xl font-bold text-slate-800">{primary.score}</span>
-              <span className={`text-sm font-medium mb-1 ${band(primary.score).cls}`}>
-                {band(primary.score).label}
-              </span>
+          <div className="mb-4 flex items-center gap-4">
+            <svg viewBox="0 0 120 70" className="w-28 shrink-0" aria-hidden="true">
+              <path d="M10 60 A 50 50 0 0 1 110 60" fill="none" stroke="var(--track, #242424)" strokeWidth="10" strokeLinecap="round" />
+              <path
+                d="M10 60 A 50 50 0 0 1 110 60"
+                fill="none"
+                stroke="#059669"
+                strokeWidth="10"
+                strokeLinecap="round"
+                strokeDasharray={`${Math.max(0, Math.min(1, (primary.score - 300) / 550)) * 157} 157`}
+              />
+            </svg>
+            <div>
+              <p className="text-xs text-slate-400">{primary.bureau} · {primary.model}</p>
+              <div className="flex items-end gap-3">
+                <span className="text-5xl font-bold text-slate-800">{primary.score}</span>
+                <span className={`text-sm font-medium mb-1 ${band(primary.score).cls}`}>{band(primary.score).label}</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Updated {shortDate(primary.checked_on)} · 300–850</p>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Updated {shortDate(primary.checked_on)} · range 300–850
-            </p>
           </div>
         ) : (
           <p className="text-sm text-slate-400 mb-2">No scores logged yet. Tap "Log scores" to start.</p>
@@ -294,6 +301,17 @@ export default function CreditView({
               {loan.start_date ? ` · first due ${shortDate(loan.start_date)}` : ''}
               {loan.due_day ? ` · due the ${loan.due_day}` : ''}
             </p>
+            <div className="mm-flow" style={{ height: 72, marginTop: 10 }}>
+              {Array.from({ length: 6 }, (_, i) => {
+                const pay = Number(loan.plan_payment || loan.min_payment || 0)
+                return (
+                  <div key={i} className="mm-flow-col">
+                    <div className="mm-flow-bar" style={{ height: pay > 0 ? 48 : 8, background: '#9f1239' }} />
+                    <span>M{i + 1}</span>
+                  </div>
+                )
+              })}
+            </div>
           </section>
         ))}
         {tiles.projection}

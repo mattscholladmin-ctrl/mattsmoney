@@ -169,6 +169,24 @@ export default function CheckInView({
         ? 'text-amber-950'
         : 'text-emerald-900'
 
+  const dayBars = []
+  const todayD = new Date()
+  for (let i = 9; i >= 0; i--) {
+    const d = new Date(todayD)
+    d.setDate(todayD.getDate() - i)
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    let inn = 0
+    let out = 0
+    for (const t of transactions) {
+      if (t.txn_date !== iso) continue
+      const a = Number(t.amount || 0)
+      if (a < 0) inn += -a
+      else out += a
+    }
+    dayBars.push({ label: String(d.getDate()), inn, out })
+  }
+  const dayMax = Math.max(1, ...dayBars.flatMap((d) => [d.inn, d.out]))
+
   return (
     <div className="mm-split">
     <section className="mm-card">
@@ -348,16 +366,18 @@ export default function CheckInView({
           <p className="mm-k">Since last check-in</p>
           <p className={`mm-n ${recap.net < 0 ? 'text-red-500' : ''}`}>{recap.net < 0 ? '−' : '+'}{money(Math.abs(recap.net))}</p>
           <p className="mm-muted">Income {money(recap.income)} · spent {money(recap.spent)}</p>
-          <div className="mm-flow" style={{ height: 88 }}>
-            <div className="mm-flow-col">
-              <div className="mm-flow-bar" style={{ height: `${Math.max(8, (recap.income / Math.max(recap.income, recap.spent, 1)) * 72)}px`, background: '#059669' }} />
-              <span>In</span>
-            </div>
-            <div className="mm-flow-col">
-              <div className="mm-flow-bar" style={{ height: `${Math.max(8, (recap.spent / Math.max(recap.income, recap.spent, 1)) * 72)}px`, background: '#9f1239' }} />
-              <span>Out</span>
-            </div>
+          <div className="mm-flow" style={{ height: 96 }}>
+            {dayBars.map((d) => (
+              <div key={d.label} className="mm-flow-col" title={`${d.label}`}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 72 }}>
+                  <div className="mm-flow-bar" style={{ width: 6, height: `${Math.max(2, (d.inn / dayMax) * 72)}px`, background: '#059669' }} />
+                  <div className="mm-flow-bar" style={{ width: 6, height: `${Math.max(2, (d.out / dayMax) * 72)}px`, background: '#9f1239' }} />
+                </div>
+                <span>{d.label}</span>
+              </div>
+            ))}
           </div>
+          <p className="mm-muted">Green is money in. Wine is money out. Last 10 days.</p>
         </section>
       )}
       <section className="mm-card">

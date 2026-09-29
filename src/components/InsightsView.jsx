@@ -435,6 +435,43 @@ export default function InsightsView({
         <p className="mm-muted" style={{ marginTop: 8 }}>Wine is spend. Green is this month.</p>
       </section>
 
+      <div className="grid grid-cols-3 gap-3">
+        <div className="mm-card">
+          <p className="mm-k">Spent</p>
+          <p className="mm-n">{money(cur.total)}</p>
+        </div>
+        <div className="mm-card">
+          <p className="mm-k">Safe to spend</p>
+          <p className={`mm-n ${(safeToSpend || 0) < 0 ? 'text-red-500' : ''}`}>{safeToSpend == null ? '—' : money(safeToSpend)}</p>
+        </div>
+        <div className="mm-card">
+          <p className="mm-k">Transactions</p>
+          <p className="mm-n">{cur.count}</p>
+        </div>
+      </div>
+
+      <section className="mm-card">
+        <p className="mm-k">Spend vs budget</p>
+        <ul className="mt-3 space-y-3">
+          {catRows.slice(0, 6).map((r, i) => {
+            const lim = budgetByCat[r.category.trim().toLowerCase()]
+            const width = lim > 0 ? Math.min(100, (r.spent / lim) * 100) : Math.min(100, (r.spent / (catRows[0].spent || 1)) * 100)
+            const colors = ['#3b82f6', '#059669', '#9f1239', '#22d3ee', '#7c3aed', '#34d399']
+            return (
+              <li key={r.category}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>{r.category}</span>
+                  <b>{money(r.spent)}{lim > 0 ? ` / ${money(lim)}` : ''}</b>
+                </div>
+                <div className="h-1.5 rounded-full" style={{ background: 'var(--track, #242424)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${width}%`, background: colors[i % colors.length] }} />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+
       {(() => {
         const tiles = {
         wheregoes: catRows.length === 0 ? null : (
