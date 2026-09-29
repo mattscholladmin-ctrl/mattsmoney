@@ -380,13 +380,12 @@ html[data-theme="punk"] {
 @media (min-width: 901px) {
   .mm-body.mm-home {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: stretch;
+    align-items: start;
   }
 }
-.mm-home > .mm-col:first-child > .mm-card { height: 100%; }
-.mm-home > .mm-col:last-child { display: flex; flex-direction: column; }
-.mm-home .mm-pace { flex: 1; display: flex; flex-direction: column; }
-.mm-home .mm-pace svg { flex: 1; width: 100%; min-height: 180px; height: auto !important; }
+.mm-home > .mm-col:first-child > .mm-card { height: auto; }
+.mm-home .mm-pace svg { width: 100%; height: 120px !important; min-height: 0; }
+.mm-home .mm-acct-cell em { font-style: normal; font-weight: 400; color: var(--mute); font-size: 0.75rem; margin-left: 6px; }
 .mm-dash > .mm-rail {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

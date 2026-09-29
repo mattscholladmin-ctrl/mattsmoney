@@ -1239,8 +1239,10 @@ export default function Dashboard({ session, demo = false }) {
                       .map((a) => (
                         <div key={a.id} className="mm-acct-cell">
                           <span className="truncate">{a.name}</span>
-                          <b>{a.balance == null ? '—' : money(a.balance)}</b>
-                          {a.availableMissing && <em>current</em>}
+                          <b>
+                            {a.balance == null ? '—' : money(a.balance)}
+                            {a.availableMissing ? <em> current</em> : null}
+                          </b>
                         </div>
                       ))}
                   </div>
@@ -1305,9 +1307,7 @@ export default function Dashboard({ session, demo = false }) {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="mm-pace mm-card">
+            <div className="mm-pace">
               <p className="mm-k">Spent this month</p>
               {(() => {
                 const now = new Date()
@@ -1332,7 +1332,7 @@ export default function Dashboard({ session, demo = false }) {
                 }).join(' ')
                 const pace = pts.map((_, i) => ((i + 1) / pts.length) * (pts[pts.length - 1] || 0))
                 return (
-                  <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="mt-2 w-full" style={{ width: '100%', height: 180 }} aria-hidden="true">
+                  <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="mt-2 w-full" style={{ width: '100%', height: 120 }} aria-hidden="true">
                     <path d={line(pace)} fill="none" stroke="#525252" strokeWidth="1.5" strokeDasharray="4 4" />
                     <path d={line(pts)} fill="none" stroke="#3b82f6" strokeWidth="2.5" />
                   </svg>
@@ -1347,6 +1347,7 @@ export default function Dashboard({ session, demo = false }) {
                     : '—'}
                 </b>
               </div>
+            </div>
             </div>
               </div>
             </div>
