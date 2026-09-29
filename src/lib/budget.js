@@ -1186,7 +1186,7 @@ export function payoffPlan(debts = [], extraPerMonth = 0, strategy = 'avalanche'
     }
     return null
   }
-  const activeAll = (debts || []).filter((d) => Number(d.balance) > 0)
+  const activeAll = (debts || []).filter((d) => d.active !== false && Number(d.balance) > 0)
   const parkedInPlan = (debts || []).filter((d) => d.active === false && Number(d.balance) > 0)
   // Debts on a fixed schedule (a settlement plan_end_date or a payment-plan
   // series) clear by their OWN deadline — don't drag them through the revolving
@@ -1202,14 +1202,14 @@ export function payoffPlan(debts = [], extraPerMonth = 0, strategy = 'avalanche'
     const m = Math.max(0, Math.ceil((parseISO(end) - parseISO(isoDate())) / (30.44 * DAY_MS)))
     return Math.max(mx, m)
   }, 0)
-  const active = revolving.map((d) => ({
-    name: d.name,
-    balance: Number(d.balance),
-    apr: Number(d.apr || 0),
-    // "Current payments" = what's actually paid monthly: the plan payment
-    // when one is set, never less than the minimum.
-    min: monthlyDebtPayment(d),
-  }))
+  const active = revolving
+    .map((d) => ({
+      name: d.name,
+      balance: Number(d.balance),
+      apr: Number(d.apr || 0),
+      min: monthlyDebtPayment(d),
+    }))
+    .filter((d) => d.min > 0.005)
   if (!active.length) {
     // Only scheduled debts left (or none): debt-free when the last plan ends.
     if (!scheduledMonths) return null
@@ -1222,7 +1222,7 @@ export function payoffPlan(debts = [], extraPerMonth = 0, strategy = 'avalanche'
       order: [],
       capped: false,
       parkedCount: parkedInPlan.length,
-      scopeNote: parkedInPlan.length ? `Includes ${parkedInPlan.length} parked card${parkedInPlan.length === 1 ? '' : 's'}` : null,
+      scopeNote: parkedInPlan.length ? `Parked cards left out` : null,
     }
   }
   const baseMin = active.reduce((s, d) => s + d.min, 0)
@@ -1272,7 +1272,7 @@ export function payoffPlan(debts = [], extraPerMonth = 0, strategy = 'avalanche'
     order: order.map((d) => ({ name: d.name, balance: d.balance, apr: d.apr, paidMonth: paidMonth[d.name] || month })),
     capped: month >= MAX,
     parkedCount: parkedInPlan.length,
-    scopeNote: parkedInPlan.length ? `Includes ${parkedInPlan.length} parked card${parkedInPlan.length === 1 ? '' : 's'}` : null,
+    scopeNote: parkedInPlan.length ? `Parked cards left out` : null,
   }
 }
 
@@ -2087,10 +2087,10 @@ export function gapClosers({ gap, goalLines = [], everydayTotal = 0, debtHeld = 
 
 // Known bank payee names that still count as the bill (Apple posts YouTube, etc).
 const BILL_PAYEE_ALIASES = {
-  youtube: ['youtube', 'apple', 'google'],
-  google: ['google', 'apple'],
-  icloud: ['icloud', 'apple'],
-  applecare: ['applecare', 'apple', 'applecare+'],
+  youtube: ['youtube'],
+  google: ['google'],
+  icloud: ['icloud'],
+  applecare: ['applecare', 'applecare+'],
   apple: ['apple'],
   amazon: ['amazon', 'prime'],
   prime: ['amazon', 'prime'],

@@ -1337,10 +1337,35 @@ export default function Dashboard({ session, demo = false }) {
                 </div>
                 <div>
                   <p className="mm-k">Where the number comes from</p>
-                  <div className="mm-row"><span><i className="sw" style={{ background: '#3b82f6' }} />Bills before payday</span><b>−{money((derived.spendable && derived.spendable.billsBeforePay) || 0)}</b></div>
-                  <div className="mm-row"><span><i className="sw" style={{ background: '#7c3aed' }} />Saving toward later bills</span><b>−{money((derived.spendable && derived.spendable.laterShare) || 0)}</b></div>
-                  <div className="mm-row"><span><i className="sw" style={{ background: '#ca8a04' }} />Saving toward goals</span><b>−{money((derived.spendable && derived.spendable.goalReserve) || 0)}</b></div>
-                  <div className="mm-row"><span><i className="sw" style={{ background: '#059669' }} />Everyday leftover</span><b>{money((derived.spendable && derived.spendable.everyday) || 0)}</b></div>
+                  {(() => {
+                    const s = derived.spendable || {}
+                    const start = Number(s.start || 0)
+                    const bills = Number(s.billsBeforePay || 0)
+                    const later = Number(s.laterShare || 0)
+                    const goals = Number(s.goalReserve || 0)
+                    const everyday = Number(s.everyday || 0)
+                    const smoothed = Number(s.smoothed || 0)
+                    const buffer = Number(s.floor || 0)
+                    const other = Number(s.setAside || 0) + Number(s.earmarked || 0) + Number(s.tripFunds || 0)
+                    const row = (label, amount, sw) => (
+                      <div className="mm-row" key={label}>
+                        <span>{sw ? <i className="sw" style={{ background: sw }} /> : null}{label}</span>
+                        <b>{amount < 0 ? '−' : ''}{money(Math.abs(amount))}</b>
+                      </div>
+                    )
+                    return (
+                      <>
+                        {row('Cash counted', start)}
+                        {row('Bills before payday', -bills, '#3b82f6')}
+                        {row('Saving toward later bills', -later, '#7c3aed')}
+                        {row('Saving toward goals', -goals, '#ca8a04')}
+                        {row('Everyday leftover', -everyday, '#059669')}
+                        {smoothed > 0 && row('Saving from each paycheck', -smoothed)}
+                        {buffer > 0 && row('Buffer', -buffer)}
+                        {other > 0 && row('Set aside', -other)}
+                      </>
+                    )
+                  })()}
                   <div className="mm-row" style={{ borderBottom: 'none' }}>
                     <span>Safe to spend</span>
                     <b className={(derived.spendable && derived.spendable.spendable) < 0 ? 'text-red-500' : ''}>{money((derived.spendable && derived.spendable.spendable) || 0)}</b>
@@ -1377,24 +1402,39 @@ export default function Dashboard({ session, demo = false }) {
                   <p className="mm-muted mt-2">No bills waiting on an answer.</p>
                 ) : (
                   <ul className="mt-2 space-y-2 text-sm">
-                    {(derived.upcomingBills30 || []).filter((b) => !b.overdue).slice(0, 3).map((b) => (
-                      <li key={b.id || b.name} className="flex justify-between gap-2">
-                        <span className="truncate">{b.name}{b.nextDue || b.due ? ` · ${String(b.nextDue || b.due).slice(5)}` : ''}</span>
+                    {(derived.upcomingBills30 || []).filter((b) => !b.overdue).slice(0, 3).map((b) => {
+                      const due = b.originalDate || b.date
+                      return (
+                      <li key={b.billId || b.id || b.name} className="flex justify-between gap-2">
+                        <span className="truncate">{b.name}{due ? ` · ${String(due).slice(5)}` : ''}</span>
                         <span>{money(b.amount || b.min_payment || 0)}</span>
                       </li>
-                    ))}
+                      )
+                    })}
                   </ul>
                 )}
                 <button type="button" onClick={() => setView('insights')} className="mt-3 text-sm underline opacity-80">Review bills</button>
               </div>
               <div className="mm-card mm-pay">
+                <p className="mm-k">This paycheck</p>
                 <p className="mm-n">{money((derived.assignment && derived.assignment.amount) || 0)}</p>
                 <p className="mm-muted">{(derived.assignment && derived.assignment.name) || '—'}{(derived.assignment && derived.assignment.date) ? ` · ${String(derived.assignment.date).slice(5)}` : ''}</p>
-                <div className="mm-row"><span>Bills</span><b>{money((derived.assignment && derived.assignment.lines || []).filter((l) => /bill|rent|util|insur|starlink|verizon|electric/i.test(l.name || '')).reduce((s, l) => s + Number(l.amount || 0), 0))}</b></div>
-                <div className="mm-row"><span>Goals</span><b>{money((derived.assignment && derived.assignment.lines || []).filter((l) => /goal/i.test(l.name || '')).reduce((s, l) => s + Number(l.amount || 0), 0) || derived.goalNextPaycheckTotal || 0)}</b></div>
+                {(() => {
+                  const lines = (derived.assignment && derived.assignment.lines) || []
+                  const sum = (kind) => lines.filter((l) => l.kind === kind).reduce((s, l) => s + Number(l.amount || 0), 0)
+                  return (
+                    <>
+                      <div className="mm-row"><span>Bills</span><b>{money(sum('bill'))}</b></div>
+                      <div className="mm-row"><span>Debt</span><b>{money(sum('debt'))}</b></div>
+                      <div className="mm-row"><span>Goals</span><b>{money(sum('goal'))}</b></div>
+                      <div className="mm-row"><span>Everyday</span><b>{money(sum('everyday'))}</b></div>
+                    </>
+                  )
+                })()}
                 <div className="mm-row" style={{ borderBottom: 'none' }}><span>Left</span><b>{money((derived.assignment && derived.assignment.free) || 0)}</b></div>
               </div>
               <div className="mm-card mm-low">
+                <p className="mm-k">Lowest before payday</p>
                 <p className={`mm-n ${(derived.spendableLowest || 0) < 0 ? 'text-red-500' : ''}`}>{money(derived.spendableLowest || 0)}</p>
                 <p className="mm-muted">If nothing else changes</p>
                 <div className="mm-row"><span>Buffer</span><b>{money(derived.bufferFloor || 0)}</b></div>
