@@ -7,8 +7,10 @@ import {
   detectRecurring,
   pairTransfers,
   rejectKey,
+  unpaidBills,
+  isBillOccurrencePaid,
 } from '../lib/budget'
-import { updateTransaction, addBill } from '../lib/api'
+import { updateTransaction, addBill, addTransaction } from '../lib/api'
 
 const REVIEWED_KEY = 'budget.reviewedQueue'
 
@@ -47,6 +49,42 @@ export default function ReviewQueue({
   const items = useMemo(() => {
     const seen = new Set(reviewed)
     const out = []
+    const rejected = (() => {
+      try {
+        return JSON.parse(localStorage.getItem('budget.rejectedBillMatches') || '[]')
+      } catch {
+        return []
+      }
+    })()
+
+    const due = unpaidBills(bills, transactions, today, 30).filter((b) => !b.preStart)
+    const extra = (upcoming || []).filter((b) => !b.preStart && b.date <= today)
+    const byKey = new Map()
+    for (const b of [...due, ...extra]) {
+      const billId = b.billId || b.id
+      const occDate = b.originalDate || b.date
+      const key = `${billId}-${occDate}`
+      if (!byKey.has(key)) byKey.set(key, { ...b, billId, occDate })
+    }
+    for (const b of byKey.values()) {
+      if (isBillOccurrencePaid(b, transactions, today)) continue
+      const t = suggestBillPayment(b, transactions, today, rejected)
+      const id = `bill-${b.billId}-${b.occDate}`
+      if (seen.has(id)) continue
+      out.push({
+        kind: 'match',
+        id,
+        title: b.name,
+        detail: t
+          ? `Due ${shortDate(b.occDate)}. Bank shows ${t.merchant} ${money(t.amount)} on ${shortDate(t.txn_date)}. Paid?`
+          : `Due ${shortDate(b.occDate)}. No matching charge found. Paid?`,
+        amount: b.amount,
+        billId: b.billId,
+        txnId: t?.id || null,
+        occDate: b.occDate,
+      })
+    }
+
     const pairs = pairTransfers(transactions, accounts)
     for (const p of pairs) {
       const id = `xfer-${p.outId}-${p.inId}`
@@ -59,31 +97,6 @@ export default function ReviewQueue({
         amount: p.amount,
         outId: p.outId,
         inId: p.inId,
-      })
-    }
-    const rejected = (() => {
-      try {
-        return JSON.parse(localStorage.getItem('budget.rejectedBillMatches') || '[]')
-      } catch {
-        return []
-      }
-    })()
-    for (const b of upcoming || []) {
-      const overdue = b.overdue || (b.date < today && !b.preStart)
-      if (!overdue) continue
-      const t = suggestBillPayment(b, transactions, today, rejected)
-      if (!t) continue
-      const id = `match-${b.billId || b.id}-${t.id}`
-      if (seen.has(id)) continue
-      out.push({
-        kind: 'match',
-        id,
-        title: `${b.name}`,
-        detail: `Looks like ${t.merchant} ${money(t.amount)} on ${shortDate(t.txn_date)}`,
-        amount: b.amount,
-        billId: b.billId || b.id,
-        txnId: t.id,
-        occKey: `${b.billId || b.id}-${b.date}`,
       })
     }
     for (const t of transactions) {
@@ -136,22 +149,34 @@ export default function ReviewQueue({
         await updateTransaction(item.outId, { category: 'Transfer' })
         await updateTransaction(item.inId, { category: 'Transfer' })
       }
-      if (item.kind === 'match' && yes && item.txnId && item.billId) {
-        const row = transactions.find((t) => t.id === item.txnId)
-        const note = String(row?.note || '')
+      if (item.kind === 'match' && yes && item.billId) {
         const tag = `paid:${item.billId}`
-        if (!note.includes(tag)) await updateTransaction(item.txnId, { note: note ? `${note} ${tag}` : tag })
-      }
-      if (item.kind === 'match' && !yes && item.txnId && item.billId) {
-        const key = rejectKey(item.billId, item.txnId)
-        const list = JSON.parse(localStorage.getItem('budget.rejectedBillMatches') || '[]')
-        if (key && !list.includes(key)) {
-          localStorage.setItem('budget.rejectedBillMatches', JSON.stringify([...list, key]))
+        if (item.txnId) {
+          const row = transactions.find((t) => t.id === item.txnId)
+          const note = String(row?.note || '')
+          if (!note.includes(tag)) await updateTransaction(item.txnId, { note: note ? `${note} ${tag}` : tag })
+        } else {
+          await addTransaction({
+            txn_date: item.occDate || today,
+            merchant: item.title,
+            amount: Number(item.amount || 0),
+            category: 'Bills',
+            note: tag,
+          })
         }
-        const row = transactions.find((t) => t.id === item.txnId)
-        const note = String(row?.note || '')
-        const tag = `reject:${item.billId}`
-        if (!note.includes(tag)) await updateTransaction(item.txnId, { note: note ? `${note} ${tag}` : tag })
+      }
+      if (item.kind === 'match' && !yes && item.billId) {
+        if (item.txnId) {
+          const key = rejectKey(item.billId, item.txnId)
+          const list = JSON.parse(localStorage.getItem('budget.rejectedBillMatches') || '[]')
+          if (key && !list.includes(key)) {
+            localStorage.setItem('budget.rejectedBillMatches', JSON.stringify([...list, key]))
+          }
+          const row = transactions.find((t) => t.id === item.txnId)
+          const note = String(row?.note || '')
+          const tag = `reject:${item.billId}`
+          if (!note.includes(tag)) await updateTransaction(item.txnId, { note: note ? `${note} ${tag}` : tag })
+        }
       }
       if (item.kind === 'spot' && yes) {
         await addBill({
@@ -173,7 +198,7 @@ export default function ReviewQueue({
       setIdx(0)
       const wrote =
         (item.kind === 'transfer' && yes) ||
-        item.kind === 'match' ||
+        (item.kind === 'match' && yes) ||
         (item.kind === 'spot' && yes)
       if (wrote) onChanged?.()
     } finally {
@@ -191,20 +216,10 @@ export default function ReviewQueue({
       <p className="text-sm text-slate-500">{item.detail}</p>
       <p className="text-lg font-semibold text-slate-800">{money(item.amount)}</p>
       <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => act(true)}
-          className="mm-btn mm-btn-primary flex-1"
-        >
+        <button type="button" disabled={busy} onClick={() => act(true)} className="mm-btn mm-btn-primary flex-1">
           {busy ? 'Saving…' : item.kind === 'match' ? 'Yes, paid' : item.kind === 'spot' ? 'Add bill' : item.kind === 'transfer' ? 'Mark transfer' : 'Keep'}
         </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => act(false)}
-          className="mm-btn mm-btn-ghost flex-1"
-        >
+        <button type="button" disabled={busy} onClick={() => act(false)} className="mm-btn mm-btn-ghost flex-1">
           {busy ? 'Saving…' : item.kind === 'match' ? 'No' : item.kind === 'spot' ? 'Dismiss' : 'Skip'}
         </button>
       </div>
@@ -223,7 +238,7 @@ export default function ReviewQueue({
           Undo last
         </button>
       )}
-      <p className="text-xs text-slate-400">Safe to spend does not wait on this list. Keep and Skip stay put if you leave and come back.</p>
+      <p className="text-xs text-slate-400">Bills stay held until you tap Yes, paid. No leaves them unpaid.</p>
     </section>
   )
 }
