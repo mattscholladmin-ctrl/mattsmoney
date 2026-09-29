@@ -225,27 +225,26 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
   const today = localToday()
   const institution = item.institution_name || ''
 
-  // Some banks (Capital One) don't send an `available` balance — only `current`
-  // (the ledger). To match what you actually see, compute available ourselves:
-  // current minus pending (authorized-but-not-posted) charges, per account. This
-  // is what other finance apps do. Plaid `amount` is positive for outflows.
-  const pendingByAccount = {}
-  try {
-    const start = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
-    const tx = await client.transactionsGet({
-      access_token: item.access_token,
-      start_date: start,
-      end_date: today,
-      options: { count: 500 },
-    })
-    for (const t of tx.data.transactions) {
-      if (t.pending) {
-        pendingByAccount[t.account_id] =
-          (pendingByAccount[t.account_id] || 0) + Number(t.amount || 0)
+  // Some banks (SoFi) omit `available` on a forced real-time pull and only
+  // send `current`. The cached account snapshot still has available — the
+  // number SoFi shows as "available." Fill it in before we write cash.
+  const needsAvailable = acc.data.accounts.some(
+    (a) => a.type === 'depository' && a.balances && a.balances.available == null
+  )
+  if (needsAvailable) {
+    try {
+      const snap = await client.accountsGet({ access_token: item.access_token })
+      const byId = {}
+      for (const s of snap.data.accounts) byId[s.account_id] = s
+      for (const a of acc.data.accounts) {
+        const fromSnap = byId[a.account_id]
+        if (a.balances && a.balances.available == null && fromSnap?.balances?.available != null) {
+          a.balances.available = fromSnap.balances.available
+        }
       }
+    } catch {
+      /* no snapshot — fall back to current below */
     }
-  } catch {
-    /* transactions not ready yet — fall back to current with no adjustment */
   }
 
   let depository = 0
@@ -253,25 +252,15 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
   for (const a of acc.data.accounts) {
     if (a.type === 'depository') {
       const id = await findOrCreateAccount(db, uid, item, a, institution)
-      // Use the bank's available balance when it shares one (SoFi). When it
-      // doesn't (Capital One only sends `current`), use current minus any
-      // pending charges — `current` IS the real, updating balance there.
-      const current = a.balances.current ?? 0
-      const pending = pendingByAccount[a.account_id] || 0
-      const spendable =
-        a.balances.available != null ? a.balances.available : current - pending
-      // Carry the bank's headline number + pending in the note so the app can
-      // show "in bank $X · pending $Y" — the number the user sees in their
-      // bank's own app — next to the usable balance. (No schema change needed.)
-      let note = 'Auto-synced'
-      if (Math.abs(current - (spendable ?? 0)) >= 0.01) {
-        note += ` · in bank $${current.toFixed(2)}`
-        if (pending > 0) note += ` · pending $${pending.toFixed(2)}`
-        else if (a.balances.available != null)
-          note += ` · pending $${(current - a.balances.available).toFixed(2)}`
+      // Cash the person can spend. Prefer Plaid available (SoFi "available").
+      // Use current only when the bank does not send available (some Cap One).
+      const current = a.balances.current
+      const available = a.balances.available
+      const cash = available != null ? Number(available) : Number(current ?? 0)
+      let note = available != null ? 'Auto-synced · available' : 'Auto-synced · current'
+      if (current != null && available != null && Math.abs(Number(current) - cash) >= 0.01) {
+        note += ` · in bank $${Number(current).toFixed(2)}`
       }
-      // Only write a new entry when something actually changed — otherwise
-      // every app-open piles up identical rows (hundreds a month of junk).
       const { data: prev } = await db
         .from('balance_entries')
         .select('balance,as_of,note')
@@ -279,16 +268,12 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      const unchanged =
-        prev &&
-        Number(prev.balance) === Number(spendable ?? 0) &&
-        prev.as_of === today &&
-        (prev.note || '') === note
-      if (!unchanged) {
+      const sameNumber = prev && Number(prev.balance) === cash && prev.as_of === today
+      if (!sameNumber) {
         await db.from('balance_entries').insert({
           user_id: uid,
           account_id: id,
-          balance: spendable ?? 0,
+          balance: cash,
           as_of: today,
           note,
         })
