@@ -1251,14 +1251,23 @@ export default function Dashboard({ session, demo = false }) {
           <div className="mm-dash w-full">
             <div className="mm-metrics">
               <div className="mm-card">
-                <p className="mm-k">Cash</p>
-                <p className="mm-n">{money(derived.totals.totalCash)}</p>
-                <p className="mm-muted">Available, on hand today</p>
-                {(derived.totals.missingAvailable || []).length > 0 && (
-                  <p className="text-red-400 text-sm mt-1">
-                    No available balance: {derived.totals.missingAvailable.join(', ')}. Not counted.
-                  </p>
-                )}
+                <p className="mm-k">Safe to spend</p>
+                <p className={`mm-n ${(derived.spendable && derived.spendable.spendable) < 0 ? 'text-red-500' : ''}`}>
+                  {money((derived.spendable && derived.spendable.spendable) || 0)}
+                </p>
+                <p className="mm-muted">Until payday</p>
+                {(derived.summaries || []).filter((a) => !a.hidden).map((a) => (
+                  <div className="mm-row" key={a.id}>
+                    <span className="truncate">{a.name}</span>
+                    {a.availableMissing ? (
+                      <b className="text-red-500">
+                        No available{a.bankCurrent != null ? ` · ${money(a.bankCurrent)} current` : ''}
+                      </b>
+                    ) : (
+                      <b>{money(a.balance)}</b>
+                    )}
+                  </div>
+                ))}
               </div>
               <div className="mm-card">
                 <p className="mm-k">Spent this month</p>
