@@ -1013,22 +1013,18 @@ export default function InsightsView({
             arranging={arranging}
           />
         ) : (
-          <div className="mm-page-split">
-            <div className="mm-page-col">
+          <div className="mm-pack">
               {tiles.wheregoes}
               {tiles.monthly}
               {tiles.networth}
-              {tiles.setbudgets}
-              {tiles.recurringbills}
-            </div>
-            <div className="mm-page-col">
               {tiles.merchants}
               {tiles.budget}
               {tiles.whatif}
               {tiles.payoff}
+              {tiles.setbudgets}
+              {tiles.recurringbills}
               {tiles.newnormal}
               {tiles.unusual}
-            </div>
           </div>
         )
       })()}

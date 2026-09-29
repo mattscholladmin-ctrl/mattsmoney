@@ -322,7 +322,7 @@ export default function CreditView({
       </div>
 
       {latest.length > 0 && (
-        <div className="mm-page-hero mm-score-band">
+        <div className="mm-metrics mm-score-band">
           {latest.map((s) => (
             <div key={s.id} className="mm-card">
               <p className="mm-k">{s.bureau}</p>

@@ -524,6 +524,9 @@ html[data-theme] textarea {
   gap: 16px;
   margin-top: 12px;
 }
+.mm-pack { column-count: 2; column-gap: 16px; }
+.mm-pack > * { break-inside: avoid; margin-bottom: 16px; display: inline-block; width: 100%; }
+@media (max-width: 900px) { .mm-pack { column-count: 1; } }
 .mm-phases {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

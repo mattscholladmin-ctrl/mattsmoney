@@ -222,12 +222,7 @@ export default function CheckInView({
     )}
     <section className="mm-card">
       <p className="mm-k">Accounts</p>
-      <p className="mm-muted" style={{ margin: '6px 0 12px' }}>Bank balances stay. Type cash the bank does not sync.</p>
-        <div className="mm-check-grid" style={{ marginBottom: 16 }}>
-          {['Cash the bank does not sync', 'Receipts since last check-in', 'Side income and the source', 'Bills you started or cancelled', 'Credit scores, if you want them logged'].map((line) => (
-            <p key={line} className="mm-muted">{line}</p>
-          ))}
-        </div>
+      <p className="mm-muted" style={{ margin: '6px 0 14px' }}>Bank balances stay. Type cash the bank does not sync. Have receipts, side income, and any bill changes ready.</p>
 
       {step === 1 ? (
         <form onSubmit={saveBalance} className="space-y-4 text-slate-700">

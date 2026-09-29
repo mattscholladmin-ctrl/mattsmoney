@@ -1676,8 +1676,7 @@ function SettingsView({ settings, bufferFloor, email, showPhase, onTogglePhase, 
 
   return (
     <div className="mm-stack">
-      <div className="mm-page-split">
-        <div className="mm-page-col">
+      <div className="mm-pack">
           <section className="mm-card">
             <p className="mm-k">How the number is built</p>
             <div className="mm-row"><span><i className="sw" style={{ background: '#3b82f6' }} />Bills before payday</span></div>
@@ -1690,15 +1689,12 @@ function SettingsView({ settings, bufferFloor, email, showPhase, onTogglePhase, 
           {tiles.buffer}
           {tiles.dashprefs}
           {tiles.yourdata}
-        </div>
-        <div className="mm-page-col">
           {tiles.theme}
           {tiles.bank}
           {tiles.grok}
           {tiles.notifications}
           {tiles.calendar}
           {tiles.account}
-        </div>
       </div>
       {tiles.guide}
     </div>

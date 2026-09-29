@@ -113,12 +113,12 @@ export function LineChart({ points = [], color = '#22d3ee', format = (v) => v, a
   if (points.length < 2) {
     return <p className="text-sm text-slate-400">Not enough history yet to chart.</p>
   }
-  const W = 320
+  const W = 720
   const H = height
-  const padL = 32
-  const padR = 8
-  const padT = 16
-  const padB = 24
+  const padL = 36
+  const padR = 12
+  const padT = 12
+  const padB = 22
 
   const values = points.map((p) => Number(p.value || 0))
   const max = Math.max(...values)
@@ -139,7 +139,7 @@ export function LineChart({ points = [], color = '#22d3ee', format = (v) => v, a
   const step = Math.max(1, Math.round(points.length / 4))
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height }}>
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full" style={{ width: '100%', height }}>
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.35" />

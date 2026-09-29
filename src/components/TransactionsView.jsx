@@ -128,8 +128,6 @@ export default function TransactionsView({ transactions = [], categories = [], g
           <p className="mm-muted">{topCats[0] ? topCats[0][0] : 'Nothing in this view'}</p>
         </div>
       </div>
-      <div className="mm-page-split">
-        <div className="mm-page-col">
       <section className="mm-card mm-tx-tools space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold text-slate-800">Transactions</h2>
@@ -219,21 +217,21 @@ export default function TransactionsView({ transactions = [], categories = [], g
       </section>
 
       <section className="mm-card">
-        <p className="mm-k">This month</p>
-        <div className="mm-weeks">
-          {weekSpend.map((v, i) => (
-            <div key={i} className="mm-week">
-              <div className="mm-week-bar" style={{ height: `${Math.max(16, (v / weekMax) * 220)}px` }} />
-              <span>W{i + 1}</span>
+        <div className="mm-chart-split">
+          <div>
+            <p className="mm-k">This month</p>
+            <div className="mm-weeks">
+              {weekSpend.map((v, i) => (
+                <div key={i} className="mm-week">
+                  <div className="mm-week-bar" style={{ height: `${Math.max(16, (v / weekMax) * 220)}px` }} />
+                  <span>W{i + 1}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
-        </div>
-        <div className="mm-page-col">
-          <ReviewQueue transactions={transactions} bills={bills} upcoming={upcoming} accounts={accounts} onChanged={onChanged} />
-          <section className="mm-card">
-            <p className="mm-k">Top categories</p>
+          </div>
+          <div>
+            <ReviewQueue transactions={transactions} bills={bills} upcoming={upcoming} accounts={accounts} onChanged={onChanged} />
+            <p className="mm-k" style={{ marginTop: 18 }}>Top categories</p>
             <ul className="mt-3 space-y-3">
               {topCats.map(([name, spent], i) => (
                 <li key={name}>
@@ -247,9 +245,9 @@ export default function TransactionsView({ transactions = [], categories = [], g
                 </li>
               ))}
             </ul>
-          </section>
+          </div>
         </div>
-      </div>
+      </section>
 
       <section className="mm-card mm-tx-list">
         {filtered.length === 0 ? (
