@@ -178,7 +178,7 @@ export default function TransactionsView({ transactions = [], categories = [], g
         <div className="mm-weeks">
           {weekSpend.map((v, i) => (
             <div key={i} className="mm-week">
-              <div className="mm-week-bar" style={{ height: `${Math.max(8, (v / weekMax) * 72)}px` }} />
+              <div className="mm-week-bar" style={{ height: `${Math.max(12, (v / weekMax) * 128)}px` }} />
               <span>W{i + 1}</span>
             </div>
           ))}

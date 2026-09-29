@@ -1362,7 +1362,7 @@ export default function Dashboard({ session, demo = false }) {
             </div>
 
             <div className="mm-side">
-              <div className="mm-card">
+              <div className="mm-card mm-next">
                 <p className="mm-k">Next</p>
                 {((derived.upcomingBills30 || []).filter((b) => !b.overdue).slice(0, 3)).length === 0 ? (
                   <p className="mm-muted mt-2">No bills waiting on an answer.</p>
@@ -1378,16 +1378,14 @@ export default function Dashboard({ session, demo = false }) {
                 )}
                 <button type="button" onClick={() => setView('insights')} className="mt-3 text-sm underline opacity-80">Review bills</button>
               </div>
-              <div className="mm-card">
-                <p className="mm-k">This paycheck</p>
+              <div className="mm-card mm-pay">
                 <p className="mm-n">{money((derived.assignment && derived.assignment.amount) || 0)}</p>
                 <p className="mm-muted">{(derived.assignment && derived.assignment.name) || '—'}{(derived.assignment && derived.assignment.date) ? ` · ${String(derived.assignment.date).slice(5)}` : ''}</p>
                 <div className="mm-row"><span>Bills</span><b>{money((derived.assignment && derived.assignment.lines || []).filter((l) => /bill|rent|util|insur|starlink|verizon|electric/i.test(l.name || '')).reduce((s, l) => s + Number(l.amount || 0), 0))}</b></div>
                 <div className="mm-row"><span>Goals</span><b>{money((derived.assignment && derived.assignment.lines || []).filter((l) => /goal/i.test(l.name || '')).reduce((s, l) => s + Number(l.amount || 0), 0) || derived.goalNextPaycheckTotal || 0)}</b></div>
                 <div className="mm-row" style={{ borderBottom: 'none' }}><span>Left</span><b>{money((derived.assignment && derived.assignment.free) || 0)}</b></div>
               </div>
-              <div className="mm-card">
-                <p className="mm-k">Lowest before payday</p>
+              <div className="mm-card mm-low">
                 <p className={`mm-n ${(derived.spendableLowest || 0) < 0 ? 'text-red-500' : ''}`}>{money(derived.spendableLowest || 0)}</p>
                 <p className="mm-muted">If nothing else changes</p>
                 <div className="mm-row"><span>Buffer</span><b>{money(derived.bufferFloor || 0)}</b></div>
