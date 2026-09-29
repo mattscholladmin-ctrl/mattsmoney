@@ -1180,31 +1180,6 @@ export default function Dashboard({ session, demo = false }) {
             )
           })}
         </nav>
-        {view === 'dashboard' && (
-        <div className="mm-foot">
-          <div className="mm-k">Accounts</div>
-          {(derived.summaries || [])
-            .filter((a) => !a.hidden)
-            .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
-            .map((a) => (
-            <div key={a.id}>
-              <div className="mm-acct">
-                <span className="truncate">{a.name}</span>
-                <b>{a.balance == null ? '—' : money(a.balance)}</b>
-              </div>
-              {a.availableMissing ? (
-                <div className="mm-muted" style={{ fontSize: '0.7rem', marginTop: -2 }}>
-                  current
-                </div>
-              ) : a.bankCurrent != null ? (
-                <div className="mm-muted" style={{ fontSize: '0.75rem', marginTop: -2 }}>
-                  Current {money(a.bankCurrent)}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-        )}
         {['dashboard', 'settings', 'insights', 'credit'].includes(view) && (
           <button
             onClick={() => setArranging((a) => !a)}
@@ -1257,35 +1232,19 @@ export default function Dashboard({ session, demo = false }) {
                     {money((derived.spendable && derived.spendable.spendable) || 0)}
                   </p>
                   <p className="mm-muted">Until payday</p>
-                  <div className="mm-row">
-                    <span>Spent this month</span>
-                    <b>{money(derived.monthSpend)}</b>
-                  </div>
-                  <div className="mm-row" style={{ borderBottom: 'none' }}>
-                    <span>{derived.plan?.scopeNote ? 'Debt-free *' : 'Debt-free'}</span>
-                    <b>
-                      {derived.plan && !derived.plan.capped
-                        ? new Date(derived.plan.debtFreeDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
-                        : '—'}
-                    </b>
+                  <div className="mm-acct-grid">
+                    {(derived.summaries || [])
+                      .filter((a) => !a.hidden)
+                      .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+                      .map((a) => (
+                        <div key={a.id} className="mm-acct-cell">
+                          <span className="truncate">{a.name}</span>
+                          <b>{a.balance == null ? '—' : money(a.balance)}</b>
+                          {a.availableMissing && <em>current</em>}
+                        </div>
+                      ))}
                   </div>
                 </div>
-            <div className="mm-accounts mm-card">
-              <p className="mm-k">Accounts</p>
-              <div className="mm-acct-grid">
-                {(derived.summaries || [])
-                  .filter((a) => !a.hidden)
-                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
-                  .map((a) => (
-                    <div key={a.id} className="mm-acct-cell">
-                      <span className="truncate">{a.name}</span>
-                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
-                      {a.availableMissing && <em>current</em>}
-                    </div>
-                  ))}
-              </div>
-            </div>
-
               </div>
               <div className="mm-col">
             <div className="mm-plan mm-card">
@@ -1380,6 +1339,16 @@ export default function Dashboard({ session, demo = false }) {
                 )
               })()}
               <p className="mm-muted">Blue is actual. Dashed is even pace.</p>
+              <div className="mm-row" style={{ borderBottom: 'none' }}>
+                <span>{derived.plan?.scopeNote ? 'Debt-free *' : 'Debt-free'}</span>
+                <b>
+                  {derived.plan && !derived.plan.capped
+                    ? new Date(derived.plan.debtFreeDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+                    : '—'}
+                </b>
+              </div>
+            </div>
+              </div>
             </div>
 
             <div className="mm-rail">
@@ -1433,8 +1402,6 @@ export default function Dashboard({ session, demo = false }) {
                   <span>Debt counted</span>
                   <button type="button" onClick={() => setCounting((c) => ({ ...c, debt: !c.debt }))}>{counting.debt ? 'On' : 'Off'}</button>
                 </div>
-              </div>
-            </div>
               </div>
             </div>
             <div className="mm-recent mm-card">
