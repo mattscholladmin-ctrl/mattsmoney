@@ -115,10 +115,21 @@ export default function TransactionsView({ transactions = [], categories = [], g
   }
 
   return (
-    <div className="mm-tx-layout">
-      <div className="mm-tx-review">
-      <ReviewQueue transactions={transactions} bills={bills} upcoming={upcoming} accounts={accounts} onChanged={onChanged} />
+    <div className="mm-stack">
+      <div className="mm-page-hero mm-hero-2">
+        <div className="mm-card">
+          <p className="mm-k">Showing</p>
+          <p className="mm-n">{money(total)}</p>
+          <p className="mm-muted">{filtered.length} transactions</p>
+        </div>
+        <div className="mm-card">
+          <p className="mm-k">Biggest category</p>
+          <p className="mm-n">{topCats[0] ? money(topCats[0][1]) : '—'}</p>
+          <p className="mm-muted">{topCats[0] ? topCats[0][0] : 'Nothing in this view'}</p>
+        </div>
       </div>
+      <div className="mm-page-split">
+        <div className="mm-page-col">
       <section className="mm-tx-tools rounded-2xl bg-white p-5 shadow space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold text-slate-800">Transactions</h2>
@@ -208,19 +219,20 @@ export default function TransactionsView({ transactions = [], categories = [], g
       </section>
 
       <section className="mm-card">
-        <div className="mm-pair-inner">
-          <div>
-            <p className="mm-k">This month</p>
-            <div className="mm-weeks">
-              {weekSpend.map((v, i) => (
-                <div key={i} className="mm-week">
-                  <div className="mm-week-bar" style={{ height: `${Math.max(16, (v / weekMax) * 180)}px` }} />
-                  <span>W{i + 1}</span>
-                </div>
-              ))}
+        <p className="mm-k">This month</p>
+        <div className="mm-weeks">
+          {weekSpend.map((v, i) => (
+            <div key={i} className="mm-week">
+              <div className="mm-week-bar" style={{ height: `${Math.max(16, (v / weekMax) * 180)}px` }} />
+              <span>W{i + 1}</span>
             </div>
-          </div>
-          <div>
+          ))}
+        </div>
+      </section>
+        </div>
+        <div className="mm-page-col">
+          <ReviewQueue transactions={transactions} bills={bills} upcoming={upcoming} accounts={accounts} onChanged={onChanged} />
+          <section className="mm-card">
             <p className="mm-k">Top categories</p>
             <ul className="mt-3 space-y-3">
               {topCats.map(([name, spent], i) => (
@@ -235,9 +247,9 @@ export default function TransactionsView({ transactions = [], categories = [], g
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         </div>
-      </section>
+      </div>
 
       <section className="mm-tx-list rounded-2xl bg-white p-5 shadow">
         {filtered.length === 0 ? (

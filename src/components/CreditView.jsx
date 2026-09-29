@@ -295,17 +295,17 @@ export default function CreditView({
 
   return (
     <div className="mm-stack">
-      <div className="mm-body">
-        <div className="mm-col">
-          {tiles.scores}
+      {tiles.scores}
+      <div className="mm-page-split">
+        <div className="mm-page-col">
           {tiles.projection}
         </div>
-        <div className="mm-col">
+        <div className="mm-page-col">
           {tiles.utilization}
           {tiles.cards}
           {tiles.collections}
           {loans.length > 0 && (
-            <div className="mm-loan-row">
+            <div className="mm-loan-row" style={{ gridTemplateColumns: '1fr' }}>
               {loans.map((loan) => (
                 <section key={loan.id} className="mm-card">
                   <p className="mm-k">{loan.name}</p>

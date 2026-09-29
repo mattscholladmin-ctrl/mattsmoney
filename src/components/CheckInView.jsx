@@ -189,6 +189,30 @@ export default function CheckInView({
 
   return (
     <div className="mm-stack">
+    {recap && (
+      <section className="mm-page-hero mm-hero-2">
+        <div className="mm-card">
+          <p className="mm-k">Since last check-in</p>
+          <p className={`mm-n ${recap.net < 0 ? 'text-red-500' : ''}`}>{recap.net < 0 ? '−' : '+'}{money(Math.abs(recap.net))}</p>
+          <p className="mm-muted">Income {money(recap.income)} · spent {money(recap.spent)}</p>
+        </div>
+        <div className="mm-card">
+          <p className="mm-k">Last 10 days</p>
+          <div className="mm-flow" style={{ height: 140 }}>
+            {dayBars.map((d) => (
+              <div key={d.label} className="mm-flow-col" title={`${d.label}`}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 110 }}>
+                  <div className="mm-flow-bar" style={{ width: 8, height: `${Math.max(2, (d.inn / dayMax) * 100)}px`, background: '#059669' }} />
+                  <div className="mm-flow-bar" style={{ width: 8, height: `${Math.max(2, (d.out / dayMax) * 100)}px`, background: '#9f1239' }} />
+                </div>
+                <span>{d.label}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mm-muted">Green is money in. Wine is money out.</p>
+        </div>
+      </section>
+    )}
     <section className="mm-card">
       <p className="mm-k">Accounts</p>
       <p className="mm-muted" style={{ margin: '6px 0 12px' }}>Bank balances stay. Type cash the bank does not sync.</p>
@@ -212,7 +236,7 @@ export default function CheckInView({
           </p>
 
           {hasAccounts ? (
-            <div className="space-y-3">
+            <div className="mm-check-grid">
               {summaries.map((a) => {
                 const linked = !!(a.plaid_account_id) && !a.manual
                 return (
@@ -363,42 +387,21 @@ export default function CheckInView({
         </div>
       )}
     </section>
-    <aside className="space-y-3">
-      {recap && (
-        <section className="mm-card">
-          <p className="mm-k">Since last check-in</p>
-          <p className={`mm-n ${recap.net < 0 ? 'text-red-500' : ''}`}>{recap.net < 0 ? '−' : '+'}{money(Math.abs(recap.net))}</p>
-          <p className="mm-muted">Income {money(recap.income)} · spent {money(recap.spent)}</p>
-          <div className="mm-flow" style={{ height: 96 }}>
-            {dayBars.map((d) => (
-              <div key={d.label} className="mm-flow-col" title={`${d.label}`}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 72 }}>
-                  <div className="mm-flow-bar" style={{ width: 6, height: `${Math.max(2, (d.inn / dayMax) * 72)}px`, background: '#059669' }} />
-                  <div className="mm-flow-bar" style={{ width: 6, height: `${Math.max(2, (d.out / dayMax) * 72)}px`, background: '#9f1239' }} />
-                </div>
-                <span>{d.label}</span>
-              </div>
-            ))}
-          </div>
-          <p className="mm-muted">Green is money in. Wine is money out. Last 10 days.</p>
-        </section>
+    <section className="mm-card">
+      <p className="mm-k">Still open</p>
+      {(upcoming || []).slice(0, 8).length === 0 ? (
+        <p className="mm-muted" style={{ marginTop: 8 }}>Nothing open.</p>
+      ) : (
+        <ul className="mm-check-grid">
+          {(upcoming || []).slice(0, 8).map((b) => (
+            <li key={`${b.billId || b.name}-${b.date}`} className="mm-row">
+              <span className="truncate">{b.name}</span>
+              <b>{money(b.amount)}</b>
+            </li>
+          ))}
+        </ul>
       )}
-      <section className="mm-card">
-        <p className="mm-k">Still open</p>
-        {(upcoming || []).slice(0, 6).length === 0 ? (
-          <p className="mm-muted" style={{ marginTop: 8 }}>Nothing open.</p>
-        ) : (
-          <ul>
-            {(upcoming || []).slice(0, 6).map((b) => (
-              <li key={`${b.billId || b.name}-${b.date}`} className="mm-row">
-                <span className="truncate">{b.name}</span>
-                <b>{money(b.amount)}</b>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </aside>
+    </section>
     </div>
   )
 }

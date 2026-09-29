@@ -1674,25 +1674,29 @@ function SettingsView({ settings, bufferFloor, email, showPhase, onTogglePhase, 
 
   return (
     <div className="mm-stack">
-      <div className="mm-masonry">
-        <section className="mm-card">
-          <p className="mm-k">How the number is built</p>
-          <div className="mm-row"><span><i className="sw" style={{ background: '#3b82f6' }} />Bills before payday</span></div>
-          <div className="mm-row"><span><i className="sw" style={{ background: '#7c3aed' }} />Saving toward later bills</span></div>
-          <div className="mm-row"><span><i className="sw" style={{ background: '#ca8a04' }} />Saving toward goals</span></div>
-          <div className="mm-row"><span><i className="sw" style={{ background: '#059669' }} />Everyday leftover</span></div>
-          <p className="mm-muted">Buffer held back: {money(bufferFloor || 0)}. Goal and debt toggles are on the dashboard.</p>
-        </section>
-        {tiles.acctorder}
-        {tiles.buffer}
-        {tiles.dashprefs}
-        {tiles.yourdata}
-        {tiles.theme}
-        {tiles.grok}
-        {tiles.bank}
-        {tiles.notifications}
-        {tiles.calendar}
-        {tiles.account}
+      <div className="mm-page-split">
+        <div className="mm-page-col">
+          <section className="mm-card">
+            <p className="mm-k">How the number is built</p>
+            <div className="mm-row"><span><i className="sw" style={{ background: '#3b82f6' }} />Bills before payday</span></div>
+            <div className="mm-row"><span><i className="sw" style={{ background: '#7c3aed' }} />Saving toward later bills</span></div>
+            <div className="mm-row"><span><i className="sw" style={{ background: '#ca8a04' }} />Saving toward goals</span></div>
+            <div className="mm-row"><span><i className="sw" style={{ background: '#059669' }} />Everyday leftover</span></div>
+            <p className="mm-muted">Buffer held back: {money(bufferFloor || 0)}. Goal and debt toggles are on the dashboard.</p>
+          </section>
+          {tiles.acctorder}
+          {tiles.buffer}
+          {tiles.dashprefs}
+          {tiles.yourdata}
+        </div>
+        <div className="mm-page-col">
+          {tiles.theme}
+          {tiles.bank}
+          {tiles.grok}
+          {tiles.notifications}
+          {tiles.calendar}
+          {tiles.account}
+        </div>
       </div>
       {tiles.guide}
     </div>
