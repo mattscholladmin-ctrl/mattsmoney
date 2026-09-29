@@ -249,6 +249,7 @@ html[data-theme="punk"] {
     inset: auto !important;
     width: 300px !important;
     height: 100vh;
+    overflow: auto;
     padding: 20px 16px;
     gap: 14px;
     background: var(--aside, #191919) !important;

@@ -1182,15 +1182,18 @@ export default function Dashboard({ session, demo = false }) {
         </nav>
         <div className="mm-foot">
           <div className="mm-k">Accounts</div>
-          {(derived.summaries || []).filter((a) => !a.hidden).slice(0, 5).map((a) => (
+          {(derived.summaries || [])
+            .filter((a) => !a.hidden)
+            .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+            .map((a) => (
             <div key={a.id}>
               <div className="mm-acct">
                 <span className="truncate">{a.name}</span>
                 <b>{a.balance == null ? '—' : money(a.balance)}</b>
               </div>
               {a.availableMissing ? (
-                <div className="text-red-400" style={{ fontSize: '0.75rem', marginTop: -2 }}>
-                  Current · available not sent
+                <div className="mm-muted" style={{ fontSize: '0.7rem', marginTop: -2 }}>
+                  current
                 </div>
               ) : a.bankCurrent != null ? (
                 <div className="mm-muted" style={{ fontSize: '0.75rem', marginTop: -2 }}>
@@ -1251,14 +1254,17 @@ export default function Dashboard({ session, demo = false }) {
                   {money((derived.spendable && derived.spendable.spendable) || 0)}
                 </p>
                 <p className="mm-muted">Until payday</p>
-                {(derived.summaries || []).filter((a) => !a.hidden).map((a) => (
+                {(derived.summaries || [])
+                  .filter((a) => !a.hidden)
+                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+                  .map((a) => (
                   <div key={a.id}>
                     <div className="mm-row">
                       <span className="truncate">{a.name}</span>
                       <b>{a.balance == null ? '—' : money(a.balance)}</b>
                     </div>
                     {a.availableMissing && (
-                      <p className="text-red-500 text-xs -mt-1 mb-1">Current · available not sent</p>
+                      <p className="mm-muted text-xs -mt-1 mb-1">current</p>
                     )}
                   </div>
                 ))}
@@ -1528,7 +1534,7 @@ function SettingsView({ settings, bufferFloor, email, showPhase, onTogglePhase, 
   const tiles = {
     bank: (
       <Suspense fallback={<TileFallback />}>
-        <ConnectBankCard onChanged={onChanged} />
+        <ConnectBankCard accounts={data.accounts} onChanged={onChanged} />
       </Suspense>
     ),
     grok: <GrokConnectCard data={data} />,

@@ -182,7 +182,7 @@ function AccountRow({ account, goals = [], transactions = [], onOpen }) {
         <span className="font-semibold text-slate-800 shrink-0 pl-2 text-right">
           <span className="block">{account.balance == null ? '—' : money(account.balance)}</span>
           {account.availableMissing ? (
-            <span className="block text-[0.65rem] font-normal text-red-600">Current · available not sent</span>
+            <span className="block text-[0.65rem] font-normal text-slate-400">current</span>
           ) : (
             <span className="block text-[0.65rem] font-normal text-slate-400">Available</span>
           )}
@@ -359,7 +359,7 @@ function EditAccountForm({ account, autoFocusScroll = false, onChanged }) {
         <div className="text-sm text-slate-600 space-y-1 rounded-lg bg-slate-50 px-3 py-2">
           <p className="flex justify-between"><span>{account.availableMissing ? 'Current' : 'Available'}</span><span>{account.balance == null ? '—' : money(account.balance)}</span></p>
           {account.availableMissing && (
-            <p className="text-xs text-red-600">Available was not sent. This is the current balance the bank did send.</p>
+            <p className="text-xs text-slate-400">Showing the current balance. The bank did not send available.</p>
           )}
           {!account.availableMissing && account.bankCurrent != null && (
             <p className="flex justify-between"><span>Bank current</span><span>{money(account.bankCurrent)}</span></p>

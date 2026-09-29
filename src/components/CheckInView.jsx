@@ -234,7 +234,7 @@ export default function CheckInView({
                     <p className="text-lg font-semibold text-slate-800 text-right cp-mono">
                       {a.balance == null ? '—' : money(a.balance)}
                       {a.availableMissing ? (
-                        <span className="block text-xs font-normal text-red-600">Current · available not sent</span>
+                        <span className="block text-xs font-normal text-slate-400">current</span>
                       ) : (
                         <span className="block text-xs font-normal text-slate-400">Available</span>
                       )}

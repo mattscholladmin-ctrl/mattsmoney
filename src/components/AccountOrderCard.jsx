@@ -50,7 +50,7 @@ function Row({ account }) {
   )
 }
 
-export default function AccountOrderCard({ accounts = [], onChanged }) {
+export default function AccountOrderCard({ accounts = [], onChanged, embedded = false }) {
   const [order, setOrder] = useState(() => accounts.map((a) => a.id))
   useEffect(() => {
     setOrder(accounts.map((a) => a.id))
@@ -81,10 +81,10 @@ export default function AccountOrderCard({ accounts = [], onChanged }) {
   if (!accounts.length) return null
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow">
+    <section className={embedded ? 'pt-3 mt-1 border-t border-slate-100' : 'rounded-2xl bg-white p-5 shadow'}>
       <h2 className="font-semibold text-slate-800 mb-1">Account order</h2>
       <p className="text-xs text-slate-400 mb-2">
-        Drag accounts into the order you want them listed everywhere.
+        Drag to set the order. The dashboard lists them this way.
       </p>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>

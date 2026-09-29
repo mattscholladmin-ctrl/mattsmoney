@@ -9,10 +9,11 @@ import {
   disconnectPlaid,
 } from '../lib/plaidClient'
 import { shortDate, money } from '../lib/format'
+import AccountOrderCard from './AccountOrderCard'
 
 const LS_TOKEN = 'plaid.link_token'
 
-export default function ConnectBankCard({ onChanged }) {
+export default function ConnectBankCard({ onChanged, accounts = [] }) {
   const [linkToken, setLinkToken] = useState(null)
   const [items, setItems] = useState([])
   const [error, setError] = useState(null)
@@ -192,6 +193,8 @@ export default function ConnectBankCard({ onChanged }) {
       </button>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <AccountOrderCard accounts={accounts} onChanged={onChanged} embedded />
     </section>
   )
 }
