@@ -10,6 +10,20 @@ import {
 } from '../lib/budget'
 import { updateTransaction, addBill } from '../lib/api'
 
+const REVIEWED_KEY = 'budget.reviewedQueue'
+
+function loadReviewed() {
+  try {
+    return JSON.parse(localStorage.getItem(REVIEWED_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function saveReviewed(list) {
+  localStorage.setItem(REVIEWED_KEY, JSON.stringify(list.slice(-400)))
+}
+
 export default function ReviewQueue({
   transactions = [],
   bills = [],
@@ -28,14 +42,18 @@ export default function ReviewQueue({
       return []
     }
   })
+  const [reviewed, setReviewed] = useState(loadReviewed)
 
   const items = useMemo(() => {
+    const seen = new Set(reviewed)
     const out = []
     const pairs = pairTransfers(transactions, accounts)
     for (const p of pairs) {
+      const id = `xfer-${p.outId}-${p.inId}`
+      if (seen.has(id)) continue
       out.push({
         kind: 'transfer',
-        id: `xfer-${p.outId}-${p.inId}`,
+        id,
         title: p.label,
         detail: `${shortDate(p.date)} · pair as Transfer`,
         amount: p.amount,
@@ -55,9 +73,11 @@ export default function ReviewQueue({
       if (!overdue) continue
       const t = suggestBillPayment(b, transactions, today, rejected)
       if (!t) continue
+      const id = `match-${b.billId || b.id}-${t.id}`
+      if (seen.has(id)) continue
       out.push({
         kind: 'match',
-        id: `match-${b.billId || b.id}-${t.id}`,
+        id,
         title: `${b.name}`,
         detail: `Looks like ${t.merchant} ${money(t.amount)} on ${shortDate(t.txn_date)}`,
         amount: b.amount,
@@ -70,9 +90,11 @@ export default function ReviewQueue({
       if (!needsCategory(t.category)) continue
       if (Number(t.amount || 0) <= 0) continue
       if (t.txn_date && t.txn_date < isoDate(new Date(Date.now() - 21 * 86400000))) continue
+      const id = `uncat-${t.id}`
+      if (seen.has(id)) continue
       out.push({
         kind: 'uncat',
-        id: `uncat-${t.id}`,
+        id,
         title: t.merchant || 'Charge',
         detail: `${shortDate(t.txn_date)} · pick a category later, or skip`,
         amount: t.amount,
@@ -81,9 +103,11 @@ export default function ReviewQueue({
     }
     for (const s of detectRecurring(transactions, bills)) {
       if (hiddenSpot.includes(s.key)) continue
+      const id = `spot-${s.key}`
+      if (seen.has(id)) continue
       out.push({
         kind: 'spot',
-        id: `spot-${s.key}`,
+        id,
         title: s.merchant,
         detail: `SPOTTED · ${s.cadence} · last ${shortDate(s.lastDate)}`,
         amount: s.amount,
@@ -91,13 +115,20 @@ export default function ReviewQueue({
       })
     }
     return out.slice(0, 40)
-  }, [transactions, bills, upcoming, accounts, hiddenSpot, today])
+  }, [transactions, bills, upcoming, accounts, hiddenSpot, today, reviewed])
 
   if (!items.length) return null
   const item = items[Math.min(idx, items.length - 1)]
   if (!item) return null
 
+  function markDone(id) {
+    const next = reviewed.includes(id) ? reviewed : [...reviewed, id]
+    setReviewed(next)
+    saveReviewed(next)
+  }
+
   async function act(yes) {
+    if (busy) return
     setBusy(true)
     const prev = item
     try {
@@ -137,12 +168,14 @@ export default function ReviewQueue({
         setHiddenSpot(next)
         localStorage.setItem('budget.hiddenSpotted', JSON.stringify(next))
       }
-      if (item.kind === 'uncat' && !yes) {
-        await updateTransaction(item.txnId, { category: 'Other' })
-      }
+      markDone(item.id)
       setUndo(prev)
-      setIdx((n) => n + 1)
-      onChanged?.()
+      setIdx(0)
+      const wrote =
+        (item.kind === 'transfer' && yes) ||
+        item.kind === 'match' ||
+        (item.kind === 'spot' && yes)
+      if (wrote) onChanged?.()
     } finally {
       setBusy(false)
     }
@@ -152,7 +185,7 @@ export default function ReviewQueue({
     <section className="mm-card space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-slate-800">Review</h2>
-        <p className="text-xs text-slate-400">{Math.min(idx + 1, items.length)} of {items.length}</p>
+        <p className="text-xs text-slate-400">{items.length} left</p>
       </div>
       <p className="text-sm font-medium text-slate-800">{item.title}</p>
       <p className="text-sm text-slate-500">{item.detail}</p>
@@ -162,25 +195,35 @@ export default function ReviewQueue({
           type="button"
           disabled={busy}
           onClick={() => act(true)}
-          className="flex-1 bg-emerald-700 text-white font-semibold rounded-lg px-3 py-2.5 min-h-11 disabled:opacity-60"
+          className="mm-btn mm-btn-primary flex-1"
         >
-          {item.kind === 'match' ? 'Yes, paid' : item.kind === 'spot' ? 'Add bill' : item.kind === 'transfer' ? 'Mark transfer' : 'Keep'}
+          {busy ? 'Saving…' : item.kind === 'match' ? 'Yes, paid' : item.kind === 'spot' ? 'Add bill' : item.kind === 'transfer' ? 'Mark transfer' : 'Keep'}
         </button>
         <button
           type="button"
           disabled={busy}
           onClick={() => act(false)}
-          className="flex-1 border border-slate-300 text-slate-700 font-medium rounded-lg px-3 py-2.5 min-h-11 disabled:opacity-60"
+          className="mm-btn mm-btn-ghost flex-1"
         >
-          {item.kind === 'match' ? 'No' : item.kind === 'spot' ? 'Dismiss' : 'Skip'}
+          {busy ? 'Saving…' : item.kind === 'match' ? 'No' : item.kind === 'spot' ? 'Dismiss' : 'Skip'}
         </button>
       </div>
       {undo && (
-        <button type="button" onClick={() => { setUndo(null); setIdx((n) => Math.max(0, n - 1)) }} className="text-xs text-slate-500">
+        <button
+          type="button"
+          className="mm-btn-text"
+          onClick={() => {
+            const next = reviewed.filter((id) => id !== undo.id)
+            setReviewed(next)
+            saveReviewed(next)
+            setUndo(null)
+            setIdx(0)
+          }}
+        >
           Undo last
         </button>
       )}
-      <p className="text-xs text-slate-400">Safe to spend does not wait on this list.</p>
+      <p className="text-xs text-slate-400">Safe to spend does not wait on this list. Keep and Skip stay put if you leave and come back.</p>
     </section>
   )
 }
