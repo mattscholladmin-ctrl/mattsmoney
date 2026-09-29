@@ -43,10 +43,15 @@ export function latestByAccount(balanceEntries = []) {
       map[e.account_id] = e
       continue
     }
-    const newer =
-      e.as_of > cur.as_of ||
-      (e.as_of === cur.as_of && (e.created_at || '') > (cur.created_at || ''))
-    if (newer) map[e.account_id] = e
+    const asNewer = e.as_of > cur.as_of
+    const asSame = e.as_of === cur.as_of
+    const cNewer = (e.created_at || '') > (cur.created_at || '')
+    const cTied = (e.created_at || '') === (cur.created_at || '')
+    const eAvail = /available/.test(e.note || '') && !/available missing/.test(e.note || '')
+    const cAvail = /available/.test(cur.note || '') && !/available missing/.test(cur.note || '')
+    if (asNewer || (asSame && cNewer) || (asSame && cTied && eAvail && !cAvail)) {
+      map[e.account_id] = e
+    }
   }
   return map
 }

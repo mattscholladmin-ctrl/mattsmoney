@@ -109,7 +109,7 @@ async function snapshot(db, uid) {
     payments,
   ] = await Promise.all([
     db.from('accounts').select('id,name,kind,include_in_spendable,mask,institution,sort_order,hidden').eq('user_id', uid).order('sort_order'),
-    db.from('balance_entries').select('id,account_id,balance,as_of,note').eq('user_id', uid).order('as_of', { ascending: false }),
+    db.from('balance_entries').select('id,account_id,balance,as_of,note,created_at').eq('user_id', uid).order('as_of', { ascending: false }),
     db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance,start_date,smooth').eq('user_id', uid),
     db.from('recurring_bills').select('id,name,amount,due_day,cadence,active,category,start_date,smooth').eq('user_id', uid),
     db.from('goals').select('id,name,target,current,monthly_contribution,status,reserved,target_date,note,sort_order').eq('user_id', uid).order('sort_order'),
@@ -227,6 +227,8 @@ async function snapshot(db, uid) {
       name: a.name,
       kind: a.kind,
       balance: a.balance,
+      current: a.bankCurrent,
+      available_missing: !!a.availableMissing,
       as_of: a.asOf,
       include_in_spendable: byId[a.id]?.include_in_spendable !== false,
     })),

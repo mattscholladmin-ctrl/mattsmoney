@@ -263,7 +263,7 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
       if (current != null) note += ` · current $${Number(current).toFixed(2)}`
       const { data: prev } = await db
         .from('balance_entries')
-        .select('balance,as_of,note')
+        .select('id,balance,as_of,note')
         .eq('account_id', id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -272,15 +272,42 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
         prev &&
         prev.as_of === today &&
         (prev.note || '') === note &&
-        (missing || Number(prev.balance) === cash)
+        (missing ? /available missing/.test(prev.note || '') : Number(prev.balance) === cash)
       if (!same) {
-        await db.from('balance_entries').insert({
-          user_id: uid,
-          account_id: id,
-          balance: cash,
-          as_of: today,
-          note,
-        })
+        // Write the correct row first, then drop the other rows from today
+        // so a same-day guess cannot stay on screen.
+        let inserted = await db
+          .from('balance_entries')
+          .insert({
+            user_id: uid,
+            account_id: id,
+            balance: missing ? null : cash,
+            as_of: today,
+            note,
+          })
+          .select('id')
+          .single()
+        if (inserted.error && missing) {
+          inserted = await db
+            .from('balance_entries')
+            .insert({
+              user_id: uid,
+              account_id: id,
+              balance: 0,
+              as_of: today,
+              note,
+            })
+            .select('id')
+            .single()
+        }
+        if (!inserted.error && inserted.data?.id) {
+          await db
+            .from('balance_entries')
+            .delete()
+            .eq('account_id', id)
+            .eq('as_of', today)
+            .neq('id', inserted.data.id)
+        }
       }
       depository++
     } else if (a.type === 'credit' || a.type === 'loan') {
