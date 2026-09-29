@@ -296,7 +296,7 @@ export default function CreditView({
 
   return (
     <div className="mm-stack">
-      <div className="mm-page-hero">
+      <div className="mm-metrics">
         <div className="mm-card">
           <div className="flex items-center justify-between">
             <p className="mm-k">Credit score</p>
@@ -333,36 +333,38 @@ export default function CreditView({
         </div>
       )}
 
-      <div className="mm-page-split">
-        <section className="mm-card">
-          <p className="mm-k">If you stay on plan</p>
-          {projPoints.length >= 2 ? (
-            <LineChart points={projPoints} color="#34d399" height={280} format={(v) => String(Math.round(v))} axisFormat={(v) => String(Math.round(v))} />
-          ) : (
-            <p className="mm-muted">Not enough dated milestones to chart.</p>
-          )}
-        </section>
-        <section className="mm-card">
-          <p className="mm-k">Milestones</p>
-          <ul className="mt-2">
-            {milestones.map((m) => (
-              <li key={m.id} className="mm-row">
-                <label className="flex items-center gap-2 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={!!m.achieved}
-                    onChange={(e) => toggleMilestone(m.id, e.target.checked).then(onChanged)}
-                  />
-                  <span className={m.achieved ? 'line-through truncate' : 'truncate'}>
-                    {m.name}{m.target_date ? ` · ${shortDate(m.target_date)}` : ''}
-                  </span>
-                </label>
-                <b>{m.target_score}</b>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+      <section className="mm-card">
+        <div className="mm-chart-split">
+          <div>
+            <p className="mm-k">If you stay on plan</p>
+            {projPoints.length >= 2 ? (
+              <LineChart points={projPoints} color="#34d399" height={360} format={(v) => String(Math.round(v))} axisFormat={(v) => String(Math.round(v))} />
+            ) : (
+              <p className="mm-muted">Not enough dated milestones to chart.</p>
+            )}
+          </div>
+          <div>
+            <p className="mm-k">Milestones</p>
+            <ul>
+              {milestones.map((m) => (
+                <li key={m.id} className="mm-row">
+                  <label className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={!!m.achieved}
+                      onChange={(e) => toggleMilestone(m.id, e.target.checked).then(onChanged)}
+                    />
+                    <span className={m.achieved ? 'line-through truncate' : 'truncate'}>
+                      {m.name}{m.target_date ? ` · ${shortDate(m.target_date)}` : ''}
+                    </span>
+                  </label>
+                  <b>{m.target_score}</b>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
 
       {tiles.plan}
       {tiles.cards}

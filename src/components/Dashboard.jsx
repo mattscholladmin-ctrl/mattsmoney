@@ -1180,6 +1180,7 @@ export default function Dashboard({ session, demo = false }) {
             )
           })}
         </nav>
+        {view === 'dashboard' && (
         <div className="mm-foot">
           <div className="mm-k">Accounts</div>
           {(derived.summaries || [])
@@ -1203,6 +1204,7 @@ export default function Dashboard({ session, demo = false }) {
             </div>
           ))}
         </div>
+        )}
         {['dashboard', 'settings', 'insights', 'credit'].includes(view) && (
           <button
             onClick={() => setArranging((a) => !a)}

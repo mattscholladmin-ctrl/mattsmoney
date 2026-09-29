@@ -116,7 +116,7 @@ export default function TransactionsView({ transactions = [], categories = [], g
 
   return (
     <div className="mm-stack">
-      <div className="mm-page-hero mm-hero-2">
+      <div className="mm-metrics cols-2">
         <div className="mm-card">
           <p className="mm-k">Showing</p>
           <p className="mm-n">{money(total)}</p>
@@ -223,7 +223,7 @@ export default function TransactionsView({ transactions = [], categories = [], g
         <div className="mm-weeks">
           {weekSpend.map((v, i) => (
             <div key={i} className="mm-week">
-              <div className="mm-week-bar" style={{ height: `${Math.max(16, (v / weekMax) * 180)}px` }} />
+              <div className="mm-week-bar" style={{ height: `${Math.max(16, (v / weekMax) * 220)}px` }} />
               <span>W{i + 1}</span>
             </div>
           ))}

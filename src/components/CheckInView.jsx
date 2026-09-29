@@ -190,27 +190,34 @@ export default function CheckInView({
   return (
     <div className="mm-stack">
     {recap && (
-      <section className="mm-page-hero mm-hero-2">
+      <section className="mm-metrics cols-2">
         <div className="mm-card">
           <p className="mm-k">Since last check-in</p>
           <p className={`mm-n ${recap.net < 0 ? 'text-red-500' : ''}`}>{recap.net < 0 ? '−' : '+'}{money(Math.abs(recap.net))}</p>
           <p className="mm-muted">Income {money(recap.income)} · spent {money(recap.spent)}</p>
         </div>
         <div className="mm-card">
-          <p className="mm-k">Last 10 days</p>
-          <div className="mm-flow" style={{ height: 140 }}>
-            {dayBars.map((d) => (
-              <div key={d.label} className="mm-flow-col" title={`${d.label}`}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 110 }}>
-                  <div className="mm-flow-bar" style={{ width: 8, height: `${Math.max(2, (d.inn / dayMax) * 100)}px`, background: '#059669' }} />
-                  <div className="mm-flow-bar" style={{ width: 8, height: `${Math.max(2, (d.out / dayMax) * 100)}px`, background: '#9f1239' }} />
-                </div>
-                <span>{d.label}</span>
-              </div>
-            ))}
-          </div>
-          <p className="mm-muted">Green is money in. Wine is money out.</p>
+          <p className="mm-k">Spent</p>
+          <p className="mm-n">{money(recap.spent)}</p>
+          <p className="mm-muted">Income {money(recap.income)}</p>
         </div>
+      </section>
+    )}
+    {recap && (
+      <section className="mm-card">
+        <p className="mm-k">Last 10 days</p>
+        <div className="mm-flow mm-flow-lg">
+          {dayBars.map((d) => (
+            <div key={d.label} className="mm-flow-col">
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 190 }}>
+                <div className="mm-flow-bar" style={{ height: `${Math.max(4, (d.inn / dayMax) * 180)}px`, background: '#059669' }} />
+                <div className="mm-flow-bar" style={{ height: `${Math.max(4, (d.out / dayMax) * 180)}px`, background: '#9f1239' }} />
+              </div>
+              <span>{d.label}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mm-muted">Green is money in. Wine is money out.</p>
       </section>
     )}
     <section className="mm-card">
@@ -235,48 +242,35 @@ export default function CheckInView({
               {summaries.map((a) => {
                 const linked = !!(a.plaid_account_id) && !a.manual
                 return (
-                <div key={a.id} className="rounded-xl border border-slate-200 p-3">
-                  <label className="block text-sm font-medium mb-1">
-                    {a.name}
-                    {a.kind === 'savings' && (
-                      <span className="ml-2 text-[0.7rem] uppercase tracking-wide text-slate-400 border border-slate-200 rounded px-1">
-                        savings
-                      </span>
-                    )}
-                    {linked && (
-                      <span className="ml-2 text-[0.7rem] uppercase tracking-wide text-emerald-700 border border-emerald-200 rounded px-1">
-                        bank synced
-                      </span>
-                    )}
-                  </label>
+                <div key={a.id} className="mm-acct-line">
+                  <div className="min-w-0">
+                    <div className="truncate">{a.name}</div>
+                    <div className="mm-muted">
+                      {a.kind === 'savings' ? 'Savings · ' : ''}
+                      {linked ? 'Bank synced' : 'Type this one'}
+                    </div>
+                  </div>
                   {linked ? (
-                    <p className="text-lg font-semibold text-slate-800 text-right cp-mono">
-                      {a.balance == null ? '—' : money(a.balance)}
-                      {a.availableMissing ? (
-                        <span className="block text-xs font-normal text-slate-400">current</span>
-                      ) : (
-                        <span className="block text-xs font-normal text-slate-400">Available</span>
-                      )}
-                      {!a.availableMissing && a.bankCurrent != null && (
-                        <span className="block text-xs font-normal text-slate-400">Current {money(a.bankCurrent)}</span>
-                      )}
-                      <span className="block text-xs font-normal text-slate-400">
-                        Confirmed from {a.institution || 'your bank'}{a.asOf ? ` · ${shortDate(a.asOf)}` : ''}
-                      </span>
-                    </p>
+                    <div className="text-right shrink-0">
+                      <b>{a.balance == null ? '—' : money(a.balance)}</b>
+                      <div className="mm-muted">
+                        {a.availableMissing ? 'current' : 'Available'}
+                        {!a.availableMissing && a.bankCurrent != null ? ` · current ${money(a.bankCurrent)}` : ''}
+                      </div>
+                    </div>
                   ) : (
-                  <input
-                    type="number"
-                    step="0.01"
-                    inputMode="decimal"
-                    required
-                    value={values[a.id] ?? ''}
-                    onChange={(e) =>
-                      setValues((v) => ({ ...v, [a.id]: e.target.value }))
-                    }
-                    placeholder="0.00"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-right min-h-11"
-                  />
+                    <input
+                      type="number"
+                      step="0.01"
+                      inputMode="decimal"
+                      required
+                      value={values[a.id] ?? ''}
+                      onChange={(e) =>
+                        setValues((v) => ({ ...v, [a.id]: e.target.value }))
+                      }
+                      placeholder="0.00"
+                      className="w-32 rounded-lg border px-3 py-2 text-base text-right"
+                    />
                   )}
                 </div>
               )})}

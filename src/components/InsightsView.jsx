@@ -399,7 +399,7 @@ export default function InsightsView({
       </div>
 
       {/* Summary stats */}
-      <div className="mm-page-hero mm-hero-4">
+      <div className="mm-metrics cols-4">
         <div className={card}>
           <p className="text-xs text-slate-400">Spent ({rangeLabel})</p>
           <p className="text-2xl font-bold text-slate-800 mt-1">{money(cur.total)}</p>
@@ -423,10 +423,10 @@ export default function InsightsView({
         <div className="mm-page-split">
           <div>
             <p className="mm-k">Cash flow</p>
-            <div className="mm-flow" style={{ height: 220 }}>
+            <div className="mm-flow mm-flow-lg">
               {bars.map((b) => (
                 <div key={b.label} className="mm-flow-col">
-                  <div className="mm-flow-bar" style={{ height: `${Math.max(8, (b.value / Math.max(1, ...bars.map((x) => x.value))) * 170)}px`, background: b.highlight ? '#059669' : '#9f1239' }} />
+                  <div className="mm-flow-bar" style={{ height: `${Math.max(8, (b.value / Math.max(1, ...bars.map((x) => x.value))) * 180)}px`, background: b.highlight ? '#059669' : '#9f1239' }} />
                   <span>{b.label}</span>
                 </div>
               ))}
