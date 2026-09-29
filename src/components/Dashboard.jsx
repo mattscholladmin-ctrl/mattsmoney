@@ -1183,9 +1183,25 @@ export default function Dashboard({ session, demo = false }) {
         <div className="mm-foot">
           <div className="mm-k">Accounts</div>
           {(derived.summaries || []).filter((a) => !a.hidden).slice(0, 5).map((a) => (
-            <div key={a.id} className="mm-acct">
-              <span className="truncate">{a.name}</span>
-              <b>{money(a.balance)}</b>
+            <div key={a.id}>
+              <div className="mm-acct">
+                <span className="truncate">{a.name}</span>
+                {a.availableMissing ? (
+                  <b className="text-red-400">Missing</b>
+                ) : (
+                  <b>{money(a.balance)}</b>
+                )}
+              </div>
+              {a.bankCurrent != null && (
+                <div className="mm-muted" style={{ fontSize: '0.75rem', marginTop: -2 }}>
+                  Current {money(a.bankCurrent)}
+                </div>
+              )}
+              {a.availableMissing && (
+                <div className="text-red-400" style={{ fontSize: '0.75rem' }}>
+                  Available was not sent
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1237,7 +1253,12 @@ export default function Dashboard({ session, demo = false }) {
               <div className="mm-card">
                 <p className="mm-k">Cash</p>
                 <p className="mm-n">{money(derived.totals.totalCash)}</p>
-                <p className="mm-muted">On hand today</p>
+                <p className="mm-muted">Available, on hand today</p>
+                {(derived.totals.missingAvailable || []).length > 0 && (
+                  <p className="text-red-400 text-sm mt-1">
+                    No available balance: {derived.totals.missingAvailable.join(', ')}. Not counted.
+                  </p>
+                )}
               </div>
               <div className="mm-card">
                 <p className="mm-k">Spent this month</p>

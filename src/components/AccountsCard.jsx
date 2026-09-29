@@ -180,8 +180,15 @@ function AccountRow({ account, goals = [], transactions = [], onOpen }) {
           )}
         </div>
         <span className="font-semibold text-slate-800 shrink-0 pl-2 text-right">
-          <span className="block">{money(account.balance)}</span>
+          {account.availableMissing ? (
+            <span className="block text-red-600">Available missing</span>
+          ) : (
+            <span className="block">{money(account.balance)}</span>
+          )}
           <span className="block text-[0.65rem] font-normal text-slate-400">Available</span>
+          {account.bankCurrent != null && (
+            <span className="block text-[0.65rem] font-normal text-slate-400">Current {money(account.bankCurrent)}</span>
+          )}
         </span>
       </div>
       {tied.length > 0 && (

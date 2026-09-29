@@ -53,22 +53,27 @@ export function latestByAccount(balanceEntries = []) {
 
 // Each account with its current balance and the date that balance is from.
 function parseMoneyFromNote(note, label) {
-  const m = String(note || '').match(new RegExp(label + ' \\$([0-9.]+)'))
+  const m = String(note || '').match(new RegExp(label + ' \\$(-?[0-9.]+)'))
   return m ? Number(m[1]) : null
 }
 
 export function accountSummaries(accounts = [], balanceEntries = []) {
   const latest = latestByAccount(balanceEntries)
-  return accounts.map((a) => ({
-    ...a,
-    balance: latest[a.id] ? Number(latest[a.id].balance) : 0,
-    asOf: latest[a.id]?.as_of || null,
-    // "in bank $X · pending $Y" detail carried in the sync note, if any.
-    balanceDetail:
-      (latest[a.id]?.note || '').split('Auto-synced · ')[1] || null,
-    bankCurrent: parseMoneyFromNote(latest[a.id]?.note, 'in bank'),
-    pending: parseMoneyFromNote(latest[a.id]?.note, 'pending'),
-  }))
+  return accounts.map((a) => {
+    const entry = latest[a.id]
+    const note = entry?.note || ''
+    const availableMissing = /available missing/.test(note)
+    return {
+      ...a,
+      // Available only. A missing available is not filled in with current.
+      balance: !entry || availableMissing ? null : Number(entry.balance),
+      availableMissing,
+      asOf: entry?.as_of || null,
+      balanceDetail: note.split('Auto-synced · ')[1] || null,
+      bankCurrent: parseMoneyFromNote(note, 'current') ?? parseMoneyFromNote(note, 'in bank'),
+      pending: parseMoneyFromNote(note, 'pending'),
+    }
+  })
 }
 
 // A Quick-add cash transaction tags which manual account it hit in its note
@@ -160,13 +165,15 @@ export function goalPaycheckShare(goals = [], transactions = [], ppy = 26, incom
 
 export function moneyTotals(accounts = [], balanceEntries = [], debts = []) {
   const summaries = accountSummaries(accounts, balanceEntries)
+  const usable = (a) => a.balance != null && !a.availableMissing
   const spendableCash = summaries
-    .filter(countsAsSpendable)
+    .filter((a) => countsAsSpendable(a) && usable(a))
     .reduce((s, a) => s + a.balance, 0)
   const savingsCash = summaries
-    .filter((a) => !countsAsSpendable(a))
+    .filter((a) => !countsAsSpendable(a) && usable(a))
     .reduce((s, a) => s + a.balance, 0)
-  const totalCash = summaries.reduce((s, a) => s + a.balance, 0)
+  const totalCash = summaries.filter(usable).reduce((s, a) => s + a.balance, 0)
+  const missingAvailable = summaries.filter((a) => a.availableMissing).map((a) => a.name)
   // Net worth is a REALITY figure, not a planning one — an Inactive (paused)
   // debt is still money you owe, same as DebtsCard's own "Total owed". Only
   // the forward-looking planning numbers (bills, forecast, safe-to-spend,
@@ -176,6 +183,7 @@ export function moneyTotals(accounts = [], balanceEntries = [], debts = []) {
     spendableCash,
     savingsCash,
     totalCash,
+    missingAvailable,
     totalDebt,
     netWorth: totalCash - totalDebt,
   }

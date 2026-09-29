@@ -252,15 +252,15 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
   for (const a of acc.data.accounts) {
     if (a.type === 'depository') {
       const id = await findOrCreateAccount(db, uid, item, a, institution)
-      // Cash the person can spend. Prefer Plaid available (SoFi "available").
-      // Use current only when the bank does not send available (some Cap One).
+      // Available is the cash figure. Current is stored beside it, never
+      // substituted. If the bank omits available, that is an error — do not
+      // write current into the balance the dashboard adds up.
       const current = a.balances.current
       const available = a.balances.available
-      const cash = available != null ? Number(available) : Number(current ?? 0)
-      let note = available != null ? 'Auto-synced · available' : 'Auto-synced · current'
-      if (current != null && available != null && Math.abs(Number(current) - cash) >= 0.01) {
-        note += ` · in bank $${Number(current).toFixed(2)}`
-      }
+      const missing = available == null
+      const cash = missing ? Number(current ?? 0) : Number(available)
+      let note = missing ? 'Auto-synced · available missing' : 'Auto-synced · available'
+      if (current != null) note += ` · current $${Number(current).toFixed(2)}`
       const { data: prev } = await db
         .from('balance_entries')
         .select('balance,as_of,note')
@@ -268,8 +268,12 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      const sameNumber = prev && Number(prev.balance) === cash && prev.as_of === today
-      if (!sameNumber) {
+      const same =
+        prev &&
+        prev.as_of === today &&
+        (prev.note || '') === note &&
+        (missing || Number(prev.balance) === cash)
+      if (!same) {
         await db.from('balance_entries').insert({
           user_id: uid,
           account_id: id,

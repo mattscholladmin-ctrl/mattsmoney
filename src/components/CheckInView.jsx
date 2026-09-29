@@ -232,12 +232,20 @@ export default function CheckInView({
                   </label>
                   {linked ? (
                     <p className="text-lg font-semibold text-slate-800 text-right cp-mono">
-                      {money(a.balance)}
+                      {a.availableMissing ? (
+                        <span className="text-red-600">Available missing</span>
+                      ) : (
+                        money(a.balance)
+                      )}
                       <span className="block text-xs font-normal text-slate-400">Available</span>
                       <span className="block text-xs font-normal text-slate-400">
-                        {a.bankCurrent != null ? `Bank current ${money(a.bankCurrent)}` : ''}
-                        {a.pending != null && a.pending > 0 ? ` · Pending ${money(a.pending)}` : ''}
+                        {a.bankCurrent != null ? `Current ${money(a.bankCurrent)}` : ''}
                       </span>
+                      {a.availableMissing && (
+                        <span className="block text-xs font-normal text-red-600">
+                          The bank did not send available. Current is not used.
+                        </span>
+                      )}
                       <span className="block text-xs font-normal text-slate-400">
                         Confirmed from {a.institution || 'your bank'}{a.asOf ? ` · ${shortDate(a.asOf)}` : ''}
                       </span>
