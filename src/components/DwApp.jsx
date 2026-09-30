@@ -158,8 +158,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   useEffect(() => {
     saveDwState(state)
     applyTheme()
-    document.documentElement.dataset.fs = state.fs && state.fs !== 'm' ? state.fs : ''
-    if (!state.fs || state.fs === 'm') delete document.documentElement.dataset.fs
+    const fontScale = { s: '1.08', m: '1.25', l: '1.4', xl: '1.55' }
+    document.documentElement.style.setProperty('--dw-font', fontScale[state.fs || 'm'])
+    delete document.documentElement.dataset.fs
   }, [state])
   useEffect(() => {
     try {
@@ -1195,8 +1196,17 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             <p className="dw-sub">These feed your paycheck plan — the app sets aside enough from each check to cover them.</p>
           </div>
         </header>
-        <div className="dw-bills-page">
-          <section className="dw-card dw-embed dw-bills-income">
+        <div className="dw-ins-2">
+          <section className="dw-card dw-embed dw-bills-tile">
+            <div className="dw-k" style={{ marginBottom: 8 }}>Recurring bills</div>
+            <RecurringBillsCard
+              bills={data.bills || []}
+              transactions={data.transactions || []}
+              onChanged={load}
+              embedded
+            />
+          </section>
+          <section className="dw-card dw-embed dw-bills-tile">
             <div className="dw-k" style={{ marginBottom: 8 }}>Income</div>
             <p className="dw-mute" style={{ margin: '0 0 8px' }}>Add every steady paycheck. Extra pay still waits until you confirm it.</p>
             <IncomeCard
@@ -1205,16 +1215,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               transactions={data.transactions || []}
               onChanged={load}
               embedded
-            />
-          </section>
-          <section className="dw-card dw-embed">
-            <div className="dw-k" style={{ marginBottom: 8 }}>Recurring bills</div>
-            <RecurringBillsCard
-              bills={data.bills || []}
-              transactions={data.transactions || []}
-              onChanged={load}
-              embedded
-              board
             />
           </section>
         </div>
