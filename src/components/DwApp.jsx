@@ -670,9 +670,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               ))}
               </div>
             </section>
-          </div>
 
-          <div className="dw-col-stack">
             <section className="dw-card">
               <div className="dw-row-head">
                 <div className="dw-k">Upcoming bills</div>
@@ -695,7 +693,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                 </div>
               )}
             </section>
+          </div>
 
+          <div className="dw-col-stack">
             <section className="dw-card">
               <div className="dw-row-head">
                 <div className="dw-k">Recent transactions</div>
