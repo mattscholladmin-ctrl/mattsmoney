@@ -158,7 +158,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   useEffect(() => {
     saveDwState(state)
     applyTheme()
-    document.documentElement.style.setProperty('--dw-type', `${state.type || 18}px`)
+    document.documentElement.dataset.fs = state.fs && state.fs !== 'm' ? state.fs : ''
+    if (!state.fs || state.fs === 'm') delete document.documentElement.dataset.fs
   }, [state])
   useEffect(() => {
     try {
@@ -1038,7 +1039,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             <div>
               <h1>Review</h1>
               <p className="dw-sub">Confirm bills the app noticed, or add your own.</p>
-              {bill && <p className="dw-progress">{billIdx + 1} of {billIdeas.length}</p>}
             </div>
           </header>
           <div className="dw-review-wrap">
@@ -1074,6 +1074,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                     )}
                   </div>
                 </div>
+                {bill && <p className="dw-progress dw-progress-under">{billIdx + 1} of {billIdeas.length}</p>}
                 <div className="dw-bucket-btns">
                   <button className="bw-needs" onClick={() => {
                     const name = correctOn ? (billDraft.name || bill.name) : bill.name
@@ -1152,7 +1153,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           <div>
             <h1>Review</h1>
             <p className="dw-sub">Tap a bucket to sort each transaction.</p>
-            <p className="dw-progress">{reviewIdx + 1} of {queue.length}</p>
           </div>
         </header>
         <div className="dw-review-wrap">
@@ -1170,6 +1170,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               </div>
             </div>
           </div>
+          <p className="dw-progress dw-progress-under">{reviewIdx + 1} of {queue.length}</p>
           <div className="dw-bucket-btns">
             <button className="bw-wants" onClick={() => goReview('wants')}>Wants<small>{moneyFull(reviewTotals.wants)}</small></button>
             <button className="bw-savings" onClick={() => goReview('savings')}>Savings<small>{moneyFull(reviewTotals.savings)}</small></button>
@@ -1204,17 +1205,35 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               embedded
             />
           </section>
-          <section className="dw-card dw-embed">
-            <div className="dw-k" style={{ marginBottom: 8 }}>Income</div>
-            <p className="dw-mute" style={{ margin: '0 0 8px' }}>Add every steady paycheck. Extra pay still waits until you confirm it.</p>
-            <IncomeCard
-              income={data.income || []}
-              upcomingIncome={upcoming}
-              transactions={data.transactions || []}
-              onChanged={load}
-              embedded
-            />
-          </section>
+          <div className="dw-col-stack">
+            <section className="dw-card dw-embed">
+              <div className="dw-k" style={{ marginBottom: 8 }}>Income</div>
+              <p className="dw-mute" style={{ margin: '0 0 8px' }}>Add every steady paycheck. Extra pay still waits until you confirm it.</p>
+              <IncomeCard
+                income={data.income || []}
+                upcomingIncome={upcoming}
+                transactions={data.transactions || []}
+                onChanged={load}
+                embedded
+              />
+            </section>
+            <section className="dw-card">
+              <div className="dw-k">From this paycheck</div>
+              <p className="dw-mute" style={{ margin: '6px 0 0' }}>What the bills on the left take from the next check.</p>
+              {(pay.assignment?.lines || []).length === 0 && (
+                <p className="dw-mute">Nothing is set aside from the next check yet.</p>
+              )}
+              {(pay.assignment?.lines || []).map((line) => (
+                <div key={line.id} className="dw-bill-row">
+                  <div className="dw-bill-copy">
+                    <b>{line.name}</b>
+                    <span>{line.detail}</span>
+                  </div>
+                  <span className="dw-amt">{moneyFull(line.amount)}</span>
+                </div>
+              ))}
+            </section>
+          </div>
         </div>
       </div>
     )
@@ -1330,11 +1349,11 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </div>
           <div className="dw-col-stack">
             <section className="dw-card">
-              <div className="dw-k">Type size</div>
-              <p className="dw-mute" style={{ margin: '6px 0 10px' }}>This changes the size of the text.</p>
+              <div className="dw-k">Text size</div>
+              <p className="dw-mute" style={{ margin: '6px 0 10px' }}>Scales every size together. Big numbers stay big. Labels stay smaller.</p>
               <div className="dw-review-tabs">
-                {[['16', 'Small'], ['18', 'Medium'], ['20', 'Large'], ['22', 'Larger']].map(([z, label]) => (
-                  <button key={z} type="button" className={String(state.type || 18) === z ? 'on' : ''} onClick={() => patchState({ type: Number(z) })}>{label}</button>
+                {[['s', 'Small'], ['m', 'Medium'], ['l', 'Large'], ['xl', 'Larger']].map(([z, label]) => (
+                  <button key={z} type="button" className={(state.fs || 'm') === z ? 'on' : ''} onClick={() => patchState({ fs: z })}>{label}</button>
                 ))}
               </div>
             </section>
