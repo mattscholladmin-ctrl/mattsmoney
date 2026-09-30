@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from 'react'
-import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome } from '../lib/api'
+import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome } from '../lib/api'
 import { signOut } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import GoogleCalendarCard from './GoogleCalendarCard'
@@ -158,7 +158,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   useEffect(() => {
     saveDwState(state)
     applyTheme()
-    document.documentElement.style.setProperty('--dw-zoom', String(state.zoom || 1.28))
+    document.documentElement.style.setProperty('--dw-type', `${state.type || 18}px`)
   }, [state])
   useEffect(() => {
     try {
@@ -1224,12 +1224,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   function Profile() {
     const [pw, setPw] = useState('')
     const [pwMsg, setPwMsg] = useState('')
-    const [job, setJob] = useState({ name: '', amount: '', cadence: 'biweekly', anchor: '' })
+    const [job, setJob] = useState({ id: '', name: '', amount: '', cadence: 'biweekly', anchor: '' })
     const [jobMsg, setJobMsg] = useState('')
     const accounts = data.accounts || []
-    async function setZoom(zoom) {
-      patchState({ zoom })
-    }
     async function savePassword(e) {
       e.preventDefault()
       setPwMsg('')
@@ -1244,15 +1241,20 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       setJobMsg('')
       if (!job.name || !(Number(job.amount) > 0)) { setJobMsg('Name and amount are required.'); return }
       try {
-        await addIncome({
-          name: job.name.trim(),
-          amount: Number(job.amount),
-          cadence: job.cadence,
-          anchor_date: job.anchor || null,
-          confirmed: true,
-        })
-        setJob({ name: '', amount: '', cadence: 'biweekly', anchor: '' })
-        setJobMsg('Paycheck added.')
+        if (job.id) {
+          await updateIncome(job.id, { name: job.name.trim(), amount: Number(job.amount), cadence: job.cadence, anchor_date: job.anchor || null, confirmed: true })
+          setJobMsg('Paycheck updated.')
+        } else {
+          await addIncome({
+            name: job.name.trim(),
+            amount: Number(job.amount),
+            cadence: job.cadence,
+            anchor_date: job.anchor || null,
+            confirmed: true,
+          })
+          setJobMsg('Paycheck added.')
+        }
+        setJob({ id: '', name: '', amount: '', cadence: 'biweekly', anchor: '' })
         load()
       } catch (err) {
         setJobMsg(err.message)
@@ -1279,29 +1281,13 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             </section>
             <section className="dw-card">
               <div className="dw-k" style={{ marginBottom: 8 }}>Accounts</div>
-              <p className="dw-mute" style={{ margin: '0 0 8px' }}>Turn an account off to keep it out of safe to spend.</p>
-              {accounts.length === 0 && <p className="dw-mute">No accounts loaded yet.</p>}
-              {accounts.map((a) => {
-                const included = a.include_in_spendable === true || (a.include_in_spendable == null && a.kind !== 'savings')
-                const showing = included && !a.hidden
-                return (
-                  <div key={a.id} className="dw-plan-toggle">
-                    <button
-                      type="button"
-                      className={`dw-switch${showing ? ' on' : ''}`}
-                      aria-pressed={showing}
-                      onClick={() => updateAccount(a.id, { include_in_spendable: !showing, hidden: false }).then(load)}
-                    />
-                    <span className="grow">
-                      <b>{a.name}</b>
-                      <em>{showing ? 'In safe to spend' : 'Left out'}</em>
-                    </span>
-                  </div>
-                )
-              })}
-              <div className="dw-embed" style={{ marginTop: 12 }}>
-                <ConnectBankCard plain accounts={accounts} onChanged={load} />
-              </div>
+              <p className="dw-mute" style={{ margin: '0 0 8px' }}>Each account is listed once. The switch keeps it in or out of safe to spend.</p>
+              <ConnectBankCard
+                plain
+                accounts={accounts}
+                onChanged={load}
+                onToggle={(id, on) => updateAccount(id, { include_in_spendable: on, hidden: false }).then(load)}
+              />
             </section>
             <section className="dw-card">
               <div className="dw-k">Steady paychecks</div>
@@ -1314,6 +1300,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                       <em>{s.cadence === 'biweekly' ? 'Every 2 weeks' : s.cadence === 'weekly' ? 'Every week' : s.cadence === 'monthly' ? 'Every month' : s.cadence}</em>
                     </span>
                     <span className="dw-amt">{moneyFull(s.amount)}</span>
+                    <button className="dw-link" type="button" onClick={() => setJob({ id: s.id, name: s.name || '', amount: String(s.amount || ''), cadence: s.cadence || 'biweekly', anchor: s.anchor_date || '' })}>Edit</button>
+                    <button className="dw-link" type="button" onClick={() => deleteIncome(s.id).then(() => { setJobMsg('Paycheck removed.'); load() })}>Delete</button>
                   </div>
                 ))}
               </div>
@@ -1334,7 +1322,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                 <label className="dw-field">Next payday
                   <input type="date" value={job.anchor} onChange={(e) => setJob({ ...job, anchor: e.target.value })} />
                 </label>
-                <button className="dw-ctl-btn" type="submit">Add paycheck</button>
+                <button className="dw-ctl-btn" type="submit">{job.id ? 'Save paycheck' : 'Add paycheck'}</button>
+                {job.id && <button className="dw-ctl-btn" type="button" style={{ marginLeft: 8 }} onClick={() => setJob({ id: '', name: '', amount: '', cadence: 'biweekly', anchor: '' })}>Cancel</button>}
                 {jobMsg && <p className="dw-mute" style={{ marginTop: 8 }}>{jobMsg}</p>}
               </form>
             </section>
@@ -1342,10 +1331,10 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           <div className="dw-col-stack">
             <section className="dw-card">
               <div className="dw-k">Type size</div>
-              <p className="dw-mute" style={{ margin: '6px 0 10px' }}>The app starts a bit larger. Pick the size you want.</p>
+              <p className="dw-mute" style={{ margin: '6px 0 10px' }}>This changes the size of the text.</p>
               <div className="dw-review-tabs">
-                {[['1.15', 'Small'], ['1.28', 'Medium'], ['1.4', 'Large'], ['1.55', 'Larger']].map(([z, label]) => (
-                  <button key={z} type="button" className={String(state.zoom || 1.28) === z ? 'on' : ''} onClick={() => setZoom(Number(z))}>{label}</button>
+                {[['16', 'Small'], ['18', 'Medium'], ['20', 'Large'], ['22', 'Larger']].map(([z, label]) => (
+                  <button key={z} type="button" className={String(state.type || 18) === z ? 'on' : ''} onClick={() => patchState({ type: Number(z) })}>{label}</button>
                 ))}
               </div>
             </section>
@@ -1360,15 +1349,18 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               </form>
             </section>
             <section className="dw-card">
-              <div className="dw-k">Grok</div>
-              <p className="dw-mute" style={{ margin: '8px 0 12px' }}>Reads this app. Writes only after you say yes.</p>
-              <a className="dw-ctl-btn" href="https://grok.com/connectors" target="_blank" rel="noreferrer">Open connector</a>
-            </section>
-            <section className="dw-card">
-              <div className="dw-k">Claude</div>
-              <p className="dw-mute" style={{ margin: '8px 0 0' }}>Uses the same Matt’s Money connector.</p>
-            </section>
-            <section className="dw-card dw-embed">
+              <div className="dw-k">Connections</div>
+              <div className="dw-conn">
+                <div>
+                  <b>Grok</b>
+                  <p>In Grok, open Connectors, add a custom connector, and paste the address below. Name it Matt’s Money. Ask it to read the app. It will not change anything until you say yes.</p>
+                </div>
+                <div>
+                  <b>Claude</b>
+                  <p>In Claude, open Settings, then Connectors, then Add custom connector. Paste the same address. Ask it to read the app. It will not change anything until you say yes.</p>
+                </div>
+                <code>https://mattsmoney.vercel.app/mcp</code>
+              </div>
               <GoogleCalendarCard plain />
             </section>
             <section className="dw-card">

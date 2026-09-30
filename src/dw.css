@@ -267,7 +267,7 @@ html[data-dw='1'] .dw-app {
 .dw-tile .dw-chip { font-size: 10px; padding: 2px 8px; }
 
 /* ============ Review ============ */
-.dw-app { zoom: var(--dw-zoom, 1.28); }
+.dw-app { zoom: 1; }
 .dw-review-wrap { width: min(980px, 100%); margin: 8px auto 0; display: flex; flex-direction: column; gap: 22px; }
 .dw-review-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
 .dw-review-tabs button {
@@ -419,6 +419,32 @@ html[data-dw='1'] .mm-app, html[data-dw='1'] header.mm-chrome, html[data-dw='1']
   border-radius: 99px; background: #fff; transition: transform 0.15s;
 }
 .dw-switch.on::after { transform: translateX(16px); }
+
+html[data-dw='1'] .dw-app .text-xs,
+html[data-dw='1'] .dw-app .text-sm,
+html[data-dw='1'] .dw-app .dw-mute,
+html[data-dw='1'] .dw-app .dw-sub,
+html[data-dw='1'] .dw-app .dw-k,
+html[data-dw='1'] .dw-app .dw-nav-item,
+html[data-dw='1'] .dw-app .dw-tile-name,
+html[data-dw='1'] .dw-app .dw-tile-meta,
+html[data-dw='1'] .dw-app .dw-plan-toggle b,
+html[data-dw='1'] .dw-app .dw-plan-toggle em,
+html[data-dw='1'] .dw-app .dw-bill-copy b,
+html[data-dw='1'] .dw-app .dw-bill-copy span,
+html[data-dw='1'] .dw-app .dw-acct {
+  font-size: var(--dw-type, 18px) !important;
+}
+
+.dw-bank { border-top: 1px solid var(--dw-line); margin-top: 12px; padding-top: 10px; }
+.dw-bank-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; }
+.dw-bank-h b { display: block; font-size: 17px; }
+.dw-bank-h span { display: block; color: var(--dw-mute); font-size: 14px; }
+.dw-bank-h button { background: none; border: 0; color: #fca5a5; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 15px; }
+.dw-conn { display: flex; flex-direction: column; gap: 14px; margin: 12px 0; }
+.dw-conn b { display: block; font-size: 17px; margin-bottom: 4px; }
+.dw-conn p { margin: 0; color: var(--dw-mute); font-size: 16px; line-height: 1.45; }
+.dw-conn code { display: block; padding: 10px 12px; border-radius: 10px; background: var(--dw-card-2); color: #fff; font-size: 15px; }
 
 .dw-bill-row {
   display: flex; align-items: center; justify-content: flex-start; gap: 20px;

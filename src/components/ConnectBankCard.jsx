@@ -22,7 +22,7 @@ function accountTitle(name, mask) {
 
 const LS_TOKEN = 'plaid.link_token'
 
-export default function ConnectBankCard({ onChanged, accounts = [], plain = false }) {
+export default function ConnectBankCard({ onChanged, accounts = [], plain = false, onToggle }) {
   const [linkToken, setLinkToken] = useState(null)
   const [items, setItems] = useState([])
   const [error, setError] = useState(null)
@@ -155,38 +155,59 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
       </div>
 
       {items.map((it) => (
-        <div key={it.item_id} className="border border-slate-200 rounded-xl p-3 space-y-2">
-          <div className="flex items-center justify-between gap-2">
+        <div key={it.item_id} className="dw-bank">
+          <div className="dw-bank-h">
             <div>
-              <p className="font-semibold text-slate-800">{it.institution || 'Bank'}</p>
-              <p className="text-xs text-slate-400">
-                {it.updated_at ? `Synced ${shortDate(it.updated_at.slice(0, 10))}` : 'Connected'}
-                {it.txnNote ? ` · ${it.txnNote}` : ''}
-              </p>
+              <b>{it.institution || 'Bank'}</b>
+              <span>{it.updated_at ? `Synced ${shortDate(it.updated_at.slice(0, 10))}` : 'Connected'}</span>
             </div>
-            <button
-              onClick={() => disconnect(it.item_id)}
-              disabled={busy}
-              className="text-xs font-semibold text-red-600 disabled:opacity-50"
-            >
-              Disconnect
-            </button>
+            <button type="button" onClick={() => disconnect(it.item_id)} disabled={busy}>Disconnect</button>
           </div>
-          <ul className="space-y-1">
-            {it.accounts.map((a, i) => (
-              <li key={i} className="text-sm text-slate-600">
-                <div className="flex justify-between">
-                  <span>{accountTitle(a.name, a.mask)}</span>
-                  <span>{a.available != null ? money(a.available) : 'Available missing'}</span>
-                </div>
-                <div className="text-xs text-slate-400">
-                  {a.available == null ? 'Available was not sent. Not guessing.' : a.subtype || a.type}
-                </div>
-              </li>
-            ))}
-          </ul>
+          {it.accounts.map((a, i) => {
+            const mask = String(a.mask || '').trim()
+            const app = accounts.find((x) => mask && (String(x.mask || '') === mask || String(x.name || '').includes(mask)))
+            const included = app ? (app.include_in_spendable === true || (app.include_in_spendable == null && app.kind !== 'savings')) && !app.hidden : false
+            return (
+              <div key={i} className="dw-plan-toggle">
+                {app && (
+                  <button
+                    type="button"
+                    className={`dw-switch${included ? ' on' : ''}`}
+                    aria-pressed={included}
+                    onClick={() => onToggle?.(app.id, !included)}
+                  />
+                )}
+                <span className="grow">
+                  <b>{accountTitle(a.name, a.mask)}</b>
+                  <em>{app ? (included ? 'In safe to spend' : 'Left out') : (a.subtype || a.type || '')}</em>
+                </span>
+                <span className="dw-amt">{a.available != null ? money(a.available) : 'No available balance'}</span>
+              </div>
+            )
+          })}
         </div>
       ))}
+
+      {accounts.filter((x) => !items.some((it) => it.accounts.some((a) => {
+        const mask = String(a.mask || '').trim()
+        return mask && (String(x.mask || '') === mask || String(x.name || '').includes(mask))
+      }))).map((a) => {
+        const included = (a.include_in_spendable === true || (a.include_in_spendable == null && a.kind !== 'savings')) && !a.hidden
+        return (
+          <div key={a.id} className="dw-plan-toggle">
+            <button
+              type="button"
+              className={`dw-switch${included ? ' on' : ''}`}
+              aria-pressed={included}
+              onClick={() => onToggle?.(a.id, !included)}
+            />
+            <span className="grow">
+              <b>{a.name}</b>
+              <em>{included ? 'In safe to spend' : 'Left out'}</em>
+            </span>
+          </div>
+        )
+      })}
 
       <button
         onClick={start}
@@ -198,7 +219,7 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <AccountOrderCard accounts={accounts} onChanged={onChanged} embedded />
+      {!plain && <AccountOrderCard accounts={accounts} onChanged={onChanged} embedded />}
     </section>
   )
 }
