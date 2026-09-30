@@ -18,9 +18,11 @@ import {
   insightCards,
   mapCategory,
 } from '../lib/dw-product'
+import { computePaycheckPlan } from '../lib/paycheck-plan'
+import { shortDate } from '../lib/format'
 
 const STS_COPY =
-  "Safe to Spend is calculated from your estimated monthly income, multiplied by your 'wants' percentage from your spending plan, minus what you've already spent on wants this month."
+  "Safe to Spend is your checking balance minus the bills due before your next payday, minus this paycheck's share of bills due later, minus anything you've set aside. It's what's genuinely OK to spend until payday."
 
 function Icon({ d, size = 20 }) {
   return (
@@ -97,6 +99,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   }, [page])
 
   const product = useMemo(() => computeProduct({ data, state, month }), [data, state, month])
+  const pay = useMemo(() => computePaycheckPlan({ data }), [data])
   const insights = useMemo(
     () => insightCards(product, month).filter((c) => !state.dismissed?.includes(c.id)),
     [product, month, state.dismissed]
@@ -250,12 +253,12 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             <div className="dw-k">Safe to spend</div>
             <div className="dw-sts-amt">
               <span className="dw-dol">$</span>
-              <span className="dw-dol-n">{Math.floor(Math.abs(product.safeToSpend)).toLocaleString()}</span>
-              <span className="dw-dol-c">.{String(Math.round((Math.abs(product.safeToSpend) % 1) * 100)).padStart(2, '0')}</span>
+              <span className="dw-dol-n">{Math.floor(Math.abs(pay.safeToSpend)).toLocaleString()}</span>
+              <span className="dw-dol-c">.{String(Math.round((Math.abs(pay.safeToSpend) % 1) * 100)).padStart(2, '0')}</span>
             </div>
             <div className="dw-sts-row">
               <button className="dw-link" onClick={() => setInfoOpen((v) => !v)}>
-                {month === monthKeyFrom(new Date()) ? 'This month' : monthLabel(month)} ▾
+                {pay.nextIncome ? `before ${shortDate(pay.nextIncome.date)}` : 'this paycheck'} ▾
               </button>
               <button className="dw-i" onClick={() => setInfoOpen((v) => !v)} aria-label="About Safe to Spend">
                 i
@@ -263,14 +266,12 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             </div>
             {infoOpen && (
               <div className="dw-pop">
-                <select value={month} onChange={(e) => setMonth(e.target.value)}>
-                  {months.map((m) => (
-                    <option key={m} value={m}>
-                      {monthLabel(m)} {m.slice(0, 4)}
-                    </option>
-                  ))}
-                </select>
                 <p>{STS_COPY}</p>
+                {pay.perDay != null && (
+                  <p>
+                    That's about <b>{moneyFull(pay.perDay)}</b> a day until payday.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -313,76 +314,120 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   }
 
   function Home() {
-    const emptyDonut = product.classifiedTotal === 0
+    const dueNow = pay.info.windowItems || []
+    const shares = pay.info.laterItems || []
     return (
       <div className="dw-home">
         <div className="dw-hero dw-phone-only">
           <div className="dw-k" style={{ color: '#fff' }}>
             safe to spend
           </div>
-          <div className="dw-hero-n">{moneyFull(product.safeToSpend)}</div>
-          <button className="dw-link" style={{ color: '#fff' }} onClick={() => setInfoOpen((v) => !v)}>
-            this month
-          </button>
+          <div className="dw-hero-n">{moneyFull(pay.safeToSpend)}</div>
+          <div className="dw-mute" style={{ color: '#fff' }}>
+            {pay.nextIncome ? `until payday ${shortDate(pay.nextIncome.date)}` : 'this paycheck'}
+            {pay.perDay != null ? ` · ${moneyFull(pay.perDay)}/day` : ''}
+          </div>
         </div>
-        <section className="dw-avgs">
-          <div className="dw-k">Monthly average</div>
-          <div className="dw-avg-row">
-            <div className="dw-card">
-              <div className="dw-k">Income</div>
-              <div className="dw-n">{moneyFull(product.monthlyIncome)}</div>
-              <p className="dw-mute">From your income plan</p>
-            </div>
-            <div className="dw-card">
-              <div className="dw-k">Fixed spend</div>
-              <div className="dw-n">{moneyFull(product.byPurpose.needs)}</div>
-              <p className="dw-mute">Needs this month</p>
-            </div>
-            <div className="dw-card">
-              <div className="dw-k">Savings</div>
-              <div className="dw-n">{moneyFull(product.monthlyIncome - product.recentSpend)}</div>
-              <p className="dw-mute">Income minus expenses</p>
-            </div>
-          </div>
+        <section className="dw-card dw-desk-only">
+          <div className="dw-k">Safe to spend · this paycheck</div>
+          <div className="dw-n">{moneyFull(pay.safeToSpend)}</div>
+          <p className="dw-mute">
+            {pay.nextIncome ? (
+              <>
+                Good until payday on <b>{shortDate(pay.nextIncome.date)}</b>
+                {pay.perDay != null ? ` — about ${moneyFull(pay.perDay)} a day.` : '.'}
+              </>
+            ) : (
+              'Add your payday in Profile so this plans against your next check.'
+            )}
+          </p>
+          <details className="dw-details">
+            <summary className="dw-link">How this is figured</summary>
+            <p className="dw-mute">{STS_COPY}</p>
+            <p className="dw-mute">
+              Checking {moneyFull(pay.start)} − bills due {moneyFull(pay.info.billsBeforePay)} − later shares{' '}
+              {moneyFull(pay.info.laterShare)}
+              {Number(pay.info.setAside || 0) > 0 ? ` − held ${moneyFull(pay.info.setAside)}` : ''}.
+            </p>
+          </details>
         </section>
-        <section className="dw-card dw-plan">
-          <div className="dw-k">Spending plan vs actual</div>
-          <div className="dw-plan-grid">
-            <div className={`dw-donut ${emptyDonut ? 'empty' : ''}`}>
-              {emptyDonut ? (
-                <p className="dw-mute">No spending recorded for this month yet.</p>
-              ) : (
-                <div
-                  className="dw-ring"
-                  style={{
-                    background: `conic-gradient(#3d90de 0 ${product.actual.needs}%, #eed813 ${product.actual.needs}% ${product.actual.needs + product.actual.wants}%, #2bc458 ${product.actual.needs + product.actual.wants}% 100%)`,
-                  }}
-                />
-              )}
-            </div>
-            <div>
-              {['needs', 'wants', 'savings'].map((id) => {
-                const p = PURPOSES.find((x) => x.id === id)
-                return (
-                  <div key={id} className="dw-plan-row">
-                    <span className="dw-dot" style={{ background: p.solid }} />
-                    <button className="dw-link" onClick={() => { setFilterPurpose(id); setPage('activity') }}>
-                      {p.label}
-                    </button>
-                    <input
-                      className="dw-pct"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={product.plan[id]}
-                      onChange={(e) => patchState({ plan: { ...product.plan, [id]: Number(e.target.value) } })}
-                    />
-                    <b>{product.actual[id]}%</b>
-                  </div>
-                )
-              })}
-            </div>
+        <section className="dw-card">
+          <div className="dw-row-head">
+            <div className="dw-k">From this paycheck, set aside</div>
+            <b className="dw-n">{moneyFull(pay.setAsideTotal)}</b>
           </div>
+          {!pay.hasIncome && (
+            <p className="dw-mute">
+              Add your payday in <button className="dw-link" onClick={() => setPage('profile')}>Profile</button> and
+              each paycheck gets its own set-aside plan.
+            </p>
+          )}
+          {dueNow.length > 0 && (
+            <>
+              <p className="dw-mute" style={{ marginTop: 8 }}>
+                Due before {pay.nextIncome ? `payday ${shortDate(pay.nextIncome.date)}` : 'payday'} — hold the full
+                amount:
+              </p>
+              <ul className="dw-lines">
+                {dueNow.map((b) => (
+                  <li key={b.id}>
+                    <span>
+                      <b>{b.name}</b>
+                      <em>due {b.due ? shortDate(b.due) : 'soon'}</em>
+                    </span>
+                    <b className="dw-mono">{moneyFull(b.amount)}</b>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {shares.length > 0 && (
+            <>
+              <p className="dw-mute" style={{ marginTop: 8 }}>
+                Due later — this paycheck's share:
+              </p>
+              <ul className="dw-lines">
+                {shares.map((b) => (
+                  <li key={b.id}>
+                    <span>
+                      <b>{b.name}</b>
+                      <em>
+                        {moneyFull(b.share)} of {moneyFull(b.amount)}
+                        {b.due ? ` · due ${shortDate(b.due)}` : ''}
+                      </em>
+                    </span>
+                    <b className="dw-mono">{moneyFull(b.share)}</b>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {dueNow.length === 0 && shares.length === 0 && (
+            <p className="dw-mute">Nothing needs setting aside right now.</p>
+          )}
+        </section>
+        <section className="dw-card">
+          <div className="dw-k">Paydays</div>
+          {pay.paydays.length === 0 ? (
+            <p className="dw-mute">
+              No paydays on the calendar.{' '}
+              <button className="dw-link" onClick={() => setPage('profile')}>
+                Add your income
+              </button>
+            </p>
+          ) : (
+            <ul className="dw-lines">
+              {pay.paydays.map((pd, i) => (
+                <li key={`${pd.date}-${pd.name}-${i}`}>
+                  <span>
+                    <b>{pd.name}</b>
+                    <em>{shortDate(pd.date)}</em>
+                  </span>
+                  <b className="dw-mono">{moneyFull(pd.amount)}</b>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
         <section className="dw-card">
           <div className="dw-row-head">
