@@ -807,19 +807,14 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           <button className="dw-link" onClick={() => setPage('activity')}>Compare months</button>
         </header>
 
-        {insights.length > 0 && (
-          <div className="dw-insight-row">
+        <div className="dw-ins-2">
+          <div className="dw-col-stack">
             {insights.slice(0, 3).map((c) => (
-              <section key={c.id} className="dw-card dw-insight-card">
+              <section key={c.id} className="dw-card">
                 <div className="dw-h2">{c.name || c.title}</div>
                 <p className="dw-mute" style={{ margin: '6px 0 0' }}>{c.body}</p>
               </section>
             ))}
-          </div>
-        )}
-
-        <div className="dw-ins-2">
-          <div className="dw-col-stack">
             <section className="dw-card">
               <div className="dw-k">Your split</div>
               <p className="dw-mute" style={{ margin: '6px 0 10px' }}>You set these. They do not have to add up to 100.</p>
