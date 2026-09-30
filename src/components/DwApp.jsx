@@ -456,32 +456,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             See all activity →
           </button>
         </section>
-        </div>
-
-        <div className="dw-col">
-        <section className="dw-card">
-          <div className="dw-row-head">
-            <div className="dw-k">Upcoming paydays</div>
-          </div>
-          {pay.paydays.length === 0 ? (
-            <p className="dw-mute">
-              No paydays on the calendar.{' '}
-              <button className="dw-link" onClick={() => setPage('profile')}>Add your income</button>
-            </p>
-          ) : (
-            <div className="dw-tx-list">
-              {pay.paydays.slice(0, 4).map((pd, i) => (
-                <div key={`${pd.date}-${pd.name}-${i}`} className="dw-tx" style={{ cursor: 'default' }}>
-                  <span className="grow">
-                    <b>{pd.name}</b>
-                    <em>{shortDate(pd.date)}</em>
-                  </span>
-                  <b className="dw-mono">{moneyFull(pd.amount)}</b>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
 
         <section className="dw-card">
           <div className="dw-row-head">
@@ -516,25 +490,52 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
         </section>
         </div>
 
-        <section className="dw-card dw-span-all">
+        <div className="dw-col">
+        <section className="dw-card">
+          <div className="dw-row-head">
+            <div className="dw-k">Upcoming paydays</div>
+          </div>
+          {pay.paydays.length === 0 ? (
+            <p className="dw-mute">
+              No paydays on the calendar.{' '}
+              <button className="dw-link" onClick={() => setPage('profile')}>Add your income</button>
+            </p>
+          ) : (
+            <div className="dw-tx-list">
+              {pay.paydays.slice(0, 4).map((pd, i) => (
+                <div key={`${pd.date}-${pd.name}-${i}`} className="dw-tx" style={{ cursor: 'default' }}>
+                  <span className="grow">
+                    <b>{pd.name}</b>
+                    <em>{shortDate(pd.date)}</em>
+                  </span>
+                  <b className="dw-mono">{moneyFull(pd.amount)}</b>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="dw-card">
           <div className="dw-row-head">
             <div className="dw-k">Recent transactions</div>
             <button className="dw-link dw-spread" onClick={() => setPage('activity')}>
               View All
             </button>
           </div>
-          <div className="dw-tx-list dw-tx-grid dw-tx-2col">
-            {product.monthTx.slice(0, 8).map((t) => (
+          <div className="dw-tx-list">
+            {product.monthTx.slice(0, 6).map((t) => (
               <button key={t.id} className="dw-tx" onClick={() => setSheet(t)}>
                 <span className="dw-mark sm">{(t.merchant || '?')[0]}</span>
-                <b>{t.merchant || '—'}</b>
-                <span className="dw-mute">{t.category}</span>
-                <span className="dw-mute">{t.txn_date?.slice(5)}</span>
-                <b className="dw-mono" style={{ textAlign: 'right' }}>{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
+                <span className="grow">
+                  <b>{t.merchant || '—'}</b>
+                  <em>{t.category} · {t.txn_date?.slice(5)}</em>
+                </span>
+                <b className="dw-mono">{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
               </button>
             ))}
           </div>
         </section>
+        </div>
       </div>
     )
   }
