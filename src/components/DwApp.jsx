@@ -348,7 +348,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               </span>
             )}
           </div>
-          <div className="dw-n" style={{ fontSize: 40 }}>{moneyFull(pay.safeToSpend)}</div>
+          <div className="dw-n">{moneyFull(pay.safeToSpend)}</div>
           <p className="dw-mute" style={{ margin: '4px 0 0' }}>
             Safe to spend
             {next && pay.perDay != null && <> · about {moneyFull(pay.perDay)} a day until {shortDate(next.date)}</>}
