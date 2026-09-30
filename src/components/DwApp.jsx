@@ -637,6 +637,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                   ? 'On. Later bills take a slice from this check. Due-before-payday bills are held in full.'
                   : 'Off. Only bills due before payday are held, in full.'}
               </p>
+              <div className="dw-bill-grid">
               {dueRows.map((b) => (
                 <div key={b.id} className="dw-plan-toggle">
                   <span className="grow">
@@ -667,6 +668,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                   <button className="dw-link" onClick={() => setAddedBills((list) => list.filter((x) => x.id !== b.id))}>Remove</button>
                 </div>
               ))}
+              </div>
             </section>
           </div>
 
