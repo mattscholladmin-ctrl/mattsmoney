@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Dollarwise-style product math for Matt's Money.
 // Safe to spend = monthly income × wants plan % − visible Wants spend in the selected month.
 
