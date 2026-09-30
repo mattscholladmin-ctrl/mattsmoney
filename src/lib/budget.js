@@ -2393,6 +2393,16 @@ export function spendableToday(
     billsBeforePay,
     laterShare,
     laterItems,
+    // Bills due in full before the next paycheck — the itemized "set aside"
+    // list for the current paycheck window. Additive display data; the math
+    // above is unchanged.
+    windowItems: thisWindow.map((b) => ({
+      id: b.billId || b.id || b.name,
+      name: b.name,
+      amount: Number(b.amount || 0),
+      due: b.originalDate || b.date,
+      category: b.category || 'Bills',
+    })),
     tripFunds,
     earmarked: reserved,
     setAside: held,
