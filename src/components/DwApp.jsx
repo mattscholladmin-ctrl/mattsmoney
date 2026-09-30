@@ -818,108 +818,112 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </div>
         )}
 
-        <section className="dw-card">
-          <div className="dw-k">Your split</div>
-          <p className="dw-mute" style={{ margin: '6px 0 10px' }}>You set these. They do not have to add up to 100.</p>
-          <div className="dw-split">
-            {['needs', 'wants', 'savings'].map((id) => (
-              <label key={id} className="dw-field">
-                {PURPOSE_META[id].label}
-                <input
-                  type="number"
-                  min="0"
-                  value={product.plan[id]}
-                  onChange={(e) => patchState({ plan: { ...product.plan, [id]: Number(e.target.value) } })}
-                />
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <div className="dw-ins-grid">
-          <section className="dw-card dw-span2">
-            <div className="dw-k">Spending by month</div>
-            <div className="dw-chart-box">
-              <div className="dw-yaxis">
-                <span>{moneyCompact(maxMonth)}</span>
-                <span>{moneyCompact(maxMonth / 2)}</span>
-                <span>$0</span>
-              </div>
-              <div className="dw-monthchart">
-                {history.map((h) => (
-                  <div key={h.key} className="dw-monthbar-wrap">
-                    <div
-                      className="dw-monthbar"
-                      style={{ height: `${Math.max(h.total > 0 ? 8 : 0, (h.total / maxMonth) * 100)}%` }}
-                    >
-                      <span className="dw-barval">{h.total ? moneyCompact(h.total) : ''}</span>
-                    </div>
-                    <span className="dw-monthlbl">{h.label}</span>
-                  </div>
+        <div className="dw-ins-2">
+          <div className="dw-col-stack">
+            <section className="dw-card">
+              <div className="dw-k">Your split</div>
+              <p className="dw-mute" style={{ margin: '6px 0 10px' }}>You set these. They do not have to add up to 100.</p>
+              <div className="dw-split dw-split-stack">
+                {['needs', 'wants', 'savings'].map((id) => (
+                  <label key={id} className="dw-field">
+                    {PURPOSE_META[id].label}
+                    <input
+                      type="number"
+                      min="0"
+                      value={product.plan[id]}
+                      onChange={(e) => patchState({ plan: { ...product.plan, [id]: Number(e.target.value) } })}
+                    />
+                  </label>
                 ))}
               </div>
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <div className="dw-stat-row"><span>Average monthly spend</span><b>{moneyFull(avg)}</b></div>
-              <div className="dw-stat-row"><span>Highest spending month</span><b>{top.label} · {moneyFull(top.total)}</b></div>
-            </div>
-          </section>
+            </section>
 
-          <section className="dw-card">
-            <div className="dw-k" style={{ marginBottom: 8 }}>Top categories</div>
-            {catRows.map((c) => (
-              <div key={c.name} className="dw-catbar">
-                <div className="dw-catbar-top">
-                  <span className="dw-catname">
-                    <span className="dw-catico" style={{ background: `${c.color}22`, color: c.color }}>
-                      {(c.name || '?')[0]}
-                    </span>
-                    {c.name}
-                  </span>
-                  <span className="dw-catvals"><b>{moneyFull(c.amt)}</b></span>
+            <section className="dw-card">
+              <div className="dw-k">Spending by month</div>
+              <div className="dw-chart-box">
+                <div className="dw-yaxis">
+                  <span>{moneyCompact(maxMonth)}</span>
+                  <span>{moneyCompact(maxMonth / 2)}</span>
+                  <span>$0</span>
                 </div>
-                <div className="dw-track"><div style={{ width: `${(c.amt / maxCat) * 100}%`, background: c.color }} /></div>
+                <div className="dw-monthchart">
+                  {history.map((h) => (
+                    <div key={h.key} className="dw-monthbar-wrap">
+                      <div
+                        className="dw-monthbar"
+                        style={{ height: `${Math.max(h.total > 0 ? 8 : 0, (h.total / maxMonth) * 100)}%` }}
+                      >
+                        <span className="dw-barval">{h.total ? moneyCompact(h.total) : ''}</span>
+                      </div>
+                      <span className="dw-monthlbl">{h.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </section>
+              <div style={{ marginTop: 14 }}>
+                <div className="dw-stat-row"><span>Average monthly spend</span><b>{moneyFull(avg)}</b></div>
+                <div className="dw-stat-row"><span>Highest spending month</span><b>{top.label} · {moneyFull(top.total)}</b></div>
+              </div>
+            </section>
+          </div>
 
-          <section className="dw-card dw-span2">
-            <div className="dw-k" style={{ marginBottom: 8 }}>Top merchants · {monthLabel(month)}</div>
-            {merchants.length === 0 ? (
-              <p className="dw-mute">No merchant data this month.</p>
-            ) : (
-              merchants.map((m) => (
-                <div key={m.name} className="dw-catbar">
+          <div className="dw-col-stack">
+            <section className="dw-card">
+              <div className="dw-k" style={{ marginBottom: 8 }}>Top categories</div>
+              {catRows.map((c) => (
+                <div key={c.name} className="dw-catbar">
                   <div className="dw-catbar-top">
                     <span className="dw-catname">
-                      <span className="dw-mark" style={{ width: 26, height: 26, fontSize: 12 }}>{m.name[0]}</span>
-                      {m.name}
+                      <span className="dw-catico" style={{ background: `${c.color}22`, color: c.color }}>
+                        {(c.name || '?')[0]}
+                      </span>
+                      {c.name}
                     </span>
-                    <span className="dw-catvals"><b>{moneyFull(m.total)}</b></span>
+                    <span className="dw-catvals"><b>{moneyFull(c.amt)}</b></span>
                   </div>
-                  <div className="dw-track"><div style={{ width: `${(m.total / maxMerch) * 100}%`, background: '#3b82f6' }} /></div>
+                  <div className="dw-track"><div style={{ width: `${(c.amt / maxCat) * 100}%`, background: c.color }} /></div>
                 </div>
-              ))
-            )}
-          </section>
+              ))}
+            </section>
 
-          <section className="dw-card">
-            <div className="dw-k" style={{ marginBottom: 8 }}>Month so far</div>
-            <div className="dw-stat-row"><span>Spent in {monthLabel(month)}</span><b>{moneyFull(product.recentSpend || 0)}</b></div>
-            {['needs', 'wants', 'savings'].map((p) => (
-              <div key={p} className="dw-stat-row">
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className="dw-dot" style={{ background: PURPOSE_META[p].color }} />
-                  {PURPOSE_META[p].label}
-                </span>
-                <b>{moneyFull(product.byPurpose?.[p] || 0)}</b>
+            <section className="dw-card">
+              <div className="dw-k" style={{ marginBottom: 8 }}>Month so far</div>
+              <div className="dw-stat-row"><span>Spent in {monthLabel(month)}</span><b>{moneyFull(product.recentSpend || 0)}</b></div>
+              {['needs', 'wants', 'savings'].map((p) => (
+                <div key={p} className="dw-stat-row">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="dw-dot" style={{ background: PURPOSE_META[p].color }} />
+                    {PURPOSE_META[p].label}
+                  </span>
+                  <b>{moneyFull(product.byPurpose?.[p] || 0)}</b>
+                </div>
+              ))}
+              <div className="dw-stat-row">
+                <span>Not sorted yet</span>
+                <b>{moneyFull(Math.max(0, (product.recentSpend || 0) - (product.classifiedTotal || 0)))}</b>
               </div>
-            ))}
-            <div className="dw-stat-row">
-              <span>Not sorted yet</span>
-              <b>{moneyFull(Math.max(0, (product.recentSpend || 0) - (product.classifiedTotal || 0)))}</b>
-            </div>
-          </section>
+            </section>
+
+            <section className="dw-card">
+              <div className="dw-k" style={{ marginBottom: 8 }}>Top merchants · {monthLabel(month)}</div>
+              {merchants.length === 0 ? (
+                <p className="dw-mute">No merchant data this month.</p>
+              ) : (
+                merchants.map((m) => (
+                  <div key={m.name} className="dw-catbar">
+                    <div className="dw-catbar-top">
+                      <span className="dw-catname">
+                        <span className="dw-mark" style={{ width: 26, height: 26, fontSize: 12 }}>{m.name[0]}</span>
+                        {m.name}
+                      </span>
+                      <span className="dw-catvals"><b>{moneyFull(m.total)}</b></span>
+                    </div>
+                    <div className="dw-track"><div style={{ width: `${(m.total / maxMerch) * 100}%`, background: '#3b82f6' }} /></div>
+                  </div>
+                ))
+              )}
+            </section>
+          </div>
         </div>
       </div>
     )

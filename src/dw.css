@@ -204,10 +204,9 @@ html[data-dw='1'] .dw-app {
 }
 
 /* ============ Insights ============ */
-.dw-ins-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
-@media (max-width: 1100px) { .dw-ins-grid { grid-template-columns: 1fr; } }
-.dw-ins-grid .dw-span2 { grid-column: span 2; }
-@media (max-width: 1100px) { .dw-ins-grid .dw-span2 { grid-column: auto; } }
+.dw-ins-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .dw-ins-2 { grid-template-columns: 1fr; } }
+.dw-split-stack { grid-template-columns: 1fr; }
 .dw-monthchart { display: flex; align-items: flex-end; gap: 10px; height: 190px; margin-top: 8px; padding-top: 22px; }
 .dw-chart-box { display: grid; grid-template-columns: 52px 1fr; gap: 8px; align-items: stretch; }
 .dw-yaxis { display: flex; flex-direction: column; justify-content: space-between; height: 190px; margin-top: 16px; font-size: 11px; color: var(--dw-faint); font-family: var(--dw-mono); }
