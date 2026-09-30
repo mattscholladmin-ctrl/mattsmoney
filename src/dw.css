@@ -93,8 +93,8 @@ html[data-dw='1'] .dw-app {
 .dw-acct { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; }
 .dw-acct.sub { font-size: 13px; color: var(--dw-mute); padding-left: 8px; }
 
-.dw-home { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; max-width: 1360px; margin: 0 auto; }
-.dw-rail { display: grid; gap: 20px; grid-row: span 2; align-content: start; }
+.dw-home { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; max-width: 1360px; margin: 0 auto; align-items: start; }
+.dw-rail { display: grid; gap: 20px; align-content: start; }
 .dw-activity, .dw-profile { max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 @media (max-width: 1023px) { .dw-home { grid-template-columns: 1fr; } .dw-rail { grid-row: auto; } }
 .dw-hero {
@@ -111,7 +111,8 @@ html[data-dw='1'] .dw-app {
 .dw-ring { width: 218px; height: 218px; border-radius: 99px; }
 .dw-plan-row { display: grid; grid-template-columns: 12px 1fr 64px 48px; gap: 8px; align-items: center; padding: 8px 0; }
 .dw-pct { width: 56px; border: 1px solid var(--dw-line); border-radius: 6px; padding: 4px; background: var(--dw-card); color: inherit; }
-.dw-row-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.dw-row-head { display: flex; align-items: baseline; gap: 12px; }
+.dw-row-head .dw-spread { margin-left: auto; }
 .dw-tx { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--dw-line); padding: 10px 0; color: inherit; text-align: left; cursor: pointer; }
 .dw-tx .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .dw-tx em { color: var(--dw-mute); font-style: normal; font-size: 12px; }

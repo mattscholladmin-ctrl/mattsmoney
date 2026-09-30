@@ -264,8 +264,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               <span className="dw-dol-c">.{String(Math.round((Math.abs(pay.safeToSpend) % 1) * 100)).padStart(2, '0')}</span>
             </div>
             <div className="dw-sts-row">
-              <button className="dw-link" onClick={() => setInfoOpen((v) => !v)}>
-                {pay.nextIncome ? `Until payday ${shortDate(pay.nextIncome.date)}` : 'Add payday'} ▾
+              <button className="dw-link" onClick={() => setInfoOpen((v) => !v)} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}>
+                {pay.nextIncome ? `Until ${shortDate(pay.nextIncome.date)}` : 'Add payday'} ▾
               </button>
               <button className="dw-i" onClick={() => setInfoOpen((v) => !v)} aria-label="About Safe to Spend">
                 i
@@ -341,17 +341,16 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
         <section className="dw-card">
           <div className="dw-row-head">
             <div className="dw-k">This paycheck</div>
-            {next && (
-              <span className="dw-mute">
-                Payday {shortDate(next.date)}
-                {pay.daysLeft != null && ` · ${pay.daysLeft === 1 ? '1 day left' : `${pay.daysLeft} days left`}`}
+            {next && pay.daysLeft != null && (
+              <span className="dw-mute" style={{ whiteSpace: 'nowrap' }}>
+                {pay.daysLeft === 1 ? '1 day' : `${pay.daysLeft} days`} until payday
               </span>
             )}
           </div>
           <div className="dw-n">{moneyFull(pay.safeToSpend)}</div>
           <p className="dw-mute" style={{ margin: '4px 0 0' }}>
             Safe to spend
-            {next && pay.perDay != null && <> · about {moneyFull(pay.perDay)} a day until {shortDate(next.date)}</>}
+            {next && pay.perDay != null && <> · about {moneyFull(pay.perDay)} a day</>}
           </p>
           <div style={{ display: 'flex', height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--dw-track, #1e1e22)', marginTop: 16 }}>
             {segs.map((s) => (
@@ -444,7 +443,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           <section className="dw-card">
             <div className="dw-row-head">
               <div className="dw-k">Recent transactions</div>
-              <button className="dw-link" onClick={() => setPage('activity')}>
+              <button className="dw-link dw-spread" onClick={() => setPage('activity')}>
                 View All
               </button>
             </div>
