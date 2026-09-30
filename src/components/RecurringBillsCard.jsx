@@ -166,7 +166,6 @@ function AddBillForm({ onChanged, onDone }) {
   const [dueDay, setDueDay] = useState('1')
   const [startDate, setStartDate] = useState('')
   const [busy, setBusy] = useState(false)
-  const [amtDraft, setAmtDraft] = useState(String(bill.amount))
   const [error, setError] = useState(null)
 
   async function add(e) {
@@ -268,40 +267,37 @@ function BillRow({ bill, ppy = 26, onChanged }) {
   }
 
   return (
-    <li className="py-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0">
-          <span className="block text-sm text-slate-700 truncate">{bill.name}</span>
-          <span className="block text-xs text-slate-400">{scheduleLabel(bill)}</span>
-        </span>
-        <span className="flex items-center gap-2 shrink-0">
-          <span className="flex items-center rounded-lg border border-slate-300 px-2 py-1 text-sm">
-            <span className="text-slate-400">$</span>
-            <input
-              type="number"
-              step="0.01"
-              inputMode="decimal"
-              value={amtDraft}
-              onChange={(e) => setAmtDraft(e.target.value)}
-              className="w-16 text-right outline-none"
-              title="Change the amount, then Save"
-            />
-            {Number(amtDraft) !== Number(bill.amount) && (
-              <button type="button" onClick={() => saveAmount(amtDraft)} className="text-xs font-medium text-emerald-700">Save</button>
-            )}
-          </span>
-          <button onClick={() => setEditing(true)} className="text-xs text-emerald-700 font-medium">Edit</button>
-          <button onClick={remove} className="text-xs text-red-600">Delete</button>
-        </span>
+    <li className="dw-bill-row">
+      <div className="dw-bill-copy">
+        <b>{bill.name}</b>
+        <span>{scheduleLabel(bill)}</span>
+        <button
+          type="button"
+          onClick={toggleSmooth}
+          className={bill.smooth ? 'on' : ''}
+          title="Set aside a share of this out of every paycheck instead of it hitting all at once"
+        >
+          {bill.smooth ? `Saving ${money(perPaycheck)} from each paycheck` : 'Save each paycheck'}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={toggleSmooth}
-        className={`mt-1 text-xs font-medium ${bill.smooth ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'}`}
-        title="Set aside a share of this out of every paycheck instead of it hitting all at once"
-      >
-        {bill.smooth ? `● Saving ${money(perPaycheck)}/paycheck` : '○ Save each paycheck'}
-      </button>
+      <div className="dw-bill-side">
+        <span className="dw-bill-amt">
+          <span>$</span>
+          <input
+            type="number"
+            step="0.01"
+            inputMode="decimal"
+            value={amtDraft}
+            onChange={(e) => setAmtDraft(e.target.value)}
+            title="Change the amount, then Save"
+          />
+          {Number(amtDraft) !== Number(bill.amount) && (
+            <button type="button" onClick={() => saveAmount(amtDraft)}>Save</button>
+          )}
+        </span>
+        <button type="button" onClick={() => setEditing(true)}>Edit</button>
+        <button type="button" className="danger" onClick={remove}>Delete</button>
+      </div>
     </li>
   )
 }

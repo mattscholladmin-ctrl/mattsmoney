@@ -31,7 +31,7 @@ function Toggle({ label, hint, on, busy, onChange }) {
   )
 }
 
-export default function GoogleCalendarCard() {
+export default function GoogleCalendarCard({ plain = false }) {
   const [status, setStatus] = useState(null) // null = loading
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -109,7 +109,7 @@ export default function GoogleCalendarCard() {
   }
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow space-y-3">
+    <section className={plain ? 'dw-flat' : 'rounded-2xl bg-white p-5 shadow space-y-3'}>
       <h2 className="font-semibold text-slate-800">Google Calendar</h2>
 
       {status === null ? (

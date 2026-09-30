@@ -158,7 +158,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   useEffect(() => {
     saveDwState(state)
     applyTheme()
-    document.documentElement.style.setProperty('--dw-zoom', String(state.zoom || 1.12))
+    document.documentElement.style.setProperty('--dw-zoom', String(state.zoom || 1.28))
   }, [state])
   useEffect(() => {
     try {
@@ -358,13 +358,11 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     if (!t) return null
     return (
       <div className="dw-sheet-dim" onClick={onClose}>
-        <aside className="dw-sheet" onClick={(e) => e.stopPropagation()}>
+        <aside className="dw-sheet dw-sheet-lg" onClick={(e) => e.stopPropagation()}>
           <button className="dw-x" onClick={onClose}>×</button>
-          <div className="dw-mark">{(t.merchant || '?')[0]}</div>
-          <h2>
-            {t.merchant || 'Transaction'}{' '}
-            <span className="dw-mono">{t.pending ? '' : isExpense(t) ? '−' : '+'}{moneyFull(Math.abs(Number(t.amount || 0)))}</span>
-          </h2>
+          <div className="dw-mark dw-mark-lg">{(t.merchant || '?')[0]}</div>
+          <h2>{t.merchant || 'Transaction'}</h2>
+          <div className="dw-sheet-amt">{t.pending ? '' : isExpense(t) ? '−' : '+'}{moneyFull(Math.abs(Number(t.amount || 0)))}</div>
           <p className="dw-mute">{t.txn_date}</p>
           {t.pending && <span className="dw-chip">PENDING</span>}
           <label className="dw-field">
@@ -1041,10 +1039,10 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               <h1>Review</h1>
               <p className="dw-sub">Confirm bills the app noticed, or add your own.</p>
               {bill && <p className="dw-progress">{billIdx + 1} of {billIdeas.length}</p>}
-              {tabs}
             </div>
           </header>
           <div className="dw-review-wrap">
+            {tabs}
             {!bill && !showAddBill && (
               <div className="dw-review-done">
                 <div className="dw-big-check">✓</div>
@@ -1124,10 +1122,10 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             <div>
               <h1>Review</h1>
               <p className="dw-sub">Sort your spending into buckets.</p>
-              {tabs}
             </div>
           </header>
           <div className="dw-review-wrap">
+            {tabs}
             <div className="dw-review-done">
               <div className="dw-big-check">✓</div>
               <div className="dw-h2">All caught up</div>
@@ -1155,10 +1153,10 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             <h1>Review</h1>
             <p className="dw-sub">Tap a bucket to sort each transaction.</p>
             <p className="dw-progress">{reviewIdx + 1} of {queue.length}</p>
-            {tabs}
           </div>
         </header>
         <div className="dw-review-wrap">
+          {tabs}
           <div className="dw-review-stack">
             <div className="dw-review-behind b2" />
             <div className="dw-review-behind" />
@@ -1214,6 +1212,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               upcomingIncome={upcoming}
               transactions={data.transactions || []}
               onChanged={load}
+              embedded
             />
           </section>
         </div>
@@ -1301,12 +1300,23 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                 )
               })}
               <div className="dw-embed" style={{ marginTop: 12 }}>
-                <ConnectBankCard accounts={accounts} onChanged={load} />
+                <ConnectBankCard plain accounts={accounts} onChanged={load} />
               </div>
             </section>
             <section className="dw-card">
-              <div className="dw-k">Another steady paycheck</div>
-              <p className="dw-mute" style={{ margin: '6px 0 0' }}>This counts in the plan, unlike variable extra pay.</p>
+              <div className="dw-k">Steady paychecks</div>
+              <p className="dw-mute" style={{ margin: '6px 0 0' }}>These count in the plan. Extra pay does not until you confirm it.</p>
+              <div className="dw-tx-list" style={{ marginTop: 8 }}>
+                {(data.income || []).filter((s) => !(Number(s.amount || 0) === 0 && s.cadence === 'one_time' && !s.anchor_date)).map((s) => (
+                  <div key={s.id} className="dw-tx" style={{ cursor: 'default' }}>
+                    <span className="grow">
+                      <b>{s.name}</b>
+                      <em>{s.cadence === 'biweekly' ? 'Every 2 weeks' : s.cadence === 'weekly' ? 'Every week' : s.cadence === 'monthly' ? 'Every month' : s.cadence}</em>
+                    </span>
+                    <span className="dw-amt">{moneyFull(s.amount)}</span>
+                  </div>
+                ))}
+              </div>
               <form onSubmit={saveJob}>
                 <label className="dw-field">Name
                   <input value={job.name} onChange={(e) => setJob({ ...job, name: e.target.value })} />
@@ -1334,8 +1344,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               <div className="dw-k">Type size</div>
               <p className="dw-mute" style={{ margin: '6px 0 10px' }}>The app starts a bit larger. Pick the size you want.</p>
               <div className="dw-review-tabs">
-                {[['1', 'Small'], ['1.12', 'Medium'], ['1.25', 'Large'], ['1.4', 'Larger']].map(([z, label]) => (
-                  <button key={z} type="button" className={String(state.zoom || 1.12) === z ? 'on' : ''} onClick={() => setZoom(Number(z))}>{label}</button>
+                {[['1.15', 'Small'], ['1.28', 'Medium'], ['1.4', 'Large'], ['1.55', 'Larger']].map(([z, label]) => (
+                  <button key={z} type="button" className={String(state.zoom || 1.28) === z ? 'on' : ''} onClick={() => setZoom(Number(z))}>{label}</button>
                 ))}
               </div>
             </section>
@@ -1351,18 +1361,15 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             </section>
             <section className="dw-card">
               <div className="dw-k">Grok</div>
-              <p className="dw-mute" style={{ margin: '8px 0 0' }}>
-                In Grok, add the Matt’s Money connector. It can read this app. It only changes something after you say yes. Reconnect it at grok.com/connectors if a new chat cannot see it.
-              </p>
+              <p className="dw-mute" style={{ margin: '8px 0 12px' }}>Reads this app. Writes only after you say yes.</p>
+              <a className="dw-ctl-btn" href="https://grok.com/connectors" target="_blank" rel="noreferrer">Open connector</a>
             </section>
             <section className="dw-card">
               <div className="dw-k">Claude</div>
-              <p className="dw-mute" style={{ margin: '8px 0 0' }}>
-                Claude uses the same Matt’s Money connector. Add it as a custom connector in Claude. It reads this app and only writes after you say yes.
-              </p>
+              <p className="dw-mute" style={{ margin: '8px 0 0' }}>Uses the same Matt’s Money connector.</p>
             </section>
             <section className="dw-card dw-embed">
-              <GoogleCalendarCard />
+              <GoogleCalendarCard plain />
             </section>
             <section className="dw-card">
               <div className="dw-k" style={{ marginBottom: 4 }}>Preferences</div>

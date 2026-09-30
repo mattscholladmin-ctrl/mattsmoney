@@ -21,7 +21,7 @@ export function isTagOnly(s) {
   )
 }
 
-export default function IncomeCard({ income, upcomingIncome, shortfalls = [], goals = [], debts = [], transactions = [], onChanged }) {
+export default function IncomeCard({ income, upcomingIncome, shortfalls = [], goals = [], debts = [], transactions = [], onChanged, embedded = false }) {
   const [open, setOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [focusId, setFocusId] = useState(null)
@@ -31,7 +31,7 @@ export default function IncomeCard({ income, upcomingIncome, shortfalls = [], go
   const tagOnly = income.filter(isTagOnly)
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow">
+    <section className={embedded ? 'dw-flat' : 'rounded-2xl bg-white p-5 shadow'}>
       {shortfalls.length > 0 && (
         <div className="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 space-y-1">
           {shortfalls.map((s) => (

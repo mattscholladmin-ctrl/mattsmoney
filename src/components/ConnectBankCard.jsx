@@ -22,7 +22,7 @@ function accountTitle(name, mask) {
 
 const LS_TOKEN = 'plaid.link_token'
 
-export default function ConnectBankCard({ onChanged, accounts = [] }) {
+export default function ConnectBankCard({ onChanged, accounts = [], plain = false }) {
   const [linkToken, setLinkToken] = useState(null)
   const [items, setItems] = useState([])
   const [error, setError] = useState(null)
@@ -135,7 +135,7 @@ export default function ConnectBankCard({ onChanged, accounts = [] }) {
   }
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow space-y-3">
+    <section className={plain ? 'dw-flat' : 'rounded-2xl bg-white p-5 shadow space-y-3'}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <h2 className="font-semibold text-slate-800">Bank &amp; card connections</h2>
