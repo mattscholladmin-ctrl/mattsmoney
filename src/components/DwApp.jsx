@@ -1195,7 +1195,18 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             <p className="dw-sub">These feed your paycheck plan — the app sets aside enough from each check to cover them.</p>
           </div>
         </header>
-        <div className="dw-ins-2">
+        <div className="dw-bills-page">
+          <section className="dw-card dw-embed dw-bills-income">
+            <div className="dw-k" style={{ marginBottom: 8 }}>Income</div>
+            <p className="dw-mute" style={{ margin: '0 0 8px' }}>Add every steady paycheck. Extra pay still waits until you confirm it.</p>
+            <IncomeCard
+              income={data.income || []}
+              upcomingIncome={upcoming}
+              transactions={data.transactions || []}
+              onChanged={load}
+              embedded
+            />
+          </section>
           <section className="dw-card dw-embed">
             <div className="dw-k" style={{ marginBottom: 8 }}>Recurring bills</div>
             <RecurringBillsCard
@@ -1203,37 +1214,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               transactions={data.transactions || []}
               onChanged={load}
               embedded
+              board
             />
           </section>
-          <div className="dw-col-stack">
-            <section className="dw-card dw-embed">
-              <div className="dw-k" style={{ marginBottom: 8 }}>Income</div>
-              <p className="dw-mute" style={{ margin: '0 0 8px' }}>Add every steady paycheck. Extra pay still waits until you confirm it.</p>
-              <IncomeCard
-                income={data.income || []}
-                upcomingIncome={upcoming}
-                transactions={data.transactions || []}
-                onChanged={load}
-                embedded
-              />
-            </section>
-            <section className="dw-card">
-              <div className="dw-k">From this paycheck</div>
-              <p className="dw-mute" style={{ margin: '6px 0 0' }}>What the bills on the left take from the next check.</p>
-              {(pay.assignment?.lines || []).length === 0 && (
-                <p className="dw-mute">Nothing is set aside from the next check yet.</p>
-              )}
-              {(pay.assignment?.lines || []).map((line) => (
-                <div key={line.id} className="dw-bill-row">
-                  <div className="dw-bill-copy">
-                    <b>{line.name}</b>
-                    <span>{line.detail}</span>
-                  </div>
-                  <span className="dw-amt">{moneyFull(line.amount)}</span>
-                </div>
-              ))}
-            </section>
-          </div>
         </div>
       </div>
     )

@@ -13,7 +13,7 @@ const scheduleLabel = (b) =>
 // `embedded` drops the card chrome + duplicate heading when this is rendered
 // inside a modal (the Dashboard's bills tile opens it that way), so it doesn't
 // read as a card floating inside another card.
-export default function RecurringBillsCard({ bills = [], transactions = [], ppy = 26, onChanged, embedded = false }) {
+export default function RecurringBillsCard({ bills = [], transactions = [], ppy = 26, onChanged, embedded = false, board = false }) {
   const [showAdd, setShowAdd] = useState(false)
   const [addingKey, setAddingKey] = useState(null)
   const [dismissed, setDismissed] = useState(() => {
@@ -75,7 +75,7 @@ export default function RecurringBillsCard({ bills = [], transactions = [], ppy 
       {sorted.length === 0 ? (
         <p className="text-sm text-slate-400">No bills yet — tap + Add to track one.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className={board ? 'dw-bill-board' : 'divide-y divide-slate-100'}>
           {sorted.map((b) => (
             <BillRow key={b.id} bill={b} ppy={ppy} onChanged={onChanged} />
           ))}

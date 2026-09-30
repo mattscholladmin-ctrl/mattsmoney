@@ -491,3 +491,29 @@ html[data-dw='1'] .dw-bill-side > button.danger {
   color: #fca5a5 !important;
 }
 html[data-dw='1'] .dw-flat button:not(.bg-emerald-700):not(.text-emerald-700):not(.text-red-600) { color: #93c5fd !important; }
+
+.dw-bills-page { display: flex; flex-direction: column; gap: 16px; }
+.dw-bills-income ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.dw-bills-income li {
+  display: flex;
+  justify-content: flex-start !important;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--dw-line);
+  border-radius: 12px;
+  margin: 0;
+  padding: 12px 14px;
+}
+.dw-bills-income li .flex-1 { flex: 0 1 auto; }
+.dw-bill-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 36px;
+}
+@media (max-width: 900px) {
+  .dw-bills-income ul, .dw-bill-board { grid-template-columns: 1fr; }
+}
