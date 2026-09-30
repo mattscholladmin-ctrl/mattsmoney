@@ -616,16 +616,16 @@ html[data-compact] main .mb-4 { margin-bottom: 0.7rem; }
    larger screens scales text, spacing, and cards together in proportion —
    the readable-by-default version of hitting ctrl+. Phones stay at 16px. */
 @media (min-width: 1024px) {
-  html { font-size: 20px; }
-  html[data-fs='s'] { font-size: 17px; }
-  html[data-fs='l'] { font-size: 23px; }
-  html[data-fs='xl'] { font-size: 26px; }
+  html { font-size: 25px; }
+  html[data-fs='s'] { font-size: 21px; }
+  html[data-fs='l'] { font-size: 29px; }
+  html[data-fs='xl'] { font-size: 33px; }
 }
 @media (min-width: 1440px) {
-  html { font-size: 21px; }
-  html[data-fs='s'] { font-size: 18px; }
-  html[data-fs='l'] { font-size: 24px; }
-  html[data-fs='xl'] { font-size: 27px; }
+  html { font-size: 28px; }
+  html[data-fs='s'] { font-size: 24px; }
+  html[data-fs='l'] { font-size: 32px; }
+  html[data-fs='xl'] { font-size: 35px; }
 }
 
 /* ---- Free-position tile grid ---------------------------------------------
