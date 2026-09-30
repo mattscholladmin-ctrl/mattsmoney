@@ -99,7 +99,7 @@ export default function PaycheckHome({ pay, onGo }) {
       </section>
 
       {/* Set aside */}
-      <section className="ph-card">
+      <section className="ph-card ph-setaside">
         <div className="ph-card-head">
           <h2>Set aside from this paycheck</h2>
           <b className="ph-total">{money(pay.setAsideTotal)}</b>
@@ -156,7 +156,7 @@ export default function PaycheckHome({ pay, onGo }) {
       </section>
 
       {/* Paydays */}
-      <section className="ph-card">
+      <section className="ph-card ph-paydays">
         <div className="ph-card-head">
           <h2>Upcoming paydays</h2>
         </div>

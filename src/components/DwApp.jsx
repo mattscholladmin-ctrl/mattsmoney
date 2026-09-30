@@ -56,10 +56,24 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
 
   return (
     <div className="ph-page">
+      <header className="phd-topbar">
+        <div className="phd-brand">
+          Matt's <span>Money</span>
+        </div>
+        <nav className="phd-nav">
+          {nav.map((n) => (
+            <button key={n.id} className={page === n.id ? 'on' : ''} onClick={() => go(n.id)}>
+              <Icon d={n.icon} size={18} />
+              <span>{n.label}</span>
+            </button>
+          ))}
+        </nav>
+      </header>
+
       {page === 'home' && <PaycheckHome pay={pay} onGo={go} />}
 
       {page === 'bills' && (
-        <div className="ph">
+        <div className="ph-single">
           <section className="ph-card">
             <div className="ph-card-head">
               <h2>Bills</h2>
@@ -80,7 +94,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       {page === 'activity' && <Activity data={data} />}
 
       {page === 'settings' && (
-        <div className="ph">
+        <div className="ph-single">
           <section className="ph-card">
             <div className="ph-card-head"><h2>Income</h2></div>
             <IncomeCard
@@ -115,15 +129,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </section>
         </div>
       )}
-
-      <nav className="ph-nav">
-        {nav.map((n) => (
-          <button key={n.id} className={page === n.id ? 'on' : ''} onClick={() => go(n.id)}>
-            <Icon d={n.icon} />
-            <span>{n.label}</span>
-          </button>
-        ))}
-      </nav>
     </div>
   )
 }
@@ -135,7 +140,7 @@ function Activity({ data }) {
     return list.slice(0, 100)
   }, [data])
   return (
-    <div className="ph">
+    <div className="ph-single">
       <section className="ph-card">
         <div className="ph-card-head"><h2>Recent activity</h2></div>
         {tx.length === 0 ? (
