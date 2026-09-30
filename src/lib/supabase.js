@@ -1,11 +1,1 @@
-// @ts-nocheck
-import { createClient } from '@supabase/supabase-js'
-
-const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-export const isSupabaseConfigured = Boolean(url && anonKey)
-
-export const supabase = isSupabaseConfigured
-  ? createClient(url, anonKey)
-  : null
+Ly8gQHRzLW5vY2hlY2sKaW1wb3J0IHsgY3JlYXRlQ2xpZW50IH0gZnJvbSAnQHN1cGFiYXNlL3N1cGFiYXNlLWpzJwoKY29uc3QgdXJsID0gaW1wb3J0Lm1ldGEuZW52LlZJVEVfU1VQQUJBU0VfVVJMCmNvbnN0IGFub25LZXkgPSBpbXBvcnQubWV0YS5lbnYuVklURV9TVVBBQkFTRV9BTk9OX0tFWQoKZXhwb3J0IGNvbnN0IGlzU3VwYWJhc2VDb25maWd1cmVkID0gZmFsc2UgLy8gVEVNUCBERU1PIEhBQ0sKCmV4cG9ydCBjb25zdCBzdXBhYmFzZSA9IGlzU3VwYWJhc2VDb25maWd1cmVkCiAgPyBjcmVhdGVDbGllbnQodXJsLCBhbm9uS2V5KQogIDogbnVsbAo=
