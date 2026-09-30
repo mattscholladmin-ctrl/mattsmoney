@@ -327,7 +327,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     ].filter((s) => s.amount > 0.005)
     const segTotal = segs.reduce((t, s) => t + s.amount, 0) || 1
     return (
-      <div className="dw-home">
+      <div className="dw-home dw-home-dense">
         <div className="dw-hero dw-phone-only">
           <div className="dw-k" style={{ color: '#fff' }}>
             safe to spend
@@ -338,32 +338,37 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </button>
         </div>
 
-        <section className="dw-card">
-          <div className="dw-row-head">
-            <div className="dw-k">This paycheck</div>
-            {next && pay.daysLeft != null && (
-              <span className="dw-mute" style={{ whiteSpace: 'nowrap' }}>
-                {pay.daysLeft === 1 ? '1 day' : `${pay.daysLeft} days`} until payday
-              </span>
-            )}
+        <section className="dw-card dw-hero-wide dw-desk-only">
+          <div>
+            <div className="dw-row-head">
+              <div className="dw-k">This paycheck</div>
+              {next && pay.daysLeft != null && (
+                <span className="dw-mute" style={{ whiteSpace: 'nowrap' }}>
+                  {pay.daysLeft === 1 ? '1 day' : `${pay.daysLeft} days`} until payday
+                </span>
+              )}
+            </div>
+            <div className="dw-n">{moneyFull(pay.safeToSpend)}</div>
+            <p className="dw-mute" style={{ margin: '4px 0 0' }}>
+              Safe to spend
+              {next && pay.perDay != null && <> · about {moneyFull(pay.perDay)} a day</>}
+            </p>
           </div>
-          <div className="dw-n">{moneyFull(pay.safeToSpend)}</div>
-          <p className="dw-mute" style={{ margin: '4px 0 0' }}>
-            Safe to spend
-            {next && pay.perDay != null && <> · about {moneyFull(pay.perDay)} a day</>}
-          </p>
-          <div style={{ display: 'flex', height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--dw-track, #1e1e22)', marginTop: 16 }}>
-            {segs.map((s) => (
-              <div key={s.label} title={`${s.label}: ${moneyFull(s.amount)}`} style={{ width: `${(s.amount / segTotal) * 100}%`, background: s.color, minWidth: 2 }} />
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', marginTop: 12 }}>
-            {segs.map((s) => (
-              <span key={s.label} className="dw-mute" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                <span className="dw-dot" style={{ background: s.color }} />
-                {s.label} <b style={{ color: 'inherit' }}>{moneyFull(s.amount)}</b>
-              </span>
-            ))}
+          <div>
+            <div className="dw-k" style={{ marginBottom: 12 }}>Where this paycheck goes</div>
+            <div style={{ display: 'flex', height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--dw-track, #1e1e22)' }}>
+              {segs.map((s) => (
+                <div key={s.label} title={`${s.label}: ${moneyFull(s.amount)}`} style={{ width: `${(s.amount / segTotal) * 100}%`, background: s.color, minWidth: 2 }} />
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', marginTop: 12 }}>
+              {segs.map((s) => (
+                <span key={s.label} className="dw-mute" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                  <span className="dw-dot" style={{ background: s.color }} />
+                  {s.label} <b style={{ color: 'inherit' }}>{moneyFull(s.amount)}</b>
+                </span>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -416,53 +421,109 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </button>
         </section>
 
-        <aside className="dw-rail">
-          <section className="dw-card">
-            <div className="dw-row-head">
-              <div className="dw-k">Upcoming paydays</div>
-            </div>
-            {pay.paydays.length === 0 ? (
-              <p className="dw-mute">
-                No paydays on the calendar.{' '}
-                <button className="dw-link" onClick={() => setPage('profile')}>Add your income</button>
-              </p>
-            ) : (
-              <div className="dw-tx-list">
-                {pay.paydays.slice(0, 4).map((pd, i) => (
-                  <div key={`${pd.date}-${pd.name}-${i}`} className="dw-tx" style={{ cursor: 'default' }}>
-                    <span className="grow">
-                      <b>{pd.name}</b>
-                      <em>{shortDate(pd.date)}</em>
-                    </span>
-                    <b className="dw-mono">{moneyFull(pd.amount)}</b>
-                  </div>
-                ))}
+        <section className="dw-card">
+          <div className="dw-row-head">
+            <div className="dw-k">Spending this month</div>
+          </div>
+          {['needs', 'wants', 'savings'].map((p) => {
+            const total = product.byPurpose?.[p] || 0
+            const max = Math.max(product.byPurpose?.needs || 0, product.byPurpose?.wants || 0, product.byPurpose?.savings || 0, 1)
+            const color = p === 'needs' ? 'var(--dw-info, #5aa9ff)' : p === 'wants' ? 'var(--dw-warn, #f5a524)' : 'var(--dw-ok, #22c55e)'
+            return (
+              <div key={p} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                  <span className="dw-body" style={{ textTransform: 'capitalize' }}>{p}</span>
+                  <b className="dw-mono">{moneyFull(total)}</b>
+                </div>
+                <div style={{ height: 8, borderRadius: 999, background: 'var(--dw-track, #1e1e22)', overflow: 'hidden' }}>
+                  <div style={{ width: `${(total / max) * 100}%`, height: '100%', background: color, borderRadius: 999 }} />
+                </div>
               </div>
-            )}
-          </section>
-          <section className="dw-card">
-            <div className="dw-row-head">
-              <div className="dw-k">Recent transactions</div>
-              <button className="dw-link dw-spread" onClick={() => setPage('activity')}>
-                View All
-              </button>
+            )
+          })}
+          <button className="dw-link" onClick={() => setPage('activity')} style={{ marginTop: 4 }}>
+            See all activity →
+          </button>
+        </section>
+
+        <section className="dw-card">
+          <div className="dw-row-head">
+            <div className="dw-k">Accounts</div>
+          </div>
+          <div className="dw-tx-list">
+            <div className="dw-tx" style={{ cursor: 'default' }}>
+              <span className="grow">
+                <b>Checking</b>
+                <em>available cash</em>
+              </span>
+              <b className="dw-mono">{moneyFull(product.checkingTotal || 0)}</b>
             </div>
+            <div className="dw-tx" style={{ cursor: 'default' }}>
+              <span className="grow">
+                <b>Savings</b>
+                <em>reserved</em>
+              </span>
+              <b className="dw-mono">{moneyFull(product.savingsTotal || 0)}</b>
+            </div>
+            <div className="dw-tx" style={{ cursor: 'default' }}>
+              <span className="grow">
+                <b>Credit owed</b>
+                <em>across cards</em>
+              </span>
+              <b className="dw-mono">{moneyFull(product.creditOwed || 0)}</b>
+            </div>
+          </div>
+          <button className="dw-link" onClick={() => setPage('profile')} style={{ marginTop: 8 }}>
+            Manage accounts →
+          </button>
+        </section>
+
+        <section className="dw-card">
+          <div className="dw-row-head">
+            <div className="dw-k">Upcoming paydays</div>
+          </div>
+          {pay.paydays.length === 0 ? (
+            <p className="dw-mute">
+              No paydays on the calendar.{' '}
+              <button className="dw-link" onClick={() => setPage('profile')}>Add your income</button>
+            </p>
+          ) : (
             <div className="dw-tx-list">
-              {product.monthTx.slice(0, 6).map((t) => (
-                <button key={t.id} className="dw-tx" onClick={() => setSheet(t)}>
-                  <span className="dw-mark sm">{(t.merchant || '?')[0]}</span>
+              {pay.paydays.slice(0, 4).map((pd, i) => (
+                <div key={`${pd.date}-${pd.name}-${i}`} className="dw-tx" style={{ cursor: 'default' }}>
                   <span className="grow">
-                    <b>{t.merchant || '—'}</b>
-                    <em>
-                      {t.category} · {t.txn_date?.slice(5)}
-                    </em>
+                    <b>{pd.name}</b>
+                    <em>{shortDate(pd.date)}</em>
                   </span>
-                  <b className="dw-mono">{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
-                </button>
+                  <b className="dw-mono">{moneyFull(pd.amount)}</b>
+                </div>
               ))}
             </div>
-          </section>
-        </aside>
+          )}
+        </section>
+
+        <section className="dw-card dw-span-2">
+          <div className="dw-row-head">
+            <div className="dw-k">Recent transactions</div>
+            <button className="dw-link dw-spread" onClick={() => setPage('activity')}>
+              View All
+            </button>
+          </div>
+          <div className="dw-tx-list">
+            {product.monthTx.slice(0, 6).map((t) => (
+              <button key={t.id} className="dw-tx" onClick={() => setSheet(t)}>
+                <span className="dw-mark sm">{(t.merchant || '?')[0]}</span>
+                <span className="grow">
+                  <b>{t.merchant || '—'}</b>
+                  <em>
+                    {t.category} · {t.txn_date?.slice(5)}
+                  </em>
+                </span>
+                <b className="dw-mono">{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
     )
   }
