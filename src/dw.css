@@ -96,12 +96,10 @@ html[data-dw='1'] .dw-app {
 .dw-home { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; max-width: 1360px; margin: 0 auto; align-items: start; }
 .dw-rail { display: grid; gap: 20px; align-content: start; }
 .dw-activity, .dw-profile { max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-.dw-home-dense { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.dw-hero-wide { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 40px; align-items: center; }
+.dw-home-dense { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1600px; }
 .dw-span-2 { grid-column: span 2; }
 @media (max-width: 1023px) {
-  .dw-home-dense { grid-template-columns: 1fr; }
-  .dw-hero-wide { grid-template-columns: 1fr; gap: 20px; }
+  .dw-home-dense { grid-template-columns: 1fr; max-width: 1360px; }
   .dw-span-2 { grid-column: auto; }
 }
 .dw-hero {

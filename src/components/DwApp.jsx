@@ -338,37 +338,36 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </button>
         </div>
 
-        <section className="dw-card dw-hero-wide dw-desk-only">
-          <div>
-            <div className="dw-row-head">
-              <div className="dw-k">This paycheck</div>
-              {next && pay.daysLeft != null && (
-                <span className="dw-mute" style={{ whiteSpace: 'nowrap' }}>
-                  {pay.daysLeft === 1 ? '1 day' : `${pay.daysLeft} days`} until payday
-                </span>
-              )}
-            </div>
-            <div className="dw-n">{moneyFull(pay.safeToSpend)}</div>
-            <p className="dw-mute" style={{ margin: '4px 0 0' }}>
-              Safe to spend
-              {next && pay.perDay != null && <> · about {moneyFull(pay.perDay)} a day</>}
-            </p>
+        <section className="dw-card dw-desk-only">
+          <div className="dw-row-head">
+            <div className="dw-k">This paycheck</div>
+            {next && pay.daysLeft != null && (
+              <span className="dw-mute" style={{ whiteSpace: 'nowrap' }}>
+                {pay.daysLeft === 1 ? '1 day' : `${pay.daysLeft} days`} left
+              </span>
+            )}
           </div>
-          <div>
-            <div className="dw-k" style={{ marginBottom: 12 }}>Where this paycheck goes</div>
-            <div style={{ display: 'flex', height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--dw-track, #1e1e22)' }}>
-              {segs.map((s) => (
-                <div key={s.label} title={`${s.label}: ${moneyFull(s.amount)}`} style={{ width: `${(s.amount / segTotal) * 100}%`, background: s.color, minWidth: 2 }} />
-              ))}
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', marginTop: 12 }}>
-              {segs.map((s) => (
-                <span key={s.label} className="dw-mute" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                  <span className="dw-dot" style={{ background: s.color }} />
-                  {s.label} <b style={{ color: 'inherit' }}>{moneyFull(s.amount)}</b>
-                </span>
-              ))}
-            </div>
+          <div className="dw-n">{moneyFull(pay.safeToSpend)}</div>
+          <p className="dw-mute" style={{ margin: '4px 0 0' }}>
+            Safe to spend
+            {next && pay.perDay != null && <> · about {moneyFull(pay.perDay)} a day</>}
+          </p>
+        </section>
+
+        <section className="dw-card dw-desk-only">
+          <div className="dw-k" style={{ marginBottom: 12 }}>Where this paycheck goes</div>
+          <div style={{ display: 'flex', height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--dw-track, #1e1e22)' }}>
+            {segs.map((s) => (
+              <div key={s.label} title={`${s.label}: ${moneyFull(s.amount)}`} style={{ width: `${(s.amount / segTotal) * 100}%`, background: s.color, minWidth: 2 }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            {segs.map((s) => (
+              <span key={s.label} className="dw-mute" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <span className="dw-dot" style={{ background: s.color }} />
+                {s.label} <b style={{ color: 'inherit', marginLeft: 'auto' }}>{moneyFull(s.amount)}</b>
+              </span>
+            ))}
           </div>
         </section>
 
