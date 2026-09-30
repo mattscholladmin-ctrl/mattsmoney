@@ -56,15 +56,20 @@ function applyTheme(mode) {
 }
 
 export default function DwApp({ data, setData, load, session, demo, syncing }) {
-  const [state, setState] = useState(() => ({
-    plan: PLAN_DEFAULT,
-    theme: 'dark',
-    estFreq: 'two-weeks',
-    meta: {},
-    budgets: {},
-    dismissed: [],
-    ...loadDwState(),
-  }))
+  const [state, setState] = useState(() => {
+    const saved = loadDwState()
+    // Migrate old 'system' theme to dark (the intended default)
+    if (!saved.theme || saved.theme === 'system') saved.theme = 'dark'
+    return {
+      plan: PLAN_DEFAULT,
+      theme: 'dark',
+      estFreq: 'two-weeks',
+      meta: {},
+      budgets: {},
+      dismissed: [],
+      ...saved,
+    }
+  })
   const [page, setPage] = useState(() => {
     try {
       return localStorage.getItem('mm.dw.page') || 'home'
@@ -338,6 +343,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </button>
         </div>
 
+        <div className="dw-col">
         <section className="dw-card dw-desk-only">
           <div className="dw-row-head">
             <div className="dw-k">This paycheck</div>
@@ -354,48 +360,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </p>
         </section>
 
-        <section className="dw-card dw-desk-only">
-          <div className="dw-k" style={{ marginBottom: 12 }}>Where this paycheck goes</div>
-          <div style={{ display: 'flex', height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--dw-track, #1e1e22)' }}>
-            {segs.map((s) => (
-              <div key={s.label} title={`${s.label}: ${moneyFull(s.amount)}`} style={{ width: `${(s.amount / segTotal) * 100}%`, background: s.color, minWidth: 2 }} />
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-            {segs.map((s) => (
-              <span key={s.label} className="dw-mute" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                <span className="dw-dot" style={{ background: s.color }} />
-                {s.label} <b style={{ color: 'inherit', marginLeft: 'auto' }}>{moneyFull(s.amount)}</b>
-              </span>
-            ))}
-          </div>
-        </section>
-
-        <section className="dw-card">
-          <div className="dw-row-head">
-            <div className="dw-k">Upcoming paydays</div>
-          </div>
-          {pay.paydays.length === 0 ? (
-            <p className="dw-mute">
-              No paydays on the calendar.{' '}
-              <button className="dw-link" onClick={() => setPage('profile')}>Add your income</button>
-            </p>
-          ) : (
-            <div className="dw-tx-list">
-              {pay.paydays.slice(0, 4).map((pd, i) => (
-                <div key={`${pd.date}-${pd.name}-${i}`} className="dw-tx" style={{ cursor: 'default' }}>
-                  <span className="grow">
-                    <b>{pd.name}</b>
-                    <em>{shortDate(pd.date)}</em>
-                  </span>
-                  <b className="dw-mono">{moneyFull(pd.amount)}</b>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="dw-card dw-span-2">
         <section className="dw-card">
           <div className="dw-row-head">
             <div className="dw-k">Set aside from this paycheck</div>
@@ -444,6 +408,25 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             Manage bills →
           </button>
         </section>
+        </div>
+
+        <div className="dw-col">
+        <section className="dw-card dw-desk-only">
+          <div className="dw-k" style={{ marginBottom: 12 }}>Where this paycheck goes</div>
+          <div style={{ display: 'flex', height: 12, borderRadius: 999, overflow: 'hidden', background: 'var(--dw-track, #1e1e22)' }}>
+            {segs.map((s) => (
+              <div key={s.label} title={`${s.label}: ${moneyFull(s.amount)}`} style={{ width: `${(s.amount / segTotal) * 100}%`, background: s.color, minWidth: 2 }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            {segs.map((s) => (
+              <span key={s.label} className="dw-mute" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <span className="dw-dot" style={{ background: s.color }} />
+                {s.label} <b style={{ color: 'inherit', marginLeft: 'auto' }}>{moneyFull(s.amount)}</b>
+              </span>
+            ))}
+          </div>
+        </section>
 
         <section className="dw-card">
           <div className="dw-row-head">
@@ -472,6 +455,52 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           <button className="dw-link" onClick={() => setPage('activity')} style={{ marginTop: 4 }}>
             See all activity →
           </button>
+        </section>
+
+        <section className="dw-card">
+          <div className="dw-row-head">
+            <div className="dw-k">Recent transactions</div>
+            <button className="dw-link dw-spread" onClick={() => setPage('activity')}>
+              View All
+            </button>
+          </div>
+          <div className="dw-tx-list dw-tx-grid">
+            {product.monthTx.slice(0, 6).map((t) => (
+              <button key={t.id} className="dw-tx" onClick={() => setSheet(t)}>
+                <span className="dw-mark sm">{(t.merchant || '?')[0]}</span>
+                <b>{t.merchant || '—'}</b>
+                <span className="dw-mute">{t.category}</span>
+                <span className="dw-mute">{t.txn_date?.slice(5)}</span>
+                <b className="dw-mono" style={{ textAlign: 'right' }}>{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
+              </button>
+            ))}
+          </div>
+        </section>
+        </div>
+
+        <div className="dw-col">
+        <section className="dw-card">
+          <div className="dw-row-head">
+            <div className="dw-k">Upcoming paydays</div>
+          </div>
+          {pay.paydays.length === 0 ? (
+            <p className="dw-mute">
+              No paydays on the calendar.{' '}
+              <button className="dw-link" onClick={() => setPage('profile')}>Add your income</button>
+            </p>
+          ) : (
+            <div className="dw-tx-list">
+              {pay.paydays.slice(0, 4).map((pd, i) => (
+                <div key={`${pd.date}-${pd.name}-${i}`} className="dw-tx" style={{ cursor: 'default' }}>
+                  <span className="grow">
+                    <b>{pd.name}</b>
+                    <em>{shortDate(pd.date)}</em>
+                  </span>
+                  <b className="dw-mono">{moneyFull(pd.amount)}</b>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="dw-card">
@@ -505,25 +534,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             Manage accounts →
           </button>
         </section>
-
-          <div className="dw-row-head">
-            <div className="dw-k">Recent transactions</div>
-            <button className="dw-link dw-spread" onClick={() => setPage('activity')}>
-              View All
-            </button>
-          </div>
-          <div className="dw-tx-list dw-tx-grid">
-            {product.monthTx.slice(0, 6).map((t) => (
-              <button key={t.id} className="dw-tx" onClick={() => setSheet(t)}>
-                <span className="dw-mark sm">{(t.merchant || '?')[0]}</span>
-                <b>{t.merchant || '—'}</b>
-                <span className="dw-mute">{t.category}</span>
-                <span className="dw-mute">{t.txn_date?.slice(5)}</span>
-                <b className="dw-mono" style={{ textAlign: 'right' }}>{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
-              </button>
-            ))}
-          </div>
-        </section>
+        </div>
       </div>
     )
   }

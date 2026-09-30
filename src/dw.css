@@ -97,7 +97,8 @@ html[data-dw='1'] .dw-app {
 .dw-rail { display: grid; gap: 20px; align-content: start; }
 .dw-tx-grid .dw-tx { display: grid; grid-template-columns: auto minmax(0, 2fr) minmax(0, 1fr) auto auto; gap: 12px; align-items: center; }
 .dw-activity, .dw-profile { max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-.dw-home-dense { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1600px; }
+.dw-home-dense { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1600px; align-items: start; }
+.dw-home-dense .dw-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .dw-span-2 { grid-column: span 2; }
 @media (max-width: 1023px) {
   .dw-home-dense { grid-template-columns: 1fr; max-width: 1360px; }
