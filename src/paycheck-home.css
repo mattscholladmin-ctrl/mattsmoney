@@ -124,12 +124,13 @@
   gap: 12px;
   margin-bottom: 4px;
 }
-.ph-card-head h2 {
+.ph .ph-card-head h2 {
   font-size: 17px;
   font-weight: 700;
   margin: 0;
   letter-spacing: -0.01em;
   color: #1a1d21;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
 }
 .ph-total {
   font-size: 20px;
