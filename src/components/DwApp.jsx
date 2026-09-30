@@ -68,12 +68,12 @@ function monthlyHistory(txns) {
         const td = String(t.txn_date || '')
         if (!td.startsWith(key)) return false
         if (t.hidden) return false
+        if (!isExpense(t)) return false
         const cat = String(t.category || '')
         if (cat === 'Transfers' || cat === 'Income') return false
-        const amt = Number(t.amount || 0)
-        return amt < 0
+        return true
       })
-      .reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0)
+      .reduce((s, t) => s + spendAmount(t), 0)
     out.push({ key, label: d.toLocaleString('en-US', { month: 'short' }), total })
   }
   return out
@@ -85,12 +85,11 @@ function topMerchants(txns, month, n = 5) {
     const td = String(t.txn_date || '')
     if (!td.startsWith(month)) continue
     if (t.hidden) continue
-    const amt = Number(t.amount || 0)
-    if (amt >= 0) continue
+    if (!isExpense(t)) continue
     const cat = String(t.category || '')
     if (cat === 'Transfers' || cat === 'Income') continue
     const name = t.merchant || 'Unknown'
-    map[name] = (map[name] || 0) + Math.abs(amt)
+    map[name] = (map[name] || 0) + spendAmount(t)
   }
   return Object.entries(map)
     .sort((a, b) => b[1] - a[1])
@@ -109,13 +108,12 @@ function paycheckWindowSpend(txns, pay) {
       if (!td || td >= end) return false
       if (start && td < start) return false
       if (t.hidden) return false
-      const amt = Number(t.amount || 0)
-      if (amt >= 0) return false
+      if (!isExpense(t)) return false
       const cat = String(t.category || '')
       if (cat === 'Transfers' || cat === 'Income') return false
       return true
     })
-    .reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0)
+    .reduce((s, t) => s + spendAmount(t), 0)
 }
 
 export default function DwApp({ data, setData, load, session, demo, syncing }) {
@@ -246,7 +244,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           <div className="dw-mark">{(t.merchant || '?')[0]}</div>
           <h2>
             {t.merchant || 'Transaction'}{' '}
-            <span className="dw-mono">{t.pending ? '' : '-'}{moneyFull(Math.abs(Number(t.amount || 0)))}</span>
+            <span className="dw-mono">{t.pending ? '' : isExpense(t) ? '−' : '+'}{moneyFull(Math.abs(Number(t.amount || 0)))}</span>
           </h2>
           <p className="dw-mute">{t.txn_date}</p>
           {t.pending && <span className="dw-chip">PENDING</span>}
@@ -493,7 +491,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               <div className="dw-tx-list" style={{ marginTop: 6 }}>
                 {product.monthTx.slice(0, 5).map((t) => {
                   const amt = Number(t.amount || 0)
-                  const isPos = amt > 0
+                  const expense = isExpense(t)
                   return (
                     <button key={t.id} className="dw-tx" onClick={() => setSheet(t)}>
                       <span className="dw-mark">{(t.merchant || '?')[0]}</span>
@@ -501,8 +499,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                         <b>{t.merchant || '—'}</b>
                         <em>{t.txn_date?.slice(5)}</em>
                       </span>
-                      <span className={`dw-amt${isPos ? ' pos' : ''}`}>
-                        {isPos ? '+' : '-'}{moneyFull(Math.abs(amt)).replace('$', '$')}
+                      <span className={`dw-amt${expense ? '' : ' pos'}`}>
+                        {expense ? '−' : '+'}{moneyFull(Math.abs(amt))}
                       </span>
                     </button>
                   )
@@ -698,13 +696,13 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
 
     function Tile({ t }) {
       const amt = Number(t.amount || 0)
-      const isPos = amt > 0
+      const expense = isExpense(t)
       const pm = PURPOSE_META[t.purpose]
       return (
         <button className="dw-tile" onClick={() => setSheet(t)}>
           <div className="dw-tile-top">
             <span className="dw-mark" style={{ width: 30, height: 30, fontSize: 13 }}>{(t.merchant || '?')[0]}</span>
-            <span className={`dw-tile-amt${isPos ? ' pos' : ''}`}>{isPos ? '+' : '−'}{moneyFull(Math.abs(amt))}</span>
+            <span className={`dw-tile-amt${expense ? '' : ' pos'}`}>{expense ? '−' : '+'}{moneyFull(Math.abs(amt))}</span>
           </div>
           <div className="dw-tile-name">{t.merchant || '—'}</div>
           <div className="dw-tile-meta">
@@ -743,7 +741,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
         </div>
         {sortedWeeks.map((wk, wi) => {
           const items = groups[wk]
-          const total = items.reduce((s, t) => s + (Number(t.amount || 0) < 0 ? Math.abs(Number(t.amount)) : 0), 0)
+          const total = items.reduce((s, t) => s + (isExpense(t) ? spendAmount(t) : 0), 0)
           return (
             <div key={wk}>
               <div className="dw-week-h">
