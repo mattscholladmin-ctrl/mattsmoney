@@ -456,26 +456,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             See all activity →
           </button>
         </section>
-
-        <section className="dw-card">
-          <div className="dw-row-head">
-            <div className="dw-k">Recent transactions</div>
-            <button className="dw-link dw-spread" onClick={() => setPage('activity')}>
-              View All
-            </button>
-          </div>
-          <div className="dw-tx-list dw-tx-grid">
-            {product.monthTx.slice(0, 6).map((t) => (
-              <button key={t.id} className="dw-tx" onClick={() => setSheet(t)}>
-                <span className="dw-mark sm">{(t.merchant || '?')[0]}</span>
-                <b>{t.merchant || '—'}</b>
-                <span className="dw-mute">{t.category}</span>
-                <span className="dw-mute">{t.txn_date?.slice(5)}</span>
-                <b className="dw-mono" style={{ textAlign: 'right' }}>{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
-              </button>
-            ))}
-          </div>
-        </section>
         </div>
 
         <div className="dw-col">
@@ -535,6 +515,26 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </button>
         </section>
         </div>
+
+        <section className="dw-card dw-span-all">
+          <div className="dw-row-head">
+            <div className="dw-k">Recent transactions</div>
+            <button className="dw-link dw-spread" onClick={() => setPage('activity')}>
+              View All
+            </button>
+          </div>
+          <div className="dw-tx-list dw-tx-grid dw-tx-2col">
+            {product.monthTx.slice(0, 8).map((t) => (
+              <button key={t.id} className="dw-tx" onClick={() => setSheet(t)}>
+                <span className="dw-mark sm">{(t.merchant || '?')[0]}</span>
+                <b>{t.merchant || '—'}</b>
+                <span className="dw-mute">{t.category}</span>
+                <span className="dw-mute">{t.txn_date?.slice(5)}</span>
+                <b className="dw-mono" style={{ textAlign: 'right' }}>{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
     )
   }
