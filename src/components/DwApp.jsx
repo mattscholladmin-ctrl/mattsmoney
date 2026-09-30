@@ -375,7 +375,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           </div>
           {dueNow.length > 0 && (
             <>
-              <p className="dw-mute" style={{ margin: '0 0 4px', fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              <p className="dw-k" style={{ margin: '0 0 4px' }}>
                 Due before payday — hold the full amount
               </p>
               <div className="dw-tx-list">
@@ -393,7 +393,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           )}
           {shares.length > 0 && (
             <>
-              <p className="dw-mute" style={{ margin: '12px 0 4px', fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              <p className="dw-k" style={{ margin: '12px 0 4px' }}>
                 Due later — this paycheck's share
               </p>
               <div className="dw-tx-list">
@@ -490,12 +490,19 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             </button>
           ))}
         </div>
-        <div className="dw-grid-tx">
+        <div className="dw-tx-list">
           {list.slice(0, 80).map((t) => (
-            <button key={t.id} className={`dw-tile ${t.purpose} ${t.pending ? 'pending' : ''}`} onClick={() => setSheet(t)}>
-              <b>{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
-              <span>{t.merchant || '—'}</span>
-              <em>{t.txn_date?.slice(5)}</em>
+            <button key={t.id} className="dw-tx" onClick={() => setSheet(t)}>
+              <span className="dw-mark sm">{(t.merchant || '?')[0]}</span>
+              <span className="grow">
+                <b>{t.merchant || '—'}</b>
+                <em>
+                  {t.txn_date?.slice(5)}
+                  {t.purpose && t.purpose !== 'all' && <> · <span className={`dw-chip ${t.purpose}`}>{t.purpose}</span></>}
+                  {t.pending && ' · pending'}
+                </em>
+              </span>
+              <b className="dw-mono">{moneyFull(Math.abs(Number(t.amount || 0)))}</b>
             </button>
           ))}
         </div>

@@ -53,7 +53,7 @@ html[data-dw='1'] .dw-app {
   border: 0; border-radius: 10px; min-height: 44px; font-weight: 700; cursor: pointer;
 }
 .dw-badge { background: var(--dw-danger); color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 6px; min-width: 18px; text-align: center; }
-.dw-chip { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--dw-mute-fill); }
+.dw-chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--dw-mute-fill); }
 .dw-chip.needs { background: #c8e4fd; color: #164c7f; }
 .dw-chip.wants { background: #eef6b2; color: #756b11; }
 .dw-chip.savings { background: #8ef5ac; color: #0d5222; }
@@ -81,8 +81,8 @@ html[data-dw='1'] .dw-app {
 .dw-collapse { width: 44px; height: 44px; border: 0; background: transparent; cursor: pointer; color: inherit; }
 .dw-sts { background: var(--dw-card); border-radius: 12px; padding: 12px; border: 1px solid var(--dw-line); }
 .dw-sts-amt { display: flex; align-items: baseline; font-weight: 900; font-family: var(--dw-mono); }
-.dw-dol, .dw-dol-c { font-size: 18px; line-height: 35px; }
-.dw-dol-n { font-size: 32px; line-height: 1.2; font-weight: 800; font-family: var(--dw-mono); font-variant-numeric: tabular-nums; }
+.dw-dol, .dw-dol-c { font-size: 20px; }
+.dw-dol-n { font-size: 32px; line-height: 1; font-weight: 800; font-family: var(--dw-mono); font-variant-numeric: tabular-nums; }
 .dw-sts-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
 .dw-i { width: 22px; height: 22px; border-radius: 99px; border: 1px solid var(--dw-line); background: var(--dw-card); cursor: pointer; }
 .dw-pop { margin-top: 8px; background: var(--dw-card); border-radius: 8px; padding: 12px; font-size: 13px; line-height: 18px; border: 1px solid var(--dw-line); }
@@ -93,8 +93,9 @@ html[data-dw='1'] .dw-app {
 .dw-acct { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; }
 .dw-acct.sub { font-size: 13px; color: var(--dw-mute); padding-left: 8px; }
 
-.dw-home { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; max-width: 1360px; }
+.dw-home { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; max-width: 1360px; margin: 0 auto; }
 .dw-rail { display: grid; gap: 20px; grid-row: span 2; align-content: start; }
+.dw-activity, .dw-profile { max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 @media (max-width: 1023px) { .dw-home { grid-template-columns: 1fr; } .dw-rail { grid-row: auto; } }
 .dw-hero {
   margin: 0 -16px; padding: 28px 16px 36px; text-align: center;
