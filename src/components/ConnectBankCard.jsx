@@ -11,6 +11,15 @@ import {
 import { shortDate, money } from '../lib/format'
 import AccountOrderCard from './AccountOrderCard'
 
+function accountTitle(name, mask) {
+  let n = String(name || 'Account').replace(/\s+/g, ' ').trim()
+  n = n.replace(/\b(\S+)(?:\s+\1\b)+/gi, '$1')
+  n = n.replace(/\bdepository\b/gi, '').replace(/\s+/g, ' ').trim()
+  const m = String(mask || '').trim()
+  if (m && n.includes(m)) n = n.replaceAll(m, '').replace(/\s+/g, ' ').trim()
+  return m ? `${n} ··${m}` : n
+}
+
 const LS_TOKEN = 'plaid.link_token'
 
 export default function ConnectBankCard({ onChanged, accounts = [] }) {
@@ -167,16 +176,11 @@ export default function ConnectBankCard({ onChanged, accounts = [] }) {
             {it.accounts.map((a, i) => (
               <li key={i} className="text-sm text-slate-600">
                 <div className="flex justify-between">
-                  <span>
-                    {a.name}
-                    {a.mask ? ` ····${a.mask}` : ''}
-                  </span>
-                  <span className="text-slate-400">{a.subtype || a.type}</span>
+                  <span>{accountTitle(a.name, a.mask)}</span>
+                  <span>{a.available != null ? money(a.available) : 'Available missing'}</span>
                 </div>
                 <div className="text-xs text-slate-400">
-                  current {a.current != null ? money(a.current) : '—'} · available{' '}
-                  {a.available != null ? money(a.available) : '—'} · pending{' '}
-                  {a.pending ? money(a.pending) : '—'}
+                  {a.available == null ? 'Available was not sent. Not guessing.' : a.subtype || a.type}
                 </div>
               </li>
             ))}

@@ -144,9 +144,9 @@ function inMonth(t, ym) {
 
 export function isExpense(t) {
   const amt = Number(t.amount || 0)
-  if (amt > 0 && Number(t.amount) && t.direction === 'in') return false
-  const cat = String(t.category || t.income_source || '')
-  if (/income|payroll|deposit|transfer in/i.test(cat + ' ' + (t.merchant || ''))) return amt < 0 ? true : false
+  if (t.direction === 'in' || t.income_source) return false
+  const blob = `${t.category || ''} ${t.merchant || ''}`
+  if (/income|payroll|deposit|transfer in/i.test(blob)) return false
   return amt > 0
 }
 

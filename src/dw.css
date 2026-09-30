@@ -152,7 +152,19 @@ html[data-dw='1'] .dw-app {
 .dw-plan-nums .dw-vs { color: var(--dw-faint); font-size: 14px; }
 .dw-stackbar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--dw-mute-fill); }
 .dw-stackbar > div { min-width: 3px; transition: width 0.3s; }
+.dw-spend-circle { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 22px; align-items: center; margin-top: 16px; }
+.dw-donut { width: 156px; height: 156px; border-radius: 50%; display: grid; place-items: center; }
+.dw-donut-hole {
+  width: 104px; height: 104px; border-radius: 50%; background: var(--dw-card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+}
+.dw-donut-hole b { font-family: var(--dw-mono); font-size: 16px; letter-spacing: -0.03em; }
+.dw-donut-hole span { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dw-mute); font-weight: 700; }
+@media (max-width: 700px) {
+  .dw-spend-circle { grid-template-columns: 1fr; justify-items: center; }
+}
 .dw-legend { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.dw-spend-circle .dw-legend { margin-top: 0; gap: 14px; width: 100%; }
 .dw-legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dw-mute); }
 .dw-legend-row b { margin-left: auto; color: var(--dw-text); font-family: var(--dw-mono); font-size: 13px; }
 
@@ -193,14 +205,18 @@ html[data-dw='1'] .dw-app {
 @media (max-width: 1100px) { .dw-ins-grid { grid-template-columns: 1fr; } }
 .dw-ins-grid .dw-span2 { grid-column: span 2; }
 @media (max-width: 1100px) { .dw-ins-grid .dw-span2 { grid-column: auto; } }
-.dw-monthchart { display: flex; align-items: flex-end; gap: 10px; height: 190px; margin-top: 16px; padding-top: 8px; }
-.dw-monthbar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+.dw-monthchart { display: flex; align-items: flex-end; gap: 10px; height: 190px; margin-top: 8px; padding-top: 22px; }
+.dw-chart-box { display: grid; grid-template-columns: 52px 1fr; gap: 8px; align-items: stretch; }
+.dw-yaxis { display: flex; flex-direction: column; justify-content: space-between; height: 190px; margin-top: 16px; font-size: 11px; color: var(--dw-faint); font-family: var(--dw-mono); }
 .dw-monthbar {
   width: 100%; max-width: 56px; border-radius: 7px 7px 3px 3px;
-  background: var(--dw-green-tint); border: 1px solid rgba(34, 197, 94, 0.25); border-bottom: 0;
-  min-height: 4px; position: relative; cursor: default;
+  background: #22c55e; min-height: 0; position: relative;
 }
-.dw-monthbar.sel { background: var(--dw-blue-tint); border-color: rgba(59, 130, 246, 0.4); }
+.dw-monthbar .dw-barval {
+  position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-family: var(--dw-mono); color: var(--dw-mute); white-space: nowrap;
+}
+.dw-monthbar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
 .dw-monthbar .dw-tip {
   position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
   background: var(--dw-card-2); border: 1px solid var(--dw-line); border-radius: 8px;
@@ -249,16 +265,16 @@ html[data-dw='1'] .dw-app {
 .dw-tile .dw-chip { font-size: 10px; padding: 2px 8px; }
 
 /* ============ Review ============ */
-.dw-review-wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-.dw-review-stack { position: relative; min-height: 300px; }
+.dw-review-wrap { max-width: 720px; margin: 8px auto 0; display: flex; flex-direction: column; gap: 20px; }
+.dw-review-stack { position: relative; min-height: 380px; }
 .dw-review-card {
   background: var(--dw-card); border: 1px solid var(--dw-line); border-radius: 18px;
-  padding: 32px 28px; text-align: center; position: relative;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  padding: 48px 36px 40px; text-align: center; position: relative;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); min-height: 320px;
 }
-.dw-review-card .dw-mark { width: 52px; height: 52px; font-size: 20px; border-radius: 14px; margin: 0 auto 12px; }
-.dw-review-merchant { font-size: 18px; font-weight: 700; }
-.dw-review-amt { font-size: 40px; font-weight: 800; font-family: var(--dw-mono); letter-spacing: -0.02em; margin: 8px 0 12px; }
+.dw-review-card .dw-mark { width: 64px; height: 64px; font-size: 24px; border-radius: 16px; margin: 0 auto 16px; }
+.dw-review-merchant { font-size: 22px; font-weight: 700; }
+.dw-review-amt { font-size: 56px; font-weight: 800; font-family: var(--dw-mono); letter-spacing: -0.02em; margin: 12px 0 16px; }
 .dw-review-date { color: var(--dw-mute); font-size: 13px; }
 .dw-review-behind {
   position: absolute; inset: 0; background: var(--dw-card-2); border: 1px solid var(--dw-line);
@@ -341,4 +357,29 @@ html[data-dw='1'] .mm-app, html[data-dw='1'] header.mm-chrome, html[data-dw='1']
   background: rgba(239, 68, 68, 0.14); color: #ff8a8a; white-space: nowrap;
 }
 .dw-due-pill.soon { background: var(--dw-yellow-tint); color: #f5d020; }
-.dw-due-pill.later { background: var(--dw-mute-fill); color: var(--dw-mute); }
+.dw-page-h .dw-progress { margin: 6px 0 0; font-size: 13px; color: var(--dw-text); font-family: var(--dw-mono); }
+.dw-insight-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .dw-insight-row { grid-template-columns: 1fr; } }
+.dw-insight-card { min-height: 0; }
+.dw-split { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dw-plan-sec {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 16px 0 6px; font-size: 12px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--dw-text);
+}
+.dw-plan-sec b { font-family: var(--dw-mono); font-size: 13px; letter-spacing: 0; }
+.dw-plan-toggle { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--dw-line); }
+.dw-plan-toggle:last-child { border-bottom: 0; }
+.dw-plan-toggle .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dw-plan-toggle b { font-size: 13.5px; }
+.dw-plan-toggle em { color: var(--dw-mute); font-style: normal; font-size: 12px; }
+.dw-switch {
+  width: 42px; height: 26px; border-radius: 99px; border: 0; background: #3f3f46;
+  position: relative; cursor: pointer; flex-shrink: 0;
+}
+.dw-switch.on { background: #22c55e; }
+.dw-switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 99px; background: #fff; transition: transform 0.15s;
+}
+.dw-switch.on::after { transform: translateX(16px); }
