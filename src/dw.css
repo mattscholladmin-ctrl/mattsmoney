@@ -458,9 +458,10 @@ html[data-dw='1'] .mm-app, html[data-dw='1'] header.mm-chrome, html[data-dw='1']
 .dw-conn code { display: block; padding: 10px 12px; border-radius: 10px; background: var(--dw-card-2); color: #fff; font-size: calc(0.9375rem * var(--dw-type, 1.56)); }
 
 .dw-bill-row {
-  display: flex; align-items: center; justify-content: flex-start; gap: 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
   padding: 14px 0; border-bottom: 1px solid var(--dw-line);
 }
+.dw-bill-copy { flex: 1; min-width: 0; }
 .dw-bill-copy b { display: block; color: #fff; font-size: calc(1.125rem * var(--dw-type, 1.56)); font-weight: 650; }
 .dw-bill-copy span { display: block; color: #d4d4d8; font-size: calc(0.9375rem * var(--dw-type, 1.56)); margin-top: 3px; }
 .dw-bill-copy button {
