@@ -486,6 +486,14 @@ html[data-dw='1'] .mm-app, html[data-dw='1'] header.mm-chrome, html[data-dw='1']
 }
 .dw-bill-side > button.danger { color: #fca5a5; }
 
+html[data-dw='1'] .text-xs {
+  font-size: calc(0.82rem * var(--dw-type, 1.56));
+  line-height: 1.45;
+}
+html[data-dw='1'] .text-sm {
+  font-size: calc(0.92rem * var(--dw-type, 1.56));
+  line-height: 1.45;
+}
 html[data-dw='1'] .dw-embed,
 html[data-dw='1'] .dw-embed p,
 html[data-dw='1'] .dw-embed h2,
