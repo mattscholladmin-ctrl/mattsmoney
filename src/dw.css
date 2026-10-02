@@ -306,10 +306,10 @@ html[data-dw='1'] .dw-app {
   color: var(--dw-mute); font-weight: 700;
 }
 .dw-review-cat select {
-  width: 100%; appearance: none; cursor: pointer;
-  background: #2a2a30 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 16px center;
-  color: #fff; border: 1px solid rgba(255,255,255,0.28); border-radius: 12px;
-  padding: 14px 40px 14px 16px; font-family: inherit; font-weight: 650;
+  width: 100%; cursor: pointer;
+  background: #2a2a30; color: #fff;
+  border: 1px solid rgba(255,255,255,0.28); border-radius: 12px;
+  padding: 14px 16px; font-family: inherit; font-weight: 650;
   font-size: calc(1.125rem * var(--dw-font, 1.25));
 }
 .dw-review-sort {
