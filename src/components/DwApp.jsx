@@ -1153,7 +1153,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
         <header className="dw-page-h">
           <div>
             <h1>Review</h1>
-            <p className="dw-sub">Tap a bucket to sort each transaction.</p>
+            <p className="dw-sub">Put the charge in the right category. Sorting it is optional.</p>
           </div>
         </header>
         <div className="dw-review-wrap">
@@ -1165,13 +1165,24 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               <div className="dw-mark">{(front.merchant || '?')[0]}</div>
               <div className="dw-review-merchant">{front.merchant || 'Unknown'}</div>
               <div className="dw-review-amt">{moneyFull(amt)}</div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
-                <span className="dw-chip">{front.category}</span>
-                <span className="dw-review-date">{front.txn_date}</span>
-              </div>
+              <label className="dw-review-cat">
+                <span>Category</span>
+                <select value={front.category || 'Other'} onChange={(e) => setCat(front, e.target.value)}>
+                  {!CATEGORY_CATALOG.some((c) => c.name === front.category) && front.category && (
+                    <option value={front.category}>{front.category}</option>
+                  )}
+                  {CATEGORY_CATALOG.map((c) => (
+                    <option key={c.name} value={c.name}>{c.name}</option>
+                  ))}
+                  <option value="Transfers">Transfers</option>
+                  <option value="Income">Income</option>
+                </select>
+              </label>
+              <div className="dw-review-date">{front.txn_date}</div>
             </div>
           </div>
           <p className="dw-progress dw-progress-under">{reviewIdx + 1} of {queue.length}</p>
+          <p className="dw-review-sort">Then sort it, if you want</p>
           <div className="dw-bucket-btns">
             <button className="bw-wants" onClick={() => goReview('wants')}>Wants<small>{moneyFull(reviewTotals.wants)}</small></button>
             <button className="bw-savings" onClick={() => goReview('savings')}>Savings<small>{moneyFull(reviewTotals.savings)}</small></button>

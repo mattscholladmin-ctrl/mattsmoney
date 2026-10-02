@@ -300,7 +300,23 @@ html[data-dw='1'] .dw-app {
 .dw-embed .bg-slate-50, .dw-embed .bg-slate-100 { background: var(--dw-card-2) !important; }
 .dw-review-card .dw-mark { width: 64px; height: 64px; font-size: calc(1.5rem * var(--dw-font, 1.25)); border-radius: 16px; margin: 0 auto 16px; }
 .dw-review-merchant { font-size: calc(1.625rem * var(--dw-font, 1.25)); font-weight: 700; }
-.dw-review-date { color: var(--dw-mute); font-size: calc(0.8125rem * var(--dw-font, 1.25)); }
+.dw-review-cat { display: flex; flex-direction: column; gap: 6px; width: min(100%, 420px); margin: 18px auto 0; text-align: left; }
+.dw-review-cat span {
+  font-size: calc(0.75rem * var(--dw-font, 1.25)); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--dw-mute); font-weight: 700;
+}
+.dw-review-cat select {
+  width: 100%; appearance: none; cursor: pointer;
+  background: #2a2a30 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 16px center;
+  color: #fff; border: 1px solid rgba(255,255,255,0.28); border-radius: 12px;
+  padding: 14px 40px 14px 16px; font-family: inherit; font-weight: 650;
+  font-size: calc(1.125rem * var(--dw-font, 1.25));
+}
+.dw-review-sort {
+  text-align: center; margin: 18px 0 8px; color: var(--dw-mute);
+  font-size: calc(0.875rem * var(--dw-font, 1.25));
+}
+.dw-review-date { color: var(--dw-mute); font-size: calc(0.8125rem * var(--dw-font, 1.25)); margin-top: 12px; }
 .dw-review-behind {
   position: absolute; inset: 0; background: var(--dw-card-2); border: 1px solid var(--dw-line);
   border-radius: 18px; transform: translateY(10px) scale(0.96); z-index: -1;
