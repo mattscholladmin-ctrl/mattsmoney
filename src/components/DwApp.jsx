@@ -1250,9 +1250,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     const tabs = (
       <div className="dw-review-tabs">
         <button className={reviewMode === 'spend' ? 'on' : ''} onClick={() => setReviewMode('spend')}>Transactions</button>
-        <button className={reviewMode === 'bills' ? 'on' : ''} onClick={() => setReviewMode('bills')}>
-          Bills{billIdeas.length ? ` · ${billIdeas.length}` : ''}
-        </button>
+        <button className={reviewMode === 'bills' ? 'on' : ''} onClick={() => setReviewMode('bills')}>Bills</button>
       </div>
     )
     if (reviewMode === 'bills') {
