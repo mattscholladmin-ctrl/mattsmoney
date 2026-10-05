@@ -827,7 +827,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                   {editor.id && (
                     <button className="dw-ctl-btn" type="button" style={{ marginLeft: 8 }} onClick={removePlan}>Delete</button>
                   )}
-                  {planMsg && <p className="dw-mute" style={{ marginTop: 8 }}>{planMsg}</p>}
                 </form>
               )}
               {extra && (
@@ -841,9 +840,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                   </label>
                   <button className="dw-ctl-btn" type="submit" disabled={planBusy}>Log payment</button>
                   <button className="dw-ctl-btn" type="button" style={{ marginLeft: 8 }} onClick={() => setExtra(null)}>Cancel</button>
-                  {planMsg && <p className="dw-mute" style={{ marginTop: 8 }}>{planMsg}</p>}
                 </form>
               )}
+              {planMsg && <p className="dw-mute" style={{ marginTop: 8 }}>{planMsg}</p>}
               <div className="dw-plan-sec">
                 <span>Bills</span>
                 <button
