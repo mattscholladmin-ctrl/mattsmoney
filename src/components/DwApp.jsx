@@ -364,7 +364,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     const added = new Set(addedBills.map((b) => b.name.toLowerCase()))
     return Object.values(groups)
       .filter((g) => g.count >= 2 && !rejected[g.id] && !added.has(g.name.toLowerCase()))
-      .slice(0, 5)
       .map((g) => ({ id: g.id, name: g.name, amount: g.amount, note: `Seen ${g.count} times` }))
   }, [data, state.rejectedIdeas, addedBills])
 
@@ -1247,10 +1246,12 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   /* ================= REVIEW (categorize flow) ================= */
   function Review() {
     const bill = billIdeas[billIdx] || null
+    const txnLeft = queue.length
+    const billLeft = billIdeas.length
     const tabs = (
       <div className="dw-review-tabs">
-        <button className={reviewMode === 'spend' ? 'on' : ''} onClick={() => setReviewMode('spend')}>Transactions</button>
-        <button className={reviewMode === 'bills' ? 'on' : ''} onClick={() => setReviewMode('bills')}>Bills</button>
+        <button className={reviewMode === 'spend' ? 'on' : ''} onClick={() => setReviewMode('spend')}>Transactions{txnLeft ? ` · ${txnLeft}` : ''}</button>
+        <button className={reviewMode === 'bills' ? 'on' : ''} onClick={() => setReviewMode('bills')}>Bills{billLeft ? ` · ${billLeft}` : ''}</button>
       </div>
     )
     if (reviewMode === 'bills') {
@@ -1295,6 +1296,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                     )}
                   </div>
                 </div>
+                <p className="dw-progress dw-progress-under">{billLeft} left</p>
                 <div className="dw-bucket-btns">
                   <button className="bw-needs" onClick={() => {
                     const name = correctOn ? (billDraft.name || bill.name) : bill.name
@@ -1400,7 +1402,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               <div className="dw-review-date">{front.txn_date}</div>
             </div>
           </div>
-          <p className="dw-progress dw-progress-under">{reviewIdx + 1} of {queue.length}</p>
+          <p className="dw-progress dw-progress-under">{txnLeft} left</p>
           <p className="dw-review-sort">Then sort it, if you want</p>
           <div className="dw-bucket-btns">
             <button className="bw-wants" onClick={() => goReview('wants')}>Wants<small>{moneyFull(reviewTotals.wants)}</small></button>
