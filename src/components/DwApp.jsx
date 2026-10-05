@@ -295,14 +295,12 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     (spreadOn
       ? (pay.info.laterItems || []).filter((b) => paidBills[b.id]).reduce((s, b) => s + Number(b.share || 0), 0)
       : 0)
-  const addedShare = spreadOn ? addedBills.reduce((s, b) => s + (Number(b.amount || 0) * 12) / payPeriodsPerYear(data.income || []), 0) : 0
   const safeShown =
     Number(pay.safeToSpend || 0) -
     pullTotal +
     (extraOn ? extraAmt : 0) +
     (spreadOn ? 0 : Number(pay.info.laterShare || 0)) +
-    paidBack -
-    addedShare
+    paidBack
   const payMatch = (() => {
     if (state.matchSkip) return null
     const bills = [...(pay.info.windowItems || []), ...(pay.info.laterItems || [])]
@@ -930,34 +928,21 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                   : 'Off. Only bills due before payday are held, in full.'}
               </p>
               <div className="dw-bill-grid">
-              {dueRows.map((b) => (
-                <div key={b.id} className="dw-plan-toggle">
+              {[
+                ...dueRows.map((b) => ({ ...b, full: true })),
+                ...(spreadOn ? laterRows.map((b) => ({ ...b, full: false })) : []),
+              ]
+                .sort((a, b) => String(a.due || '9999-99-99').localeCompare(String(b.due || '9999-99-99')))
+                .map((b) => (
+                <div key={`${b.full ? 'due' : 'later'}-${b.id}`} className="dw-plan-toggle">
                   <span className="grow">
                     <b>{b.name}</b>
-                    <em>Due {b.due ? shortDate(b.due) : 'soon'} · full amount</em>
+                    <em>{b.full
+                      ? `Due ${b.due ? shortDate(b.due) : 'soon'} · full amount`
+                      : `${moneyFull(b.share)} of ${moneyFull(b.amount)}${b.due ? ` · due ${shortDate(b.due)}` : ''}`}</em>
                   </span>
-                  <span className="dw-amt">{moneyFull(b.amount)}</span>
+                  <span className="dw-amt">{moneyFull(b.full ? b.amount : b.share)}</span>
                   <button className="dw-link" onClick={() => markPaid(b)}>Mark paid</button>
-                </div>
-              ))}
-              {spreadOn && laterRows.map((b) => (
-                <div key={`later-${b.id}`} className="dw-plan-toggle">
-                  <span className="grow">
-                    <b>{b.name}</b>
-                    <em>{moneyFull(b.share)} of {moneyFull(b.amount)}{b.due ? ` · due ${shortDate(b.due)}` : ''}</em>
-                  </span>
-                  <span className="dw-amt">{moneyFull(b.share)}</span>
-                  <button className="dw-link" onClick={() => markPaid(b)}>Mark paid</button>
-                </div>
-              ))}
-              {addedBills.map((b) => (
-                <div key={b.id} className="dw-plan-toggle">
-                  <span className="grow">
-                    <b>{b.name}</b>
-                    <em>{spreadOn ? `This check's share · you added it` : 'Added · not taken from this check'}</em>
-                  </span>
-                  <span className="dw-amt">{moneyFull(spreadOn ? (Number(b.amount) * 12) / payPeriodsPerYear(data.income || []) : 0)}</span>
-                  <button className="dw-link" onClick={() => setAddedBills((list) => list.filter((x) => x.id !== b.id))}>Remove</button>
                 </div>
               ))}
               </div>
