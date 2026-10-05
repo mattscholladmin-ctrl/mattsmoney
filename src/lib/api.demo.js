@@ -145,6 +145,12 @@ export async function updateTransaction(id, fields) {
   }
   upd("transactions", id, patch);
 }
+export async function markTransactionsPaid(rows) {
+  for (const t of rows || []) {
+    const note = String(t.note || "").replace(/purpose:(needs|wants|savings|unreviewed|paid)/ig, "").trim();
+    upd("transactions", t.id, { note: note ? `${note} purpose:paid` : "purpose:paid" });
+  }
+}
 export async function deleteTransaction(id) {
   del("transactions", id);
 }

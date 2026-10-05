@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { useEffect, useMemo, useState } from 'react'
-import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome, markBillPaid, addGoal, updateGoal, deleteGoal, addDebt, updateDebt, deleteDebt, addDebtPayment } from '../lib/api'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome, markBillPaid, addGoal, updateGoal, deleteGoal, addDebt, updateDebt, deleteDebt, addDebtPayment, markTransactionsPaid } from '../lib/api'
 import { signOut } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import GoogleCalendarCard from './GoogleCalendarCard'
@@ -22,6 +22,7 @@ import {
   loadDwState,
   saveDwState,
   computeProduct,
+  accountReviewBank,
   insightCards,
   mapCategory,
   isExpense,
@@ -100,6 +101,13 @@ function topMerchants(txns, month, n = 5) {
 }
 
 /* Spending within the current paycheck window */
+function reviewDate(d) {
+  if (!d) return ''
+  const iso = String(d).slice(0, 10)
+  const dt = new Date(`${iso}T00:00:00`)
+  if (Number.isNaN(dt.getTime())) return ''
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 function paycheckWindowSpend(txns, pay) {
   if (!pay || !pay.nextIncome) return 0
   const end = String(pay.nextIncome.date || '').slice(0, 10)
@@ -157,6 +165,42 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   const [reviewHist, setReviewHist] = useState([])
   const [reviewTotals, setReviewTotals] = useState({ needs: 0, wants: 0, savings: 0 })
   const [activityLimit, setActivityLimit] = useState(120)
+  const paidMark = useRef(new Set())
+
+  useEffect(() => {
+    const capAccts = new Set()
+    const capItems = new Set()
+    for (const a of data?.accounts || []) {
+      if (accountReviewBank(a) !== 'capital') continue
+      capAccts.add(a.id)
+      if (a.plaid_item_id) capItems.add(a.plaid_item_id)
+    }
+    if (!capAccts.size && !capItems.size) return
+    const todo = []
+    for (const t of data?.transactions || []) {
+      const onCap = (t.account_id && capAccts.has(t.account_id)) || (t.plaid_item_id && capItems.has(t.plaid_item_id))
+      if (!onCap || paidMark.current.has(t.id)) continue
+      const purpose = state.meta?.[t.id]?.purpose
+      if (purpose && purpose !== 'unreviewed') continue
+      if (/purpose:(needs|wants|savings|paid)/i.test(String(t.note || ''))) continue
+      todo.push(t)
+    }
+    if (!todo.length) return
+    for (const t of todo) paidMark.current.add(t.id)
+    let cancel = false
+    markTransactionsPaid(todo).then(() => {
+      if (cancel) return
+      setState((s) => {
+        const meta = { ...s.meta }
+        for (const t of todo) {
+          if (meta[t.id]) meta[t.id] = { ...meta[t.id], purpose: 'paid' }
+        }
+        return { ...s, meta }
+      })
+      load()
+    }).catch(() => {})
+    return () => { cancel = true }
+  }, [data, load])
 
   useEffect(() => {
     saveDwState(state)
@@ -310,7 +354,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   async function classify(t, purpose) {
     setMeta(t.id, { purpose })
     try {
-      const note = String(t.note || '').replace(/purpose:(needs|wants|savings|unreviewed)/i, '').trim()
+      const note = String(t.note || '').replace(/purpose:(needs|wants|savings|unreviewed|paid)/i, '').trim()
       await updateTransaction(t.id, { note: `${note} purpose:${purpose}`.trim() })
     } catch {
       /* local meta still applies */
@@ -362,7 +406,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     if (!last) return
     setMeta(last.id, { purpose: 'unreviewed' })
     const txn = (data.transactions || []).find((t) => t.id === last.id)
-    const note = String(txn?.note || '').replace(/purpose:(needs|wants|savings|unreviewed)/ig, '').trim()
+    const note = String(txn?.note || '').replace(/purpose:(needs|wants|savings|unreviewed|paid)/ig, '').trim()
     updateTransaction(last.id, { note: note ? `${note} purpose:unreviewed` : 'purpose:unreviewed' }).catch(() => {})
     setReviewHist((h) => h.slice(0, -1))
     setReviewTotals((t) => ({ ...t, [last.purpose]: Math.max(0, t[last.purpose] - last.amount) }))
@@ -376,14 +420,17 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       const name = String(t.merchant || '').trim()
       if (!name || names.has(name.toLowerCase())) continue
       const key = name.toLowerCase()
-      if (!groups[key]) groups[key] = { id: `idea-${key}`, name, amount: Math.abs(Number(t.amount || 0)), count: 0 }
+      if (!groups[key]) groups[key] = { id: `idea-${key}`, name, amount: Math.abs(Number(t.amount || 0)), count: 0, latest: String(t.txn_date || '').slice(0, 10) }
       groups[key].count += 1
+      const day = String(t.txn_date || '').slice(0, 10)
+      if (day && day > groups[key].latest) groups[key].latest = day
     }
     const rejected = state.rejectedIdeas || {}
     const added = new Set(addedBills.map((b) => b.name.toLowerCase()))
     return Object.values(groups)
       .filter((g) => g.count >= 2 && !rejected[g.id] && !added.has(g.name.toLowerCase()))
-      .map((g) => ({ id: g.id, name: g.name, amount: g.amount, note: `Seen ${g.count} times` }))
+      .sort((a, b) => String(b.latest).localeCompare(String(a.latest)))
+      .map((g) => ({ id: g.id, name: g.name, amount: g.amount, latest: g.latest, note: `Seen ${g.count} times` }))
   }, [data, state.rejectedIdeas, addedBills])
 
   const orderedBills = useMemo(() => {
@@ -1319,6 +1366,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                         <div className="dw-review-merchant">{bill.name}</div>
                         <div className="dw-review-amt">{moneyFull(bill.amount)}</div>
                         <p className="dw-mute">{bill.note}</p>
+                        <div className="dw-review-date">{reviewDate(bill.latest)}</div>
                       </>
                     )}
                   </div>
@@ -1429,7 +1477,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                   <option value="Income">Income</option>
                 </select>
               </label>
-              <div className="dw-review-date">{front.txn_date}</div>
+              <div className="dw-review-date">{reviewDate(front.txn_date)}</div>
             </div>
           </div>
           <p className="dw-progress dw-progress-under">{txnLeft} left</p>

@@ -82,7 +82,7 @@ export function txnMeta(state, t) {
   const stored = state.meta?.[id] || {}
   const note = String(t.note || '')
   const fromNote = {}
-  const pm = note.match(/purpose:(needs|wants|savings|unreviewed)/i)
+  const pm = note.match(/purpose:(needs|wants|savings|unreviewed|paid)/i)
   if (pm) fromNote.purpose = pm[1].toLowerCase()
   const fm = note.match(/feeling:(happy|neutral|sad)/i)
   if (fm) fromNote.feeling = fm[1].toLowerCase()
@@ -167,6 +167,13 @@ export function decorateTxns(transactions, state) {
   })
 }
 
+export function accountReviewBank(account) {
+  const blob = `${account?.name || ''} ${account?.institution || ''}`.toLowerCase()
+  if (blob.includes('capital one') || blob.includes('capitalone')) return 'capital'
+  if (blob.includes('sofi')) return 'sofi'
+  return ''
+}
+
 export function computeProduct({ data, state, month }) {
   const plan = { ...PLAN_DEFAULT, ...(state.plan || {}) }
   const txns = decorateTxns(data.transactions, state)
@@ -227,8 +234,18 @@ export function computeProduct({ data, state, month }) {
   const netCash = checkingTotal + savingsTotal - creditOwed
   const missingAvailable = [...checking, ...savings].filter((a) => a.counts && a.availableMissing).map((a) => a.name)
 
+  const sofiAccts = new Set()
+  const sofiItems = new Set()
+  for (const a of accounts) {
+    if (accountReviewBank(a) !== 'sofi') continue
+    sofiAccts.add(a.id)
+    if (a.plaid_item_id) sofiItems.add(a.plaid_item_id)
+  }
+  const sofiOnly = sofiAccts.size > 0 || sofiItems.size > 0
+  const onSofi = (t) => (t.account_id && sofiAccts.has(t.account_id)) || (t.plaid_item_id && sofiItems.has(t.plaid_item_id))
+
   const queue = txns
-    .filter((t) => t.purpose === 'unreviewed' && isExpense(t) && t.category !== 'Transfers')
+    .filter((t) => t.purpose === 'unreviewed' && isExpense(t) && t.category !== 'Transfers' && (!sofiOnly || onSofi(t)))
     .sort((a, b) => String(b.txn_date).localeCompare(String(a.txn_date)))
 
   return {

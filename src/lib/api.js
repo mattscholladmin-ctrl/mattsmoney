@@ -260,6 +260,25 @@ async function live_updateTransaction(id, { txn_date, merchant, amount, category
   if (error) throw error
 }
 
+async function live_markTransactionsPaid(rows) {
+  const empty = []
+  const noted = []
+  for (const t of rows || []) {
+    const note = String(t.note || '').replace(/purpose:(needs|wants|savings|unreviewed|paid)/ig, '').trim()
+    if (!note) empty.push(t.id)
+    else noted.push({ id: t.id, note: `${note} purpose:paid` })
+  }
+  for (let i = 0; i < empty.length; i += 200) {
+    const ids = empty.slice(i, i + 200)
+    const { error } = await supabase.from('transactions').update({ note: 'purpose:paid' }).in('id', ids)
+    if (error) throw error
+  }
+  for (const row of noted) {
+    const { error } = await supabase.from('transactions').update({ note: row.note }).eq('id', row.id)
+    if (error) throw error
+  }
+}
+
 async function live_deleteTransaction(id) {
   const { error } = await supabase.from('transactions').delete().eq('id', id)
   if (error) throw error
@@ -918,5 +937,6 @@ export const updateGoalCurrent = (...args) => (useLive ? live_updateGoalCurrent(
 export const updateIncome = (...args) => (useLive ? live_updateIncome(...args) : demoBackend.updateIncome(...args))
 export const updatePhase = (...args) => (useLive ? live_updatePhase(...args) : demoBackend.updatePhase(...args))
 export const updateTransaction = (...args) => (useLive ? live_updateTransaction(...args) : demoBackend.updateTransaction(...args))
+export const markTransactionsPaid = (...args) => (useLive ? live_markTransactionsPaid(...args) : demoBackend.markTransactionsPaid(...args))
 export const upsertBudget = (...args) => (useLive ? live_upsertBudget(...args) : demoBackend.upsertBudget(...args))
 export const upsertCategoryAlias = (...args) => (useLive ? live_upsertCategoryAlias(...args) : demoBackend.upsertCategoryAlias(...args))
