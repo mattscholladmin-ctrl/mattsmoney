@@ -807,10 +807,10 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
 
             <section className="dw-card">
               <div className="dw-row-head">
-                <div className="dw-k">Pull from this paycheck</div>
+                <div className="dw-k">Goals and debts</div>
               </div>
               <p className="dw-mute" style={{ margin: '6px 0 10px' }}>
-                Goals and debts can be switched off on their own. Bills are one switch.
+                Each one can be switched off on its own.
               </p>
               {[['Goal', 'Goals'], ['Debt', 'Debts']].map(([kind, label]) => {
                 const rows = planRows.filter((r) => r.kind === kind)
@@ -913,6 +913,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                 </form>
               )}
               {planMsg && <p className="dw-mute" style={{ marginTop: 8 }}>{planMsg}</p>}
+            </section>
+
+            <section className="dw-card">
               <div className="dw-plan-sec">
                 <span>Bills</span>
                 <button
