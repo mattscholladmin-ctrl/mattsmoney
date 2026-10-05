@@ -288,12 +288,28 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   const extraAmt = extra ? Math.abs(Number(extra.amount || 0)) : 0
   const extraOn = !!(extra && state.extraId === extra.id)
   const paidBills = state.paidBills || {}
+  function partialFor(bill) {
+    const rec = state.billPartials?.[bill.id]
+    const due = bill.due || ''
+    if (!rec || rec.due !== due) return 0
+    const amt = Number(bill.amount || 0)
+    return Math.min(amt, Math.max(0, Number(rec.paid || 0)))
+  }
   const dueRows = (pay.info.windowItems || []).filter((b) => !paidBills[b.id])
   const laterRows = (pay.info.laterItems || []).filter((b) => !paidBills[b.id])
   const paidBack =
     (pay.info.windowItems || []).filter((b) => paidBills[b.id]).reduce((s, b) => s + Number(b.amount || 0), 0) +
     (spreadOn
       ? (pay.info.laterItems || []).filter((b) => paidBills[b.id]).reduce((s, b) => s + Number(b.share || 0), 0)
+      : 0) +
+    dueRows.reduce((s, b) => s + partialFor(b), 0) +
+    (spreadOn
+      ? laterRows.reduce((s, b) => {
+          const amt = Number(b.amount || 0)
+          const paid = partialFor(b)
+          if (!(amt > 0) || !(paid > 0)) return s
+          return s + Number(b.share || 0) * (paid / amt)
+        }, 0)
       : 0)
   const safeShown =
     Number(pay.safeToSpend || 0) -
@@ -318,7 +334,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
 
   async function markPaid(bill) {
     const due = bill.due || isoDate()
-    patchState({ paidBills: { ...paidBills, [bill.id]: true }, matchSkip: true })
+    const partials = { ...(state.billPartials || {}) }
+    delete partials[bill.id]
+    patchState({ paidBills: { ...paidBills, [bill.id]: true }, billPartials: partials, matchSkip: true })
     const txn = suggestBillPayment(
       { name: bill.name, amount: bill.amount, date: due, billId: bill.id },
       data.transactions || [],
@@ -336,6 +354,23 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     } catch {
       /* the on-screen mark still applies */
     }
+  }
+
+  function logPartial(bill, raw) {
+    const add = Number(raw)
+    if (!(add > 0)) return
+    const amt = Number(bill.amount || 0)
+    const next = partialFor(bill) + add
+    if (amt > 0 && next >= amt - 0.009) {
+      markPaid(bill)
+      return
+    }
+    patchState({
+      billPartials: {
+        ...(state.billPartials || {}),
+        [bill.id]: { due: bill.due || '', paid: Math.round(next * 100) / 100 },
+      },
+    })
   }
 
   function patchState(partial) {
@@ -551,6 +586,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     const [extra, setExtra] = useState(null)
     const [planMsg, setPlanMsg] = useState('')
     const [planBusy, setPlanBusy] = useState(false)
+    const [partialId, setPartialId] = useState(null)
+    const [partialAmt, setPartialAmt] = useState('')
     const dueNow = pay.info.windowItems || []
     const payday = pay.nextIncome?.date
     const shares = (pay.info.laterItems || []).filter((b) => b.due && payday && b.due > payday)
@@ -574,7 +611,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     const next = pay.nextIncome
     const segs = [
       { label: 'Safe to spend', amount: Math.max(0, safeShown), color: '#22c55e' },
-      { label: 'Bills due before payday', amount: Math.max(0, Number(pay.info.billsBeforePay || 0)), color: '#eab308' },
+      { label: 'Bills due before payday', amount: Math.max(0, Number(pay.info.billsBeforePay || 0) - dueRows.reduce((s, b) => s + partialFor(b), 0)), color: '#eab308' },
       { label: 'Goals & debts on', amount: Math.max(0, pullTotal), color: '#a78bfa' },
       { label: 'Held aside', amount: Math.max(0, Number(pay.info.setAside || 0)), color: '#3b82f6' },
     ].filter((s) => s.amount > 0.005)
@@ -936,18 +973,49 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                 ...(spreadOn ? laterRows.map((b) => ({ ...b, full: false })) : []),
               ]
                 .sort((a, b) => String(a.due || '9999-99-99').localeCompare(String(b.due || '9999-99-99')))
-                .map((b) => (
-                <div key={`${b.full ? 'due' : 'later'}-${b.id}`} className="dw-plan-toggle">
+                .map((b) => {
+                const paid = partialFor(b)
+                const amt = Number(b.amount || 0)
+                const left = Math.max(0, amt - paid)
+                const hold = b.full ? left : (amt > 0 ? Number(b.share || 0) * (left / amt) : 0)
+                const late = b.due && b.due < isoDate() && left > 0.009
+                return (
+                <div key={`${b.full ? 'due' : 'later'}-${b.id}`}>
+                <div className="dw-plan-toggle">
                   <span className="grow">
                     <b>{b.name}</b>
                     <em>{b.full
-                      ? `Due ${b.due ? shortDate(b.due) : 'soon'} · full amount`
-                      : `${moneyFull(b.share)} of ${moneyFull(b.amount)}${b.due ? ` · due ${shortDate(b.due)}` : ''}`}</em>
+                      ? `Due ${b.due ? shortDate(b.due) : 'soon'}${paid > 0 ? '' : ' · full amount'}`
+                      : `${moneyFull(hold)} of ${moneyFull(left)}${b.due ? ` · due ${shortDate(b.due)}` : ''}`}{paid > 0 ? ` · ${moneyFull(paid)} paid` : ''}{late ? ' · late' : ''}</em>
                   </span>
-                  <span className="dw-amt">{moneyFull(b.full ? b.amount : b.share)}</span>
+                  <span className="dw-amt">{moneyFull(hold)}</span>
                   <button className="dw-link" onClick={() => markPaid(b)}>Mark paid</button>
+                  <button className="dw-link" type="button" onClick={() => { setPartialId(b.id); setPartialAmt('') }}>Partial</button>
                 </div>
-              ))}
+                {partialId === b.id && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      logPartial(b, partialAmt)
+                      setPartialId(null)
+                      setPartialAmt('')
+                    }}
+                    style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '0 0 8px' }}
+                  >
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={partialAmt}
+                      placeholder="Amount"
+                      onChange={(e) => setPartialAmt(e.target.value)}
+                      style={{ width: 110 }}
+                    />
+                    <button className="dw-ctl-btn" type="submit">Save</button>
+                  </form>
+                )}
+                </div>
+              )})}
               </div>
             </section>
           </div>
