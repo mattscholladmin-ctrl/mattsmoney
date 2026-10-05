@@ -1250,8 +1250,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     const billLeft = billIdeas.length
     const tabs = (
       <div className="dw-review-tabs">
-        <button className={reviewMode === 'spend' ? 'on' : ''} onClick={() => setReviewMode('spend')}>Transactions{txnLeft ? ` · ${txnLeft}` : ''}</button>
-        <button className={reviewMode === 'bills' ? 'on' : ''} onClick={() => setReviewMode('bills')}>Bills{billLeft ? ` · ${billLeft}` : ''}</button>
+        <button className={reviewMode === 'spend' ? 'on' : ''} onClick={() => setReviewMode('spend')}>Transactions</button>
+        <button className={reviewMode === 'bills' ? 'on' : ''} onClick={() => setReviewMode('bills')}>Bills</button>
       </div>
     )
     if (reviewMode === 'bills') {
