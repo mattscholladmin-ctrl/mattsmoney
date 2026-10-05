@@ -64,7 +64,10 @@ async function findOrCreateAccount(db, uid, item, a, institution) {
     }
   }
   const kind = SAVINGS_SUBTYPES.includes(a.subtype) ? 'savings' : 'spending'
-  const { data: ins, error } = await db.from('accounts').insert({ user_id: uid, name: `${institution} ${a.name}`.trim(), kind, plaid_account_id: a.account_id, plaid_item_id: item.item_id, mask, institution, sort_order: 100 }).select('id').single()
+  const bank = String(institution || '').trim()
+  const rawName = String(a.name || '').trim()
+  const name = bank && rawName.toLowerCase().startsWith(bank.toLowerCase()) ? rawName : `${bank} ${rawName}`.trim()
+  const { data: ins, error } = await db.from('accounts').insert({ user_id: uid, name, kind, plaid_account_id: a.account_id, plaid_item_id: item.item_id, mask, institution, sort_order: 100 }).select('id').single()
   if (error) throw new Error(error.message)
   return ins.id
 }
@@ -108,7 +111,7 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
       const current = a.balances.current
       const available = a.balances.available
       const missing = available == null
-      const cash = missing ? (current == null ? null : Number(current)) : Number(available)
+      const cash = missing ? null : Number(available)
       let note = missing ? 'Auto-synced · available missing' : 'Auto-synced · available'
       if (current != null) note += ` · current $${Number(current).toFixed(2)}`
       const { data: prev } = await db.from('balance_entries').select('id,balance,as_of,note').eq('account_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle()

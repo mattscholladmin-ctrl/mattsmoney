@@ -2,6 +2,8 @@
 // Dollarwise-style product math for Matt's Money.
 // Safe to spend = monthly income × wants plan % − visible Wants spend in the selected month.
 
+import { countsAsSpendable } from './budget.js'
+
 export const PLAN_DEFAULT = { needs: 50, wants: 30, savings: 20 }
 
 export const PURPOSES = [
@@ -42,9 +44,11 @@ export function moneyFull(n) {
 }
 
 export function moneyCompact(n) {
-  const v = Math.abs(Number(n || 0))
-  if (v >= 1000) return `$${(v / 1000).toFixed(1)}k`
-  return moneyFull(n)
+  const v = Number(n || 0)
+  const sign = v < 0 ? '-' : ''
+  const abs = Math.abs(v)
+  if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(1)}k`
+  return moneyFull(v)
 }
 
 export function monthKeyFrom(d) {
@@ -205,20 +209,23 @@ export function computeProduct({ data, state, month }) {
   for (const a of accounts) {
     if (a.hidden) continue
     const bal = latestByAcct[a.id]
+    const note = String(bal?.note || '')
+    const availableMissing = /available missing/.test(note)
     const available = bal?.available_balance ?? bal?.available
-    const current = bal?.current_balance ?? bal?.balance ?? a.balance
-    const shown = available != null ? Number(available) : Number(current || 0)
-    const row = { ...a, shown, available: available != null ? Number(available) : null, current: current != null ? Number(current) : null }
+    const stored = bal?.current_balance ?? bal?.balance ?? a.balance
+    const shown = availableMissing ? null : available != null ? Number(available) : stored != null && stored !== '' ? Number(stored) : null
+    const row = { ...a, shown, availableMissing, available: available != null ? Number(available) : null, current: stored != null && stored !== '' ? Number(stored) : null, counts: countsAsSpendable(a) }
     const kind = String(a.kind || a.type || '').toLowerCase()
     if (/credit|card/.test(kind)) credit.push(row)
     else if (/sav/.test(kind)) savings.push(row)
     else checking.push(row)
   }
-  const sum = (arr) => arr.reduce((s, a) => s + Number(a.shown || 0), 0)
+  const sum = (arr) => arr.reduce((s, a) => s + (a.shown == null ? 0 : Number(a.shown)), 0)
   const checkingTotal = sum(checking)
   const savingsTotal = sum(savings)
-  const creditOwed = credit.reduce((s, a) => s + Math.max(0, Number(a.shown || 0)), 0)
+  const creditOwed = credit.reduce((s, a) => s + (a.shown == null ? 0 : Math.max(0, Number(a.shown))), 0)
   const netCash = checkingTotal + savingsTotal - creditOwed
+  const missingAvailable = [...checking, ...savings].filter((a) => a.counts && a.availableMissing).map((a) => a.name)
 
   const queue = txns
     .filter((t) => t.purpose === 'unreviewed' && isExpense(t) && t.category !== 'Transfers')
@@ -242,6 +249,7 @@ export function computeProduct({ data, state, month }) {
     savingsTotal,
     creditOwed,
     netCash,
+    missingAvailable,
     queue,
     classifiedTotal,
   }
@@ -249,41 +257,13 @@ export function computeProduct({ data, state, month }) {
 
 export function insightCards(product, month) {
   const cards = []
-  const entries = Object.entries(product.catSpend).sort((a, b) => b[1] - a[1])
-  const top = entries[0]
-  if (top && top[1] >= 200) {
-    cards.push({
-      id: 'unusual',
-      name: 'Unusual Purchases',
-      severity: 'red',
-      body: `Unusual spending detected: ${moneyFull(top[1])} in ${top[0]}.`,
-    })
-  }
   const dining = product.catSpend['Dining Out'] || 0
   if (dining > 0) {
     cards.push({
       id: 'dining',
-      name: 'Dining Frequency',
+      name: 'Dining Out',
       severity: 'amber',
       body: `Dining Out is ${moneyFull(dining)} this month.`,
-    })
-  }
-  const util = product.catSpend['Utilities & Bills'] || 0
-  if (util === 0) {
-    cards.push({
-      id: 'freeze',
-      name: 'Spending Freeze',
-      severity: 'green',
-      body: 'Zero Utilities & Bills spend recorded this month so far.',
-    })
-  }
-  const shop = product.catSpend.Shopping || 0
-  if (shop > 0) {
-    cards.push({
-      id: 'annual',
-      name: 'Annual Impact',
-      severity: 'blue',
-      body: `Shopping annualizes to about ${moneyFull(shop * 12)} from this month.`,
     })
   }
   if (!cards.length) {

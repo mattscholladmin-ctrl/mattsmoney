@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from 'react'
-import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome } from '../lib/api'
+import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome, markBillPaid } from '../lib/api'
 import { signOut } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import GoogleCalendarCard from './GoogleCalendarCard'
@@ -9,7 +9,7 @@ import { shortDate, isoDate } from '../lib/format'
 import ConnectBankCard from './ConnectBankCard'
 import RecurringBillsCard from './RecurringBillsCard'
 import IncomeCard from './IncomeCard'
-import { upcomingIncome } from '../lib/budget'
+import { upcomingIncome, payPeriodsPerYear, suggestBillPayment } from '../lib/budget'
 import '../dw.css'
 import {
   PLAN_DEFAULT,
@@ -154,6 +154,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   const [reviewIdx, setReviewIdx] = useState(0)
   const [reviewHist, setReviewHist] = useState([])
   const [reviewTotals, setReviewTotals] = useState({ needs: 0, wants: 0, savings: 0 })
+  const [activityLimit, setActivityLimit] = useState(120)
 
   useEffect(() => {
     saveDwState(state)
@@ -194,7 +195,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       rows.push({
         id: `g-${g.id}`,
         name: g.name,
-        share: monthly / 2,
+        share: (monthly * 12) / payPeriodsPerYear(data.income || []),
         kind: 'Goal',
         note: 'Each paycheck',
       })
@@ -208,7 +209,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       rows.push({
         id: `d-${d.id}`,
         name: d.name,
-        share: monthly / 2,
+        share: (monthly * 12) / payPeriodsPerYear(data.income || []),
         kind: 'Debt',
         note: future ? `Starts ${shortDate(start)} — counted now` : 'Each paycheck',
       })
@@ -247,7 +248,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     (spreadOn
       ? (pay.info.laterItems || []).filter((b) => paidBills[b.id]).reduce((s, b) => s + Number(b.share || 0), 0)
       : 0)
-  const addedShare = spreadOn ? addedBills.reduce((s, b) => s + Number(b.amount || 0) / 2, 0) : 0
+  const addedShare = spreadOn ? addedBills.reduce((s, b) => s + (Number(b.amount || 0) * 12) / payPeriodsPerYear(data.income || []), 0) : 0
   const safeShown =
     Number(pay.safeToSpend || 0) -
     pullTotal +
@@ -260,19 +261,37 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     const bills = [...(pay.info.windowItems || []), ...(pay.info.laterItems || [])]
     for (const b of bills) {
       if (paidBills[b.id]) continue
-      const sameAmount = (data.transactions || []).filter((t) => {
-        if (!isExpense(t)) return false
-        return Math.abs(Math.abs(Number(t.amount || 0)) - Number(b.amount || 0)) < 1
-      })
-      if (sameAmount.length !== 1) continue
-      const txn = sameAmount[0]
-      const merchant = String(txn.merchant || '').toLowerCase()
-      const name = String(b.name || '').toLowerCase()
-      if (merchant && name && (merchant.includes(name) || name.includes(merchant))) continue
-      return { bill: b, txn }
+      const txn = suggestBillPayment(
+        { name: b.name, amount: b.amount, date: b.due || isoDate(), billId: b.id },
+        data.transactions || [],
+        isoDate(),
+      )
+      if (txn) return { bill: b, txn }
     }
     return null
   })()
+
+  async function markPaid(bill) {
+    const due = bill.due || isoDate()
+    patchState({ paidBills: { ...paidBills, [bill.id]: true }, matchSkip: true })
+    const txn = suggestBillPayment(
+      { name: bill.name, amount: bill.amount, date: due, billId: bill.id },
+      data.transactions || [],
+      isoDate(),
+    )
+    try {
+      if (txn) {
+        const note = String(txn.note || '')
+        if (!note.includes(`paid:${bill.id}`)) {
+          await updateTransaction(txn.id, { note: `${note} paid:${bill.id}`.trim() })
+        }
+      }
+      await markBillPaid(bill.id, due)
+      load()
+    } catch {
+      /* the on-screen mark still applies */
+    }
+  }
 
   function patchState(partial) {
     setState((s) => ({ ...s, ...partial }))
@@ -312,7 +331,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     classify(front, dir)
     setReviewHist((h) => [...h, { id: front.id, purpose: dir, amount: Math.abs(Number(front.amount || 0)) }])
     setReviewTotals((t) => ({ ...t, [dir]: t[dir] + Math.abs(Number(front.amount || 0)) }))
-    setReviewIdx((i) => i + 1)
   }
 
   function skipReview() {
@@ -323,9 +341,11 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     const last = reviewHist[reviewHist.length - 1]
     if (!last) return
     setMeta(last.id, { purpose: 'unreviewed' })
+    const txn = (data.transactions || []).find((t) => t.id === last.id)
+    const note = String(txn?.note || '').replace(/purpose:(needs|wants|savings|unreviewed)/ig, '').trim()
+    updateTransaction(last.id, { note: note ? `${note} purpose:unreviewed` : 'purpose:unreviewed' }).catch(() => {})
     setReviewHist((h) => h.slice(0, -1))
     setReviewTotals((t) => ({ ...t, [last.purpose]: Math.max(0, t[last.purpose] - last.amount) }))
-    setReviewIdx((i) => Math.max(0, i - 1))
   }
 
   const billIdeas = useMemo(() => {
@@ -446,6 +466,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           <div className="dw-acct"><span>Checking</span><b>{moneyCompact(product.checkingTotal)}</b></div>
           <div className="dw-acct"><span>Savings</span><b>{moneyCompact(product.savingsTotal)}</b></div>
           <div className="dw-acct"><span>Net Cash</span><b>{moneyCompact(product.netCash)}</b></div>
+          {product.missingAvailable?.length > 0 && (
+            <p className="dw-mute" style={{ margin: '8px 12px 0' }}>Available balance missing for {product.missingAvailable.join(', ')}. That account is not in Safe to spend.</p>
+          )}
         </div>
       </aside>
     )
@@ -583,7 +606,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                   {payMatch.txn.txn_date ? ` · ${shortDate(payMatch.txn.txn_date)}` : ''}. Mark {payMatch.bill.name} paid?
                 </p>
                 <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                  <button className="dw-ctl-btn" onClick={() => patchState({ paidBills: { ...paidBills, [payMatch.bill.id]: true }, matchSkip: true })}>Yes, mark paid</button>
+                  <button className="dw-ctl-btn" onClick={() => markPaid(payMatch.bill)}>Yes, mark paid</button>
                   <button className="dw-ctl-btn" onClick={() => patchState({ matchSkip: true })}>Not this</button>
                 </div>
               </section>
@@ -648,7 +671,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                     <em>Due {b.due ? shortDate(b.due) : 'soon'} · full amount</em>
                   </span>
                   <span className="dw-amt">{moneyFull(b.amount)}</span>
-                  <button className="dw-link" onClick={() => patchState({ paidBills: { ...paidBills, [b.id]: true } })}>Mark paid</button>
+                  <button className="dw-link" onClick={() => markPaid(b)}>Mark paid</button>
                 </div>
               ))}
               {spreadOn && laterRows.map((b) => (
@@ -658,7 +681,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                     <em>{moneyFull(b.share)} of {moneyFull(b.amount)}{b.due ? ` · due ${shortDate(b.due)}` : ''}</em>
                   </span>
                   <span className="dw-amt">{moneyFull(b.share)}</span>
-                  <button className="dw-link" onClick={() => patchState({ paidBills: { ...paidBills, [b.id]: true } })}>Mark paid</button>
+                  <button className="dw-link" onClick={() => markPaid(b)}>Mark paid</button>
                 </div>
               ))}
               {addedBills.map((b) => (
@@ -667,7 +690,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                     <b>{b.name}</b>
                     <em>{spreadOn ? `This check's share · you added it` : 'Added · not taken from this check'}</em>
                   </span>
-                  <span className="dw-amt">{moneyFull(spreadOn ? Number(b.amount) / 2 : 0)}</span>
+                  <span className="dw-amt">{moneyFull(spreadOn ? (Number(b.amount) * 12) / payPeriodsPerYear(data.income || []) : 0)}</span>
                   <button className="dw-link" onClick={() => setAddedBills((list) => list.filter((x) => x.id !== b.id))}>Remove</button>
                 </div>
               ))}
@@ -949,13 +972,15 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       if (query && !String(t.merchant || '').toLowerCase().includes(query.toLowerCase())) return false
       return true
     })
+    const shown = list.slice(0, activityLimit)
     const groups = {}
-    for (const t of list.slice(0, 120)) {
+    for (const t of shown) {
       const k = weekKey(String(t.txn_date || '').slice(0, 10))
       if (!groups[k]) groups[k] = []
       groups[k].push(t)
     }
     const sortedWeeks = Object.keys(groups).sort().reverse()
+    const thisWeek = weekKey(isoDate())
 
     function Tile({ t }) {
       const amt = Number(t.amount || 0)
@@ -983,7 +1008,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
         <header className="dw-page-h">
           <div>
             <h1>Transaction Activity</h1>
-            <p className="dw-sub">{list.length} transactions</p>
+            <p className="dw-sub">{shown.length < list.length ? `Showing ${shown.length} of ${list.length}` : `${list.length} transactions`}</p>
           </div>
           {queue.length > 0 && (
             <button className="dw-ctl-btn" onClick={() => { setReviewIdx(0); setPage('review') }}>
@@ -1008,7 +1033,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           return (
             <div key={wk}>
               <div className="dw-week-h">
-                <span className="dw-k">{wi === 0 ? 'This week' : weekLabel(wk)}</span>
+                <span className="dw-k">{wk === thisWeek ? 'This week' : weekLabel(wk)}</span>
                 <span className="dw-total">Spent {moneyFull(total)}</span>
               </div>
               <div className="dw-txgrid">
@@ -1018,6 +1043,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
           )
         })}
         {sortedWeeks.length === 0 && <p className="dw-mute">No transactions match.</p>}
+        {shown.length < list.length && (
+          <button className="dw-ctl-btn" type="button" style={{ marginTop: 16 }} onClick={() => setActivityLimit((n) => n + 120)}>Show more</button>
+        )}
       </div>
     )
   }
@@ -1255,7 +1283,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       if (!job.name || !(Number(job.amount) > 0)) { setJobMsg('Name and amount are required.'); return }
       try {
         if (job.id) {
-          await updateIncome(job.id, { name: job.name.trim(), amount: Number(job.amount), cadence: job.cadence, anchor_date: job.anchor || null, confirmed: true })
+          await updateIncome(job.id, { name: job.name.trim(), amount: Number(job.amount), cadence: job.cadence, anchor_date: job.anchor || null, due_day: job.cadence === 'monthly' && job.anchor ? Number(job.anchor.slice(8, 10)) : null, confirmed: true })
           setJobMsg('Paycheck updated.')
         } else {
           await addIncome({
@@ -1263,6 +1291,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
             amount: Number(job.amount),
             cadence: job.cadence,
             anchor_date: job.anchor || null,
+            due_day: job.cadence === 'monthly' && job.anchor ? Number(job.anchor.slice(8, 10)) : null,
             confirmed: true,
           })
           setJobMsg('Paycheck added.')

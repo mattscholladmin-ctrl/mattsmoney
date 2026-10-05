@@ -323,6 +323,12 @@ async function live_updateBill(id, { name, amount, category, cadence, due_day, s
   if (!data) throw new Error('Bill not found — nothing saved')
 }
 
+async function live_markBillPaid(id, paid_through) {
+  let { error } = await supabase.from('recurring_bills').update({ paid_through }).eq('id', id)
+  if (error && isMissingColumn(error)) return
+  if (error) throw error
+}
+
 async function live_deleteBill(id) {
   const { error } = await supabase.from('recurring_bills').delete().eq('id', id)
   if (error) throw error
@@ -902,6 +908,7 @@ export const toggleCreditTask = (...args) => (useLive ? live_toggleCreditTask(..
 export const toggleMilestone = (...args) => (useLive ? live_toggleMilestone(...args) : demoBackend.toggleMilestone(...args))
 export const updateAccount = (...args) => (useLive ? live_updateAccount(...args) : demoBackend.updateAccount(...args))
 export const updateBill = (...args) => (useLive ? live_updateBill(...args) : demoBackend.updateBill(...args))
+export const markBillPaid = (...args) => (useLive ? live_markBillPaid(...args) : demoBackend.updateBill(...args[0], { paid_through: args[1] }))
 export const updateBucketCurrent = (...args) => (useLive ? live_updateBucketCurrent(...args) : demoBackend.updateBucketCurrent(...args))
 export const updateDebt = (...args) => (useLive ? live_updateDebt(...args) : demoBackend.updateDebt(...args))
 export const updateDebtBalance = (...args) => (useLive ? live_updateDebtBalance(...args) : demoBackend.updateDebtBalance(...args))

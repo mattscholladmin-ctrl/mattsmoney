@@ -15,10 +15,13 @@ import {
   spendableToday,
   upcomingIncome,
   totalSetAside,
+  countsAsSpendable,
 } from './budget.js'
 import { isoDate } from './format.js'
 
-// Latest known balance per account, checking-kind accounts summed.
+// Cash that is actually in Safe to spend.
+// The account switch decides which accounts count.
+// A missing available balance is not replaced with the current balance.
 export function checkingBalance(data) {
   const accounts = data.accounts || []
   const balances = data.balances || []
@@ -30,13 +33,16 @@ export function checkingBalance(data) {
   let total = 0
   for (const a of accounts) {
     if (a.hidden) continue
+    if (!countsAsSpendable(a)) continue
     const kind = String(a.kind || a.type || '').toLowerCase()
     if (/credit|card|loan/.test(kind)) continue
     const bal = latestByAcct[a.id]
+    const note = String(bal?.note || '')
+    if (/available missing/.test(note)) continue
     const available = bal?.available_balance ?? bal?.available
-    const current = bal?.current_balance ?? bal?.balance ?? a.balance
-    const shown = available != null ? Number(available) : Number(current || 0)
-    if (/sav/.test(kind)) continue // savings are spoken for elsewhere
+    const stored = bal?.balance ?? a.balance
+    const shown = available != null ? Number(available) : stored != null && stored !== '' ? Number(stored) : null
+    if (shown == null || Number.isNaN(shown)) continue
     total += shown
   }
   return total

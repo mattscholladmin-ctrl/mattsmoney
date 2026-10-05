@@ -1644,7 +1644,12 @@ export function incomeOccurrences(src, fromIso, horizonDays) {
       d.setDate(d.getDate() + step)
     }
   } else if (src.cadence === 'monthly') {
-    const dueDay = Number(src.due_day)
+    let dueDay = Number(src.due_day)
+    if (!Number.isInteger(dueDay) || dueDay < 1) {
+      const fromAnchor = Number(String(src.anchor_date || '').slice(8, 10))
+      if (Number.isInteger(fromAnchor) && fromAnchor >= 1) dueDay = fromAnchor
+    }
+    if (!Number.isInteger(dueDay) || dueDay < 1) return out
     let year = from.getFullYear()
     let month = from.getMonth()
     for (let i = 0; i < 13; i++) {
@@ -1899,9 +1904,11 @@ export function upcomingBills(bills = [], fromIso = isoDate(), horizonDays = 30)
 // safe-to-spend.
 const PAID_WINDOW_DAYS = 5
 export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(), windowDays = PAID_WINDOW_DAYS) {
-  if (occ.date > todayIso) return false // future bills can't be paid off yet
   const billId = occ.billId || occ.id
-  const from = isoDate(new Date(parseISO(occ.date).getTime() - windowDays * DAY_MS))
+  const due = occ.originalDate || occ.date
+  if (occ.paid_through && due <= occ.paid_through) return true
+  const lookback = due > todayIso ? Math.max(windowDays, OVERDUE_PAID_WINDOW_DAYS) : windowDays
+  const from = isoDate(new Date(parseISO(due).getTime() - lookback * DAY_MS))
   const billWords = significantWords(occ.name || '')
   const amt = Number(occ.amount || 0)
   return transactions.some((t) => {
@@ -1947,6 +1954,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
     if (bill.active === false) continue
     const start = bill.start_date || null
     if (start && fromIso < start) {
+      if (bill.paid_through && start <= bill.paid_through) continue
       preStartIds.add(bill.id)
       preStartHolds.push({
         date: start,
@@ -1961,8 +1969,17 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
     }
   }
 
+  const paidThrough = new Map()
+  for (const bill of bills) {
+    if (bill && bill.id && bill.paid_through) paidThrough.set(bill.id, bill.paid_through)
+  }
+  const covered = (billId, date) => {
+    const thru = paidThrough.get(billId)
+    return !!(thru && date && date <= thru)
+  }
+
   const forward = upcomingBills(bills, fromIso, horizonDays).filter(
-    (occ) => !preStartIds.has(occ.billId) && !isBillOccurrencePaid(occ, transactions, fromIso)
+    (occ) => !preStartIds.has(occ.billId) && !covered(occ.billId, occ.date) && !isBillOccurrencePaid(occ, transactions, fromIso)
   )
   const dueTodayBillIds = new Set(forward.filter((o) => o.date === fromIso).map((o) => o.billId))
 
@@ -1975,6 +1992,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
     const mostRecent = past[past.length - 1]
     if (!mostRecent) continue
     if (bill.start_date && mostRecent < bill.start_date) continue
+    if (covered(bill.id, mostRecent)) continue
     const occ = {
       date: mostRecent,
       name: bill.name,
@@ -2342,7 +2360,7 @@ export function spendableToday(
   const windowBillIds = new Set()
   for (const b of upBills) {
     const due = b.originalDate || b.date
-    if (b.overdue) continue
+    // A past-due unpaid bill still holds its full amount. Do not skip it.
     // First payment before the next paycheck is a live bill this window,
     // not a later share. Sep 28 + first due Oct 1 + payday Oct 8 = hold full.
     if (b.preStart) {
