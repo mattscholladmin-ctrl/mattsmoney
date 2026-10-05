@@ -48,6 +48,19 @@ export function checkingBalance(data) {
   return total
 }
 
+// This paycheck's hold for a debt.
+// The monthly payment is unchanged by an extra payment.
+// If the balance is now below one monthly payment, this check holds only what's left.
+export function debtPaycheckShare(debt, periodsPerYear) {
+  const monthly = Number(debt?.plan_payment || 0)
+  if (!(monthly > 0)) return 0
+  const periods = Math.max(1, Number(periodsPerYear) || 12)
+  const slice = (monthly * 12) / periods
+  const owed = Math.max(0, Number(debt?.balance || 0))
+  const share = owed < monthly ? owed : Math.min(slice, owed)
+  return Math.round(share * 100) / 100
+}
+
 export function computePaycheckPlan({ data, todayIso } = {}) {
   const d = data || {}
   const today = todayIso || isoDate()

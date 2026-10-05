@@ -1,10 +1,10 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from 'react'
-import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome, markBillPaid } from '../lib/api'
+import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome, markBillPaid, addGoal, updateGoal, deleteGoal, addDebt, updateDebt, deleteDebt, addDebtPayment } from '../lib/api'
 import { signOut } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import GoogleCalendarCard from './GoogleCalendarCard'
-import { computePaycheckPlan } from '../lib/paycheck-plan'
+import { computePaycheckPlan, debtPaycheckShare } from '../lib/paycheck-plan'
 import { shortDate, isoDate } from '../lib/format'
 import ConnectBankCard from './ConnectBankCard'
 import RecurringBillsCard from './RecurringBillsCard'
@@ -206,10 +206,11 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       if (!(monthly > 0)) continue
       const start = d.next_payment_date || d.start_date || ''
       const future = start && start > today
+      const share = debtPaycheckShare(d, payPeriodsPerYear(data.income || []))
       rows.push({
         id: `d-${d.id}`,
         name: d.name,
-        share: (monthly * 12) / payPeriodsPerYear(data.income || []),
+        share,
         kind: 'Debt',
         note: future ? `Starts ${shortDate(start)} — counted now` : 'Each paycheck',
       })
@@ -476,6 +477,10 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
 
   /* ================= HOME (paycheck-first overview) ================= */
   function Home() {
+    const [editor, setEditor] = useState(null)
+    const [extra, setExtra] = useState(null)
+    const [planMsg, setPlanMsg] = useState('')
+    const [planBusy, setPlanBusy] = useState(false)
     const dueNow = pay.info.windowItems || []
     const payday = pay.nextIncome?.date
     const shares = (pay.info.laterItems || []).filter((b) => b.due && payday && b.due > payday)
@@ -527,6 +532,124 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     const ring = ringStops.length ? `conic-gradient(${ringStops.join(',')})` : 'conic-gradient(#3f3f46 0 100%)'
 
     const firstName = session?.user?.email ? session.user.email.split('@')[0] : 'there'
+
+    function openPlan(kind, id) {
+      setExtra(null)
+      setPlanMsg('')
+      if (kind === 'Goal') {
+        const g = (data.goals || []).find((x) => String(x.id) === String(id))
+        if (!g) return
+        setEditor({
+          kind: 'goal',
+          id: g.id,
+          name: g.name || '',
+          target: String(g.target ?? ''),
+          saved: String(g.current ?? ''),
+          monthly: String(g.monthly_contribution ?? ''),
+          deadline: g.target_date || '',
+        })
+      } else {
+        const d = (data.debts || []).find((x) => String(x.id) === String(id))
+        if (!d) return
+        setEditor({
+          kind: 'debt',
+          id: d.id,
+          name: d.name || '',
+          balance: String(d.balance ?? ''),
+          monthly: String(d.plan_payment ?? ''),
+          firstDate: d.start_date || d.next_payment_date || '',
+        })
+      }
+    }
+
+    async function savePlan(e) {
+      e.preventDefault()
+      setPlanMsg('')
+      const name = editor.name.trim()
+      const monthly = Number(editor.monthly)
+      if (!name || !(monthly > 0)) {
+        setPlanMsg('Name and a monthly amount are required.')
+        return
+      }
+      setPlanBusy(true)
+      try {
+        if (editor.kind === 'goal') {
+          const fields = {
+            name,
+            target: Number(editor.target || 0),
+            current: Number(editor.saved || 0),
+            monthly_contribution: monthly,
+            target_date: editor.deadline || null,
+            status: 'active',
+          }
+          if (editor.id) await updateGoal(editor.id, fields)
+          else await addGoal(fields)
+        } else {
+          if (!editor.firstDate) {
+            setPlanMsg('First due date is required.')
+            setPlanBusy(false)
+            return
+          }
+          const fields = {
+            name,
+            balance: Number(editor.balance || 0),
+            plan_payment: monthly,
+            min_payment: monthly,
+            due_day: Number(editor.firstDate.slice(8, 10)),
+            start_date: editor.firstDate,
+            pay_frequency: 'monthly',
+            kind: 'loan',
+          }
+          if (editor.id) await updateDebt(editor.id, fields)
+          else await addDebt(fields)
+        }
+        setEditor(null)
+        setPlanMsg(editor.id ? 'Saved.' : 'Added.')
+        load()
+      } catch (err) {
+        setPlanMsg(err.message || 'Could not save.')
+      } finally {
+        setPlanBusy(false)
+      }
+    }
+
+    async function removePlan() {
+      if (!editor?.id) return
+      setPlanBusy(true)
+      setPlanMsg('')
+      try {
+        if (editor.kind === 'goal') await deleteGoal(editor.id)
+        else await deleteDebt(editor.id)
+        setEditor(null)
+        setPlanMsg('Deleted.')
+        load()
+      } catch (err) {
+        setPlanMsg(err.message || 'Could not delete.')
+      } finally {
+        setPlanBusy(false)
+      }
+    }
+
+    async function saveExtra(e) {
+      e.preventDefault()
+      const amount = Number(extra.amount)
+      if (!(amount > 0)) {
+        setPlanMsg('Enter the payment amount.')
+        return
+      }
+      setPlanBusy(true)
+      setPlanMsg('')
+      try {
+        await addDebtPayment({ debt_id: extra.id, amount, paid_on: extra.date || isoDate() })
+        setExtra(null)
+        setPlanMsg('Balance lowered. Monthly payment unchanged.')
+        load()
+      } catch (err) {
+        setPlanMsg(err.message || 'Could not log the payment.')
+      } finally {
+        setPlanBusy(false)
+      }
+    }
 
     return (
       <div className="dw-page">
@@ -627,9 +750,22 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                     <div className="dw-plan-sec">
                       <span>{label}</span>
                       <b>{moneyFull(sub)}</b>
+                      <button
+                        className="dw-link"
+                        type="button"
+                        onClick={() => {
+                          setExtra(null)
+                          setPlanMsg('')
+                          setEditor(kind === 'Goal'
+                            ? { kind: 'goal', id: '', name: '', target: '', saved: '', monthly: '', deadline: '' }
+                            : { kind: 'debt', id: '', name: '', balance: '', monthly: '', firstDate: '' })
+                        }}
+                      >Add</button>
                     </div>
+                    {rows.length === 0 && <p className="dw-mute" style={{ margin: '4px 0 8px' }}>None yet.</p>}
                     {rows.map((r) => {
                       const on = !state.planOff?.[r.id]
+                      const rawId = r.id.slice(2)
                       return (
                         <div key={r.id} className="dw-plan-toggle">
                           <button
@@ -643,12 +779,71 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                             <em>{r.note}</em>
                           </span>
                           <span className="dw-amt">{moneyFull(r.share)}</span>
+                          <button className="dw-link" type="button" onClick={() => openPlan(kind, rawId)}>Edit</button>
+                          {kind === 'Debt' && (
+                            <button className="dw-link" type="button" onClick={() => { setEditor(null); setPlanMsg(''); setExtra({ id: rawId, name: r.name, amount: '', date: isoDate() }) }}>Extra payment</button>
+                          )}
                         </div>
                       )
                     })}
                   </div>
                 )
               })}
+              {editor && (
+                <form onSubmit={savePlan}>
+                  <label className="dw-field">Name
+                    <input value={editor.name} onChange={(e) => setEditor({ ...editor, name: e.target.value })} />
+                  </label>
+                  {editor.kind === 'goal' ? (
+                    <>
+                      <label className="dw-field">Target
+                        <input type="number" step="0.01" value={editor.target} onChange={(e) => setEditor({ ...editor, target: e.target.value })} />
+                      </label>
+                      <label className="dw-field">Saved so far
+                        <input type="number" step="0.01" value={editor.saved} onChange={(e) => setEditor({ ...editor, saved: e.target.value })} />
+                      </label>
+                      <label className="dw-field">Amount per month
+                        <input type="number" step="0.01" value={editor.monthly} onChange={(e) => setEditor({ ...editor, monthly: e.target.value })} />
+                      </label>
+                      <label className="dw-field">Deadline, optional
+                        <input type="date" value={editor.deadline} onChange={(e) => setEditor({ ...editor, deadline: e.target.value })} />
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <label className="dw-field">Balance
+                        <input type="number" step="0.01" value={editor.balance} onChange={(e) => setEditor({ ...editor, balance: e.target.value })} />
+                      </label>
+                      <label className="dw-field">Payment per month
+                        <input type="number" step="0.01" value={editor.monthly} onChange={(e) => setEditor({ ...editor, monthly: e.target.value })} />
+                      </label>
+                      <label className="dw-field">First due date
+                        <input type="date" value={editor.firstDate} onChange={(e) => setEditor({ ...editor, firstDate: e.target.value })} />
+                      </label>
+                    </>
+                  )}
+                  <button className="dw-ctl-btn" type="submit" disabled={planBusy}>{editor.id ? 'Save' : 'Add'}</button>
+                  <button className="dw-ctl-btn" type="button" style={{ marginLeft: 8 }} onClick={() => setEditor(null)}>Cancel</button>
+                  {editor.id && (
+                    <button className="dw-ctl-btn" type="button" style={{ marginLeft: 8 }} onClick={removePlan}>Delete</button>
+                  )}
+                  {planMsg && <p className="dw-mute" style={{ marginTop: 8 }}>{planMsg}</p>}
+                </form>
+              )}
+              {extra && (
+                <form onSubmit={saveExtra}>
+                  <p className="dw-mute" style={{ margin: '8px 0 0' }}>Extra payment on {extra.name}. This only lowers the balance. The monthly payment stays the same.</p>
+                  <label className="dw-field">Amount
+                    <input type="number" step="0.01" value={extra.amount} onChange={(e) => setExtra({ ...extra, amount: e.target.value })} />
+                  </label>
+                  <label className="dw-field">Date
+                    <input type="date" value={extra.date} onChange={(e) => setExtra({ ...extra, date: e.target.value })} />
+                  </label>
+                  <button className="dw-ctl-btn" type="submit" disabled={planBusy}>Log payment</button>
+                  <button className="dw-ctl-btn" type="button" style={{ marginLeft: 8 }} onClick={() => setExtra(null)}>Cancel</button>
+                  {planMsg && <p className="dw-mute" style={{ marginTop: 8 }}>{planMsg}</p>}
+                </form>
+              )}
               <div className="dw-plan-sec">
                 <span>Bills</span>
                 <button
