@@ -152,6 +152,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   const [newBill, setNewBill] = useState({ name: '', amount: '' })
   const [addedBills, setAddedBills] = useState([])
   const [reviewIdx, setReviewIdx] = useState(0)
+  const [txnFront, setTxnFront] = useState([])
+  const [billFront, setBillFront] = useState([])
   const [reviewHist, setReviewHist] = useState([])
   const [reviewTotals, setReviewTotals] = useState({ needs: 0, wants: 0, savings: 0 })
   const [activityLimit, setActivityLimit] = useState(120)
@@ -325,7 +327,24 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   }
 
   const queue = product.queue
-  const front = queue[reviewIdx] || null
+  const orderedQueue = useMemo(() => {
+    const ids = txnFront.filter((id) => queue.some((t) => t.id === id))
+    const parked = ids.map((id) => queue.find((t) => t.id === id)).filter(Boolean)
+    const rest = queue.filter((t) => !ids.includes(t.id))
+    return [...parked, ...rest]
+  }, [queue, txnFront])
+  const txnAt = reviewIdx < orderedQueue.length ? reviewIdx : 0
+  const front = orderedQueue[txnAt] || null
+
+  function parkAtFront(list, index, setFront, setIndex) {
+    const item = list[index]
+    if (!item) return
+    const next = list[index + 1] || list[0]
+    setFront((ids) => [item.id, ...ids.filter((id) => id !== item.id)])
+    const shifted = [item, ...list.filter((x) => x.id !== item.id)]
+    const nextIdx = shifted.findIndex((x) => x.id === next.id)
+    setIndex(nextIdx < 0 ? 0 : nextIdx)
+  }
 
   function goReview(dir) {
     if (!front) return
@@ -335,7 +354,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   }
 
   function skipReview() {
-    setReviewIdx((i) => i + 1)
+    parkAtFront(orderedQueue, txnAt, setTxnFront, setReviewIdx)
   }
 
   function undoReview() {
@@ -366,6 +385,13 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       .filter((g) => g.count >= 2 && !rejected[g.id] && !added.has(g.name.toLowerCase()))
       .map((g) => ({ id: g.id, name: g.name, amount: g.amount, note: `Seen ${g.count} times` }))
   }, [data, state.rejectedIdeas, addedBills])
+
+  const orderedBills = useMemo(() => {
+    const ids = billFront.filter((id) => billIdeas.some((b) => b.id === id))
+    const parked = ids.map((id) => billIdeas.find((b) => b.id === id)).filter(Boolean)
+    const rest = billIdeas.filter((b) => !ids.includes(b.id))
+    return [...parked, ...rest]
+  }, [billIdeas, billFront])
 
   const nav = [
     { id: 'home', label: 'Home', icon: ICONS.home },
@@ -1245,9 +1271,10 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
 
   /* ================= REVIEW (categorize flow) ================= */
   function Review() {
-    const bill = billIdeas[billIdx] || null
-    const txnLeft = queue.length
-    const billLeft = billIdeas.length
+    const billAt = billIdx < orderedBills.length ? billIdx : 0
+    const bill = orderedBills[billAt] || null
+    const txnLeft = orderedQueue.length
+    const billLeft = orderedBills.length
     const tabs = (
       <div className="dw-review-tabs">
         <button className={reviewMode === 'spend' ? 'on' : ''} onClick={() => setReviewMode('spend')}>Transactions</button>
@@ -1308,6 +1335,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                   }}>Confirm</button>
                   <button className="bw-wants" onClick={() => { setCorrectOn(true); setBillDraft({ name: bill.name, amount: String(bill.amount) }) }}>Correct</button>
                   <button className="bw-savings" onClick={() => { patchState({ rejectedIdeas: { ...(state.rejectedIdeas || {}), [bill.id]: true } }); setBillIdx(0); setCorrectOn(false) }}>Not a bill</button>
+                </div>
+                <div className="dw-review-ctrl">
+                  <button className="dw-ctl-btn" type="button" onClick={() => { parkAtFront(orderedBills, billAt, setBillFront, setBillIdx); setCorrectOn(false) }}>Skip</button>
                 </div>
               </>
             )}
