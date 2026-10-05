@@ -1295,7 +1295,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                     )}
                   </div>
                 </div>
-                {bill && <p className="dw-progress dw-progress-under">{billIdx + 1} of {billIdeas.length}</p>}
                 <div className="dw-bucket-btns">
                   <button className="bw-needs" onClick={() => {
                     const name = correctOn ? (billDraft.name || bill.name) : bill.name
