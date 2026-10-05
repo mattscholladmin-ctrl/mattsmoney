@@ -147,6 +147,12 @@ html[data-dw='1'] .dw-app {
 .dw-2col { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
 .dw-bill-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
 .dw-bill-grid .dw-plan-toggle { min-width: 0; }
+.dw-bill-cell { min-width: 0; padding: 10px 0 8px; border-bottom: 1px solid var(--dw-line); }
+.dw-bill-top { display: flex; align-items: flex-start; gap: 12px; }
+.dw-bill-top b { flex: 1; min-width: 0; font-size: calc(0.8438rem * var(--dw-type, 1.56)); }
+.dw-bill-top .dw-amt { white-space: nowrap; font-weight: 700; }
+.dw-bill-cell em { display: block; margin-top: 2px; color: var(--dw-mute); font-style: normal; font-size: calc(0.75rem * var(--dw-type, 1.56)); }
+.dw-bill-actions { display: flex; gap: 14px; margin-top: 4px; }
 @media (max-width: 1400px) { .dw-bill-grid { grid-template-columns: 1fr; } }
 .dw-col-stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 @media (max-width: 1100px) { .dw-2col { grid-template-columns: 1fr; } }

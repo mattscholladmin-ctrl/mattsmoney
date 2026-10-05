@@ -980,18 +980,18 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                 const hold = b.full ? left : (amt > 0 ? Number(b.share || 0) * (left / amt) : 0)
                 const late = b.due && b.due < isoDate() && left > 0.009
                 return (
-                <div key={`${b.full ? 'due' : 'later'}-${b.id}`}>
-                <div className="dw-plan-toggle">
-                  <span className="grow">
+                <div key={`${b.full ? 'due' : 'later'}-${b.id}`} className="dw-bill-cell">
+                  <div className="dw-bill-top">
                     <b>{b.name}</b>
-                    <em>{b.full
-                      ? `Due ${b.due ? shortDate(b.due) : 'soon'}${paid > 0 ? '' : ' · full amount'}`
-                      : `${moneyFull(hold)} of ${moneyFull(left)}${b.due ? ` · due ${shortDate(b.due)}` : ''}`}{paid > 0 ? ` · ${moneyFull(paid)} paid` : ''}{late ? ' · late' : ''}</em>
-                  </span>
-                  <span className="dw-amt">{moneyFull(hold)}</span>
-                  <button className="dw-link" onClick={() => markPaid(b)}>Mark paid</button>
-                  <button className="dw-link" type="button" onClick={() => { setPartialId(b.id); setPartialAmt('') }}>Partial</button>
-                </div>
+                    <span className="dw-amt">{moneyFull(hold)}</span>
+                  </div>
+                  <em>{b.full
+                    ? `Due ${b.due ? shortDate(b.due) : 'soon'}${paid > 0 ? '' : ' · full amount'}`
+                    : `${moneyFull(hold)} of ${moneyFull(left)}${b.due ? ` · due ${shortDate(b.due)}` : ''}`}{paid > 0 ? ` · ${moneyFull(paid)} paid` : ''}{late ? ' · late' : ''}</em>
+                  <div className="dw-bill-actions">
+                    <button className="dw-link" onClick={() => markPaid(b)}>Mark paid</button>
+                    <button className="dw-link" type="button" onClick={() => { setPartialId(b.id); setPartialAmt('') }}>Partial</button>
+                  </div>
                 {partialId === b.id && (
                   <form
                     onSubmit={(e) => {
