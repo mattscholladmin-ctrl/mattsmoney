@@ -176,6 +176,9 @@ export async function addBill({ name, amount, category, cadence, due_day, smooth
 export async function updateBill(id, fields) {
   upd("bills", id, fields);
 }
+export async function setBillPartial(id, partial_paid, partial_for) {
+  upd("bills", id, { partial_paid, partial_for: partial_for || null });
+}
 export async function deleteBill(id) {
   del("bills", id);
 }

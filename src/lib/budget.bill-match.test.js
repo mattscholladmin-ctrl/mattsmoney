@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { suggestBillPayment, rejectKey, isBillOccurrencePaid } from './budget.js'
+import { suggestBillPayment, rejectKey, isBillOccurrencePaid, uniqueBillForCharge, unpaidBills, isPendingPostedTwin, rememberedAppleSplit } from './budget.js'
 
 const youtube = { billId: 'yt', name: 'YouTube Premium', amount: 11.99, date: '2026-08-08' }
 
@@ -10,10 +10,40 @@ describe('bill payment matcher', () => {
     assert.equal(suggestBillPayment(youtube, txns, '2026-09-06'), null)
   })
 
-  it('matches Apple.com/bill for YouTube', () => {
+  it('does not treat every Apple charge as YouTube', () => {
     const txns = [{ id: 'a', merchant: 'APPLE.COM/BILL', amount: 11.99, txn_date: '2026-08-08' }]
-    const hit = suggestBillPayment(youtube, txns, '2026-09-06')
-    assert.equal(hit.id, 'a')
+    assert.equal(suggestBillPayment(youtube, txns, '2026-09-06'), null)
+  })
+
+  it('matches an Apple charge only when one bill has that amount', () => {
+    const icloud = { id: 'ic', name: 'iCloud', amount: 2.99, active: true }
+    const yt = { id: 'yt', name: 'YouTube Premium', amount: 11.99, active: true }
+    const other = { id: 'o', name: 'Other', amount: 11.99, active: true }
+    assert.equal(uniqueBillForCharge([icloud, yt], 11.99).id, 'yt')
+    assert.equal(uniqueBillForCharge([yt, other], 11.99), null)
+  })
+
+  it('keeps the rest of a partial payment and does not call a smaller charge paid in full', () => {
+    const bill = { id: 'ins', name: 'Progressive', amount: 138, due_day: 1, cadence: 'monthly', active: true, partial_paid: 69, partial_for: '2026-10-01' }
+    const owed = unpaidBills([bill], [], '2026-10-02', 40)
+    const row = owed.find((b) => b.billId === 'ins')
+    assert.equal(row.amount, 69)
+    assert.equal(row.fullAmount, 138)
+    const half = [{ id: 'p', merchant: 'Progressive', amount: 69, txn_date: '2026-10-02' }]
+    assert.equal(isBillOccurrencePaid({ ...row, date: '2026-10-01' }, half, '2026-10-02'), false)
+  })
+
+  it('does not delete two posted charges', () => {
+    const a = { merchant: 'Apple', amount: 9.99, txn_date: '2026-10-01', pending: false, category: 'Bills' }
+    const b = { merchant: 'Apple', amount: 9.99, txn_date: '2026-10-03', pending: false, category: 'Shopping' }
+    assert.equal(isPendingPostedTwin(a, b), false)
+    assert.equal(isPendingPostedTwin({ ...a, pending: true }, b), true)
+  })
+
+  it('remembers a saved Apple split for the same total', () => {
+    const txns = [{ id: 'a', merchant: 'APPLE.COM/BILL', amount: 14.98, txn_date: '2026-09-01', note: 'apple-split:yt=11.99,ic=2.99' }]
+    const rule = rememberedAppleSplit(txns, 14.98)
+    assert.deepEqual(rule.parts, [{ id: 'yt', amount: 11.99 }, { id: 'ic', amount: 2.99 }])
   })
 
   it('does not rematch a rejected pair', () => {

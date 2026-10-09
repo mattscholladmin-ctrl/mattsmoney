@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid'
 import { adminClient } from './googleServer.js'
-import { normalizeMerchant } from './budget.js'
+import { normalizeMerchant, isPendingPostedTwin } from './budget.js'
 
 export function plaidClient() {
   const env = process.env.PLAID_ENV || 'sandbox'
@@ -228,10 +228,7 @@ async function collapsePostedTwins(uid, db) {
       const dbv = Date.parse(b.txn_date)
       if (!Number.isFinite(da) || !Number.isFinite(dbv) || Math.abs(da - dbv) > 5 * 86400000) continue
       if (!familyName(a.merchant, b.merchant)) continue
-      const pendingPair = Boolean(a.pending) !== Boolean(b.pending)
-      const splitCats = String(a.category || '').toLowerCase() !== String(b.category || '').toLowerCase() &&
-        [a, b].some((t) => /^(bills|housing|health)$/i.test(String(t.category || '')) || /paid:/.test(String(t.note || '')))
-      if (!pendingPair && !splitCats) continue
+      if (!isPendingPostedTwin(a, b)) continue
       const keep = preferRow(a, b)
       const loser = keep === a ? b : a
       drop.push(loser.id)

@@ -1878,16 +1878,32 @@ export function paycheckAccrual(sources, { startIso, dueIso, cap, today = isoDat
   return { slice, held, paychecksTotal, paychecksLanded, dueThisCycle: paychecksTotal <= 1 }
 }
 
+function owedOn(bill, dueDate) {
+  const full = Number(bill.amount || 0)
+  const paid = Number(bill.partial_paid || 0)
+  const due = String(dueDate || '').slice(0, 10)
+  const applies = paid > 0 && String(bill.partial_for || '').slice(0, 10) === due
+  const partialPaid = applies ? Math.min(full, paid) : 0
+  return {
+    amount: applies ? Math.max(0, round2(full - partialPaid)) : full,
+    fullAmount: full,
+    partialPaid,
+  }
+}
+
 // Flattened, date-sorted list of upcoming bill payments within the horizon.
 export function upcomingBills(bills = [], fromIso = isoDate(), horizonDays = 30) {
   const items = []
   for (const bill of bills) {
     if (bill.active === false) continue
     for (const date of billOccurrences(bill, fromIso, horizonDays)) {
+      const owed = owedOn(bill, date)
       items.push({
         date,
         name: bill.name,
-        amount: Number(bill.amount || 0),
+        amount: owed.amount,
+        fullAmount: owed.fullAmount,
+        partialPaid: owed.partialPaid,
         category: bill.category || 'Bills',
         billId: bill.id,
       })
@@ -1910,7 +1926,7 @@ export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(
   const lookback = due > todayIso ? Math.max(windowDays, OVERDUE_PAID_WINDOW_DAYS) : windowDays
   const from = isoDate(new Date(parseISO(due).getTime() - lookback * DAY_MS))
   const billWords = significantWords(occ.name || '')
-  const amt = Number(occ.amount || 0)
+  const amt = Number(occ.fullAmount != null ? occ.fullAmount : occ.amount || 0)
   return transactions.some((t) => {
     const d = t.txn_date || ''
     if (d < from || d > todayIso) return false
@@ -1956,10 +1972,13 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
     if (start && fromIso < start) {
       if (bill.paid_through && start <= bill.paid_through) continue
       preStartIds.add(bill.id)
+      const owed = owedOn(bill, start)
       preStartHolds.push({
         date: start,
         name: bill.name,
-        amount: Number(bill.amount || 0),
+        amount: owed.amount,
+        fullAmount: owed.fullAmount,
+        partialPaid: owed.partialPaid,
         category: bill.category || 'Bills',
         billId: bill.id,
         overdue: false,
@@ -1979,7 +1998,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
   }
 
   const forward = upcomingBills(bills, fromIso, horizonDays).filter(
-    (occ) => !preStartIds.has(occ.billId) && !covered(occ.billId, occ.date) && !isBillOccurrencePaid(occ, transactions, fromIso)
+    (occ) => occ.amount > 0.009 && !preStartIds.has(occ.billId) && !covered(occ.billId, occ.date) && !isBillOccurrencePaid(occ, transactions, fromIso)
   )
   const dueTodayBillIds = new Set(forward.filter((o) => o.date === fromIso).map((o) => o.billId))
 
@@ -1993,10 +2012,14 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
     if (!mostRecent) continue
     if (bill.start_date && mostRecent < bill.start_date) continue
     if (covered(bill.id, mostRecent)) continue
+    const owed = owedOn(bill, mostRecent)
+    if (owed.amount <= 0.009) continue
     const occ = {
       date: mostRecent,
       name: bill.name,
-      amount: Number(bill.amount || 0),
+      amount: owed.amount,
+      fullAmount: owed.fullAmount,
+      partialPaid: owed.partialPaid,
       category: bill.category || 'Bills',
       billId: bill.id,
     }
@@ -2134,6 +2157,56 @@ function billPayeeKeys(name) {
   }
   extra.forEach((a) => keys.add(a))
   return keys
+}
+
+export function isAppleMerchant(name) {
+  const n = normalizeMerchant(name)
+  return n === 'apple' || n.startsWith('apple ') || n.includes(' apple')
+}
+
+export function uniqueBillForCharge(bills, amount) {
+  const key = Number(amount || 0).toFixed(2)
+  const hits = (bills || []).filter((b) => b.active !== false && Number(b.amount || 0).toFixed(2) === key)
+  return hits.length === 1 ? hits[0] : null
+}
+
+export function parseAppleSplit(note) {
+  const match = String(note || '').match(/apple-split:([^\s]+)/)
+  if (!match) return null
+  const parts = match[1].split(',').map((piece) => {
+    const [id, amt] = piece.split('=')
+    return { id, amount: Number(amt) }
+  }).filter((p) => p.id && p.amount > 0)
+  if (!parts.length) return null
+  return { parts, total: round2(parts.reduce((s, p) => s + p.amount, 0)) }
+}
+
+export function rememberedAppleSplit(transactions, amount) {
+  const key = Number(amount || 0).toFixed(2)
+  let best = null
+  let bestDate = ''
+  for (const t of transactions || []) {
+    const rule = parseAppleSplit(t.note)
+    if (!rule || rule.total.toFixed(2) !== key) continue
+    const day = String(t.txn_date || '')
+    if (day >= bestDate) {
+      bestDate = day
+      best = rule
+    }
+  }
+  return best
+}
+
+export function isPendingPostedTwin(a, b) {
+  if (Boolean(a?.pending) === Boolean(b?.pending)) return false
+  if (Number(a?.amount || 0).toFixed(2) !== Number(b?.amount || 0).toFixed(2)) return false
+  const da = Date.parse(a?.txn_date)
+  const dbv = Date.parse(b?.txn_date)
+  if (!Number.isFinite(da) || !Number.isFinite(dbv) || Math.abs(da - dbv) > 5 * 86400000) return false
+  const na = normalizeMerchant(a?.merchant)
+  const nb = normalizeMerchant(b?.merchant)
+  if (!na || !nb) return false
+  return na === nb || na.includes(nb) || nb.includes(na)
 }
 
 export function merchantMatchesBill(billName, merchant) {
@@ -2394,6 +2467,8 @@ export function spendableToday(
       amount,
       due: b.due,
       share: amount / n,
+      partialPaid: Number(b.partialPaid || 0),
+      fullAmount: Number(b.fullAmount ?? amount),
       category: b.category || 'Bills',
     }
   })
@@ -2418,6 +2493,8 @@ export function spendableToday(
       id: b.billId || b.id || b.name,
       name: b.name,
       amount: Number(b.amount || 0),
+      fullAmount: Number(b.fullAmount ?? b.amount ?? 0),
+      partialPaid: Number(b.partialPaid || 0),
       due: b.originalDate || b.date,
       category: b.category || 'Bills',
     })),

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome, markBillPaid, addGoal, updateGoal, deleteGoal, addDebt, updateDebt, deleteDebt, addDebtPayment, markTransactionsPaid } from '../lib/api'
+import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome, markBillPaid, setBillPartial, addBill, addGoal, updateGoal, deleteGoal, addDebt, updateDebt, deleteDebt, addDebtPayment, markTransactionsPaid } from '../lib/api'
 import { signOut } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import GoogleCalendarCard from './GoogleCalendarCard'
@@ -9,7 +9,7 @@ import { shortDate, isoDate } from '../lib/format'
 import ConnectBankCard from './ConnectBankCard'
 import RecurringBillsCard from './RecurringBillsCard'
 import IncomeCard from './IncomeCard'
-import { upcomingIncome, payPeriodsPerYear, suggestBillPayment } from '../lib/budget'
+import { upcomingIncome, payPeriodsPerYear, suggestBillPayment, isAppleMerchant, uniqueBillForCharge, rememberedAppleSplit } from '../lib/budget'
 import '../dw.css'
 import {
   PLAN_DEFAULT,
@@ -154,6 +154,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   const [query, setQuery] = useState('')
   const [reviewMode, setReviewMode] = useState('spend')
   const [billIdx, setBillIdx] = useState(0)
+  const [reviewErr, setReviewErr] = useState('')
   const [correctOn, setCorrectOn] = useState(false)
   const [billDraft, setBillDraft] = useState({ name: '', amount: '' })
   const [showAddBill, setShowAddBill] = useState(false)
@@ -288,28 +289,12 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
   const extraAmt = extra ? Math.abs(Number(extra.amount || 0)) : 0
   const extraOn = !!(extra && state.extraId === extra.id)
   const paidBills = state.paidBills || {}
-  function partialFor(bill) {
-    const rec = state.billPartials?.[bill.id]
-    const due = bill.due || ''
-    if (!rec || rec.due !== due) return 0
-    const amt = Number(bill.amount || 0)
-    return Math.min(amt, Math.max(0, Number(rec.paid || 0)))
-  }
   const dueRows = (pay.info.windowItems || []).filter((b) => !paidBills[b.id])
   const laterRows = (pay.info.laterItems || []).filter((b) => !paidBills[b.id])
   const paidBack =
     (pay.info.windowItems || []).filter((b) => paidBills[b.id]).reduce((s, b) => s + Number(b.amount || 0), 0) +
     (spreadOn
       ? (pay.info.laterItems || []).filter((b) => paidBills[b.id]).reduce((s, b) => s + Number(b.share || 0), 0)
-      : 0) +
-    dueRows.reduce((s, b) => s + partialFor(b), 0) +
-    (spreadOn
-      ? laterRows.reduce((s, b) => {
-          const amt = Number(b.amount || 0)
-          const paid = partialFor(b)
-          if (!(amt > 0) || !(paid > 0)) return s
-          return s + Number(b.share || 0) * (paid / amt)
-        }, 0)
       : 0)
   const safeShown =
     Number(pay.safeToSpend || 0) -
@@ -323,7 +308,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     for (const b of bills) {
       if (paidBills[b.id]) continue
       const txn = suggestBillPayment(
-        { name: b.name, amount: b.amount, date: b.due || isoDate(), billId: b.id },
+        { name: b.name, amount: b.fullAmount || b.amount, date: b.due || isoDate(), billId: b.id },
         data.transactions || [],
         isoDate(),
       )
@@ -334,11 +319,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
 
   async function markPaid(bill) {
     const due = bill.due || isoDate()
-    const partials = { ...(state.billPartials || {}) }
-    delete partials[bill.id]
-    patchState({ paidBills: { ...paidBills, [bill.id]: true }, billPartials: partials, matchSkip: true })
+    patchState({ paidBills: { ...paidBills, [bill.id]: true }, matchSkip: true })
     const txn = suggestBillPayment(
-      { name: bill.name, amount: bill.amount, date: due, billId: bill.id },
+      { name: bill.name, amount: bill.fullAmount || bill.amount, date: due, billId: bill.id },
       data.transactions || [],
       isoDate(),
     )
@@ -356,21 +339,63 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     }
   }
 
-  function logPartial(bill, raw) {
+  async function logPartial(bill, raw) {
     const add = Number(raw)
-    if (!(add > 0)) return
-    const amt = Number(bill.amount || 0)
-    const next = partialFor(bill) + add
-    if (amt > 0 && next >= amt - 0.009) {
-      markPaid(bill)
-      return
+    if (!(add > 0)) return false
+    const full = Number(bill.fullAmount || bill.amount || 0)
+    const next = Number(bill.partialPaid || 0) + add
+    if (full > 0 && next >= full - 0.009) {
+      await markPaid(bill)
+      return true
     }
-    patchState({
-      billPartials: {
-        ...(state.billPartials || {}),
-        [bill.id]: { due: bill.due || '', paid: Math.round(next * 100) / 100 },
-      },
-    })
+    try {
+      await setBillPartial(bill.id, Math.round(next * 100) / 100, bill.due || isoDate())
+      load()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  function currentDue(bill) {
+    const rows = [...(pay.info.windowItems || []), ...(pay.info.laterItems || [])]
+    const row = rows.find((b) => b.id === bill.id)
+    if (row?.due) return row.due
+    const day = Number(bill?.due_day)
+    if (!day) return isoDate()
+    const now = new Date(`${isoDate()}T12:00:00`)
+    const d = new Date(now.getFullYear(), now.getMonth(), day)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  function nearDue(charge, due) {
+    const c = Date.parse(charge)
+    const d = Date.parse(due)
+    if (!Number.isFinite(c) || !Number.isFinite(d)) return false
+    return (c - d) / 86400000 >= -21 && (c - d) / 86400000 <= 3
+  }
+
+  async function saveReviewedBill(bill) {
+    const name = String(bill?.name || '').trim()
+    const amount = Number(bill?.amount)
+    if (!name || !(amount > 0)) return
+    const existing = (data.bills || []).find((b) => String(b.name || '').trim().toLowerCase() === name.toLowerCase())
+    if (!existing) {
+      const day = Number(String(bill.latest || isoDate()).slice(8, 10)) || Number(isoDate().slice(8, 10))
+      try {
+        await addBill({ name, amount, category: 'Bills', cadence: 'monthly', due_day: day })
+      } catch (err) {
+        setReviewErr(err.message || 'Could not save that bill.')
+        return
+      }
+    }
+    if (bill.id) patchState({ rejectedIdeas: { ...(state.rejectedIdeas || {}), [bill.id]: true } })
+    setReviewErr('')
+    setBillIdx(0)
+    setCorrectOn(false)
+    setNewBill({ name: '', amount: '' })
+    setShowAddBill(false)
+    load()
   }
 
   function patchState(partial) {
@@ -453,18 +478,23 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
       const name = String(t.merchant || '').trim()
       if (!name || names.has(name.toLowerCase())) continue
       const key = name.toLowerCase()
-      if (!groups[key]) groups[key] = { id: `idea-${key}`, name, amount: Math.abs(Number(t.amount || 0)), count: 0, latest: String(t.txn_date || '').slice(0, 10) }
-      groups[key].count += 1
-      const day = String(t.txn_date || '').slice(0, 10)
-      if (day && day > groups[key].latest) groups[key].latest = day
+      if (!groups[key]) groups[key] = { id: `idea-${key}`, name, charges: [] }
+      groups[key].charges.push({
+        amount: Math.abs(Number(t.amount || 0)),
+        day: String(t.txn_date || '').slice(0, 10),
+      })
     }
     const rejected = state.rejectedIdeas || {}
-    const added = new Set(addedBills.map((b) => b.name.toLowerCase()))
     return Object.values(groups)
-      .filter((g) => g.count >= 2 && !rejected[g.id] && !added.has(g.name.toLowerCase()))
+      .map((g) => {
+        const latest = [...g.charges].sort((a, b) => String(b.day).localeCompare(String(a.day)))[0]
+        if (!latest) return null
+        const count = g.charges.filter((c) => Math.abs(c.amount - latest.amount) < 0.009).length
+        return { id: g.id, name: g.name, amount: latest.amount, latest: latest.day, count, note: `Seen ${count} times` }
+      })
+      .filter((g) => g && g.count >= 2 && !rejected[g.id])
       .sort((a, b) => String(b.latest).localeCompare(String(a.latest)))
-      .map((g) => ({ id: g.id, name: g.name, amount: g.amount, latest: g.latest, note: `Seen ${g.count} times` }))
-  }, [data, state.rejectedIdeas, addedBills])
+  }, [data, state.rejectedIdeas])
 
   const orderedBills = useMemo(() => {
     const ids = billFront.filter((id) => billIdeas.some((b) => b.id === id))
@@ -580,6 +610,65 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     )
   }
 
+  const appleTried = useRef(new Set())
+  useEffect(() => {
+    const bills = (data?.bills || []).filter((b) => b.active !== false)
+    const txns = data?.transactions || []
+    const today = isoDate()
+    const jobs = []
+    for (const t of txns) {
+      if (!isAppleMerchant(t.merchant) || !(Number(t.amount) > 0)) continue
+      const note = String(t.note || '')
+      if (note.includes('apple-split:') || note.includes('apple-paid:')) continue
+      if (appleTried.current.has(t.id)) continue
+      const day = String(t.txn_date || '').slice(0, 10)
+      if (!day) continue
+      const age = (Date.parse(today) - Date.parse(day)) / 86400000
+      if (!Number.isFinite(age) || age > 45 || age < -1) continue
+      const rule = rememberedAppleSplit(txns, t.amount)
+      if (rule && rule.parts.every((p) => {
+        const bill = bills.find((b) => b.id === p.id)
+        return bill && Math.abs(Number(bill.amount) - p.amount) < 0.02
+      })) {
+        jobs.push({ t, rule })
+        continue
+      }
+      const unique = uniqueBillForCharge(bills, t.amount)
+      if (!unique) continue
+      const due = currentDue(unique)
+      if (!nearDue(day, due)) continue
+      jobs.push({ t, unique, due })
+    }
+    if (!jobs.length) return
+    let cancel = false
+    ;(async () => {
+      for (const job of jobs) {
+        appleTried.current.add(job.t.id)
+        try {
+          if (job.unique) {
+            await markBillPaid(job.unique.id, job.due)
+            const note = String(job.t.note || '')
+            await updateTransaction(job.t.id, { note: `${note} apple-paid:${job.unique.id}`.trim() })
+          } else {
+            for (const part of job.rule.parts) {
+              const bill = bills.find((b) => b.id === part.id)
+              const due = currentDue(bill)
+              if (bill.paid_through && due <= bill.paid_through) continue
+              await markBillPaid(bill.id, due)
+            }
+            const note = String(job.t.note || '')
+            const body = job.rule.parts.map((p) => `${p.id}=${p.amount}`).join(',')
+            await updateTransaction(job.t.id, { note: `${note} apple-split:${body}`.trim() })
+          }
+        } catch {
+          /* the charge stays unmatched so it can be split by hand */
+        }
+      }
+      if (!cancel) load()
+    })()
+    return () => { cancel = true }
+  }, [data, load])
+
   /* ================= HOME (paycheck-first overview) ================= */
   function Home() {
     const [editor, setEditor] = useState(null)
@@ -588,6 +677,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     const [planBusy, setPlanBusy] = useState(false)
     const [partialId, setPartialId] = useState(null)
     const [partialAmt, setPartialAmt] = useState('')
+    const [applePicks, setApplePicks] = useState({})
     const dueNow = pay.info.windowItems || []
     const payday = pay.nextIncome?.date
     const shares = (pay.info.laterItems || []).filter((b) => b.due && payday && b.due > payday)
@@ -608,10 +698,30 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
         return due ? { id: b.id, name: b.name, amount: Number(b.amount || 0), due } : null
       })
       .filter((b) => b && !dueNow.some((d) => d.name === b.name))
+      .sort((a, b) => String(a.due).localeCompare(String(b.due)))
+    const appleCharge = (data.transactions || [])
+      .filter((t) => {
+        if (!isAppleMerchant(t.merchant) || !(Number(t.amount) > 0)) return false
+        const note = String(t.note || '')
+        if (note.includes('apple-split:') || note.includes('apple-paid:')) return false
+        const day = String(t.txn_date || '').slice(0, 10)
+        const age = (Date.parse(isoDate()) - Date.parse(day)) / 86400000
+        if (!day || !Number.isFinite(age) || age > 45) return false
+        const rule = rememberedAppleSplit(data.transactions || [], t.amount)
+        const bills = data.bills || []
+        if (rule && rule.parts.every((p) => {
+          const bill = bills.find((b) => b.id === p.id)
+          return bill && Math.abs(Number(bill.amount) - p.amount) < 0.02
+        })) return false
+        if (uniqueBillForCharge(bills, t.amount)) return false
+        return true
+      })
+      .sort((a, b) => String(b.txn_date).localeCompare(String(a.txn_date)))[0] || null
+    const appleSum = Object.values(applePicks).reduce((s, v) => s + (Number(v) || 0), 0)
     const next = pay.nextIncome
     const segs = [
       { label: 'Safe to spend', amount: Math.max(0, safeShown), color: '#22c55e' },
-      { label: 'Bills due before payday', amount: Math.max(0, Number(pay.info.billsBeforePay || 0) - dueRows.reduce((s, b) => s + partialFor(b), 0)), color: '#eab308' },
+      { label: 'Bills due before payday', amount: Math.max(0, Number(pay.info.billsBeforePay || 0)), color: '#eab308' },
       { label: 'Goals & debts on', amount: Math.max(0, pullTotal), color: '#a78bfa' },
       { label: 'Held aside', amount: Math.max(0, Number(pay.info.setAside || 0)), color: '#3b82f6' },
     ].filter((s) => s.amount > 0.005)
@@ -952,6 +1062,64 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               {planMsg && <p className="dw-mute" style={{ marginTop: 8 }}>{planMsg}</p>}
             </section>
 
+            {appleCharge && (
+              <section className="dw-card">
+                <div className="dw-k">Apple charge {moneyFull(Math.abs(Number(appleCharge.amount || 0)))}</div>
+                <p className="dw-mute" style={{ margin: '6px 0 10px' }}>
+                  {shortDate(String(appleCharge.txn_date || '').slice(0, 10))}. Pick the bills this paid. The amounts have to add up to the charge.
+                </p>
+                {(data.bills || []).filter((b) => b.active !== false).map((b) => (
+                  <label key={b.id} className="dw-plan-toggle">
+                    <input
+                      type="checkbox"
+                      checked={applePicks[b.id] != null}
+                      onChange={(e) => {
+                        setApplePicks((prev) => {
+                          const next = { ...prev }
+                          if (e.target.checked) next[b.id] = String(b.amount || '')
+                          else delete next[b.id]
+                          return next
+                        })
+                      }}
+                    />
+                    <span className="grow"><b>{b.name}</b></span>
+                    {applePicks[b.id] != null && (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={applePicks[b.id]}
+                        onChange={(e) => setApplePicks((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                        style={{ width: 90 }}
+                      />
+                    )}
+                  </label>
+                ))}
+                <button
+                  className="dw-ctl-btn"
+                  type="button"
+                  style={{ marginTop: 8 }}
+                  disabled={Math.abs(appleSum - Math.abs(Number(appleCharge.amount || 0))) > 0.02}
+                  onClick={async () => {
+                    const parts = Object.entries(applePicks)
+                      .map(([id, v]) => ({ id, amount: Math.round(Number(v) * 100) / 100 }))
+                      .filter((p) => p.amount > 0)
+                    for (const part of parts) {
+                      const bill = (data.bills || []).find((b) => b.id === part.id)
+                      if (!bill) continue
+                      const due = currentDue(bill)
+                      if (part.amount >= Number(bill.amount) - 0.02) await markBillPaid(bill.id, due)
+                      else await setBillPartial(bill.id, part.amount, due)
+                    }
+                    const note = String(appleCharge.note || '')
+                    const body = parts.map((p) => `${p.id}=${p.amount}`).join(',')
+                    await updateTransaction(appleCharge.id, { note: `${note} apple-split:${body}`.trim() })
+                    setApplePicks({})
+                    load()
+                  }}
+                >Save split</button>
+              </section>
+            )}
+
             <section className="dw-card">
               <div className="dw-plan-sec">
                 <span>Bills</span>
@@ -974,11 +1142,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
               ]
                 .sort((a, b) => String(a.due || '9999-99-99').localeCompare(String(b.due || '9999-99-99')))
                 .map((b) => {
-                const paid = partialFor(b)
-                const amt = Number(b.amount || 0)
-                const left = Math.max(0, amt - paid)
-                const hold = b.full ? left : (amt > 0 ? Number(b.share || 0) * (left / amt) : 0)
-                const late = b.due && b.due < isoDate() && left > 0.009
+                const paid = Number(b.partialPaid || 0)
+                const hold = b.full ? Number(b.amount || 0) : Number(b.share || 0)
+                const late = b.due && b.due < isoDate() && hold > 0.009
                 return (
                 <div key={`${b.full ? 'due' : 'later'}-${b.id}`} className="dw-bill-cell">
                   <div className="dw-bill-top">
@@ -987,16 +1153,17 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                   </div>
                   <em>{b.full
                     ? `Due ${b.due ? shortDate(b.due) : 'soon'}${paid > 0 ? '' : ' · full amount'}`
-                    : `${moneyFull(hold)} of ${moneyFull(left)}${b.due ? ` · due ${shortDate(b.due)}` : ''}`}{paid > 0 ? ` · ${moneyFull(paid)} paid` : ''}{late ? ' · late' : ''}</em>
+                    : `${moneyFull(hold)} of ${moneyFull(b.fullAmount || b.amount)}${b.due ? ` · due ${shortDate(b.due)}` : ''}`}{paid > 0 ? ` · ${moneyFull(paid)} paid` : ''}{late ? ' · late' : ''}</em>
                   <div className="dw-bill-actions">
                     <button className="dw-link" onClick={() => markPaid(b)}>Mark paid</button>
                     <button className="dw-link" type="button" onClick={() => { setPartialId(b.id); setPartialAmt('') }}>Partial</button>
                   </div>
                 {partialId === b.id && (
                   <form
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault()
-                      logPartial(b, partialAmt)
+                      const ok = await logPartial(b, partialAmt)
+                      if (ok === false) return
                       setPartialId(null)
                       setPartialAmt('')
                     }}
@@ -1429,14 +1596,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                 </div>
                 <p className="dw-progress dw-progress-under">{billLeft} left</p>
                 <div className="dw-bucket-btns">
-                  <button className="bw-needs" onClick={() => {
-                    const name = correctOn ? (billDraft.name || bill.name) : bill.name
-                    const amount = correctOn ? Number(billDraft.amount || bill.amount) : bill.amount
-                    setAddedBills((list) => [...list, { id: bill.id, name, amount }])
-                    patchState({ rejectedIdeas: { ...(state.rejectedIdeas || {}), [bill.id]: true } })
-                    setBillIdx(0)
-                    setCorrectOn(false)
-                  }}>Confirm</button>
+                  <button className="bw-needs" onClick={() => { saveReviewedBill(correctOn ? { ...bill, name: billDraft.name || bill.name, amount: Number(billDraft.amount || bill.amount) } : bill) }}>Confirm</button>
                   <button className="bw-wants" onClick={() => { setCorrectOn(true); setBillDraft({ name: bill.name, amount: String(bill.amount) }) }}>Correct</button>
                   <button className="bw-savings" onClick={() => { patchState({ rejectedIdeas: { ...(state.rejectedIdeas || {}), [bill.id]: true } }); setBillIdx(0); setCorrectOn(false) }}>Not a bill</button>
                 </div>
@@ -1458,16 +1618,12 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
                 <button
                   className="dw-ctl-btn"
                   style={{ marginTop: 12 }}
-                  onClick={() => {
-                    if (!newBill.name || !(Number(newBill.amount) > 0)) return
-                    setAddedBills((list) => [...list, { id: `add-${Date.now()}`, name: newBill.name, amount: Number(newBill.amount) }])
-                    setNewBill({ name: '', amount: '' })
-                    setShowAddBill(false)
-                  }}
+                  onClick={() => saveReviewedBill({ name: newBill.name, amount: Number(newBill.amount), latest: isoDate() })}
                 >Add bill</button>
               </div>
             )}
             <button className="dw-link" onClick={() => setShowAddBill((v) => !v)}>{showAddBill ? 'Cancel' : 'Add a bill'}</button>
+            {reviewErr && <p className="dw-mute" style={{ marginTop: 8 }}>{reviewErr}</p>}
           </div>
         </div>
       )

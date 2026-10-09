@@ -343,8 +343,20 @@ async function live_updateBill(id, { name, amount, category, cadence, due_day, s
 }
 
 async function live_markBillPaid(id, paid_through) {
-  let { error } = await supabase.from('recurring_bills').update({ paid_through }).eq('id', id)
-  if (error && isMissingColumn(error)) return
+  let { error } = await supabase.from('recurring_bills').update({ paid_through, partial_paid: null, partial_for: null }).eq('id', id)
+  if (error && isMissingColumn(error)) {
+    ;({ error } = await supabase.from('recurring_bills').update({ paid_through }).eq('id', id))
+    if (error && isMissingColumn(error)) return
+  }
+  if (error) throw error
+}
+
+async function live_setBillPartial(id, partial_paid, partial_for) {
+  const { error } = await supabase.from('recurring_bills').update({
+    partial_paid,
+    partial_for: partial_for || null,
+  }).eq('id', id)
+  if (error && isMissingColumn(error)) throw new Error('Partial payments are not saved yet. Refresh and try again.')
   if (error) throw error
 }
 
@@ -927,7 +939,12 @@ export const toggleCreditTask = (...args) => (useLive ? live_toggleCreditTask(..
 export const toggleMilestone = (...args) => (useLive ? live_toggleMilestone(...args) : demoBackend.toggleMilestone(...args))
 export const updateAccount = (...args) => (useLive ? live_updateAccount(...args) : demoBackend.updateAccount(...args))
 export const updateBill = (...args) => (useLive ? live_updateBill(...args) : demoBackend.updateBill(...args))
-export const markBillPaid = (...args) => (useLive ? live_markBillPaid(...args) : demoBackend.updateBill(...args[0], { paid_through: args[1] }))
+export const markBillPaid = async (id, paid_through) => (
+  useLive
+    ? live_markBillPaid(id, paid_through)
+    : demoBackend.updateBill(id, { paid_through, partial_paid: null, partial_for: null })
+)
+export const setBillPartial = (...args) => (useLive ? live_setBillPartial(...args) : demoBackend.setBillPartial(...args))
 export const updateBucketCurrent = (...args) => (useLive ? live_updateBucketCurrent(...args) : demoBackend.updateBucketCurrent(...args))
 export const updateDebt = (...args) => (useLive ? live_updateDebt(...args) : demoBackend.updateDebt(...args))
 export const updateDebtBalance = (...args) => (useLive ? live_updateDebtBalance(...args) : demoBackend.updateDebtBalance(...args))
