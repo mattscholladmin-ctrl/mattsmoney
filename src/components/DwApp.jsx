@@ -1,5 +1,4 @@
 // @ts-nocheck
-import ShopPage from './ShopPage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { updateTransaction, addTransaction, upsertBudget, updateAccount, addIncome, updateIncome, deleteIncome, markBillPaid, setBillPartial, addBill, addGoal, updateGoal, deleteGoal, addDebt, updateDebt, deleteDebt, addDebtPayment, markTransactionsPaid } from '../lib/api'
 import { signOut } from '../auth/AuthProvider'
@@ -510,7 +509,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
     { id: 'activity', label: 'Activity', icon: ICONS.grid },
     { id: 'review', label: 'Review', icon: ICONS.review, badge: (Math.max(0, queue.length - reviewIdx) + billIdeas.length) || null },
     { id: 'bills', label: 'Bills', icon: ICONS.receipt },
-    { id: 'shop', label: 'Shop', icon: ICONS.receipt },
     { id: 'profile', label: 'Settings', icon: ICONS.person },
   ]
 
@@ -1914,7 +1912,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing }) {
         {page === 'activity' && <Activity />}
         {page === 'review' && <Review />}
         {page === 'bills' && <Bills />}
-        {page === 'shop' && <ShopPage />}
         {page === 'profile' && <Profile />}
       </main>
       <nav className="dw-tabs">
