@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 const STORAGE_KEY = 'mm.shop.v1'
 
 function loadShop() {
+  if (typeof window === 'undefined') return { meals: [], list: [], staples: [], receipts: [] }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     return raw ? JSON.parse(raw) : { meals: [], list: [], staples: [], receipts: [] }
@@ -13,17 +14,26 @@ function loadShop() {
 }
 
 function saveShop(data) {
+  if (typeof window === 'undefined') return
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
   } catch {}
 }
 
 export default function ShopPage() {
-  const [data, setData] = useState(loadShop)
+  const [data, setData] = useState({ meals: [], list: [], staples: [], receipts: [] })
   const [input, setInput] = useState('')
-  const [view, setView] = useState('hub') // hub | meals | list | receipt
+  const [view, setView] = useState('hub')
+  const [ready, setReady] = useState(false)
 
-  useEffect(() => { saveShop(data) }, [data])
+  useEffect(() => {
+    setData(loadShop())
+    setReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (ready) saveShop(data)
+  }, [data, ready])
 
   function addMeal() {
     if (!input.trim()) return
@@ -34,20 +44,13 @@ export default function ShopPage() {
         { name: 'Example ingredient', qty: '1', store: 'City Market', checked: false }
       ]
     }
-    setData(d => ({ ...d, meals: [...d.meals, meal] }))
+    setData(d => ({ ...d, meals: [...(d.meals || []), meal] }))
     setInput('')
   }
 
-  function toggleItem(store, idx) {
-    setData(d => {
-      const list = [...d.list]
-      const group = list.find(g => g.store === store)
-      if (group) group.items[idx].checked = !group.items[idx].checked
-      return { ...d, list }
-    })
-  }
+  const grocerySpend = 86.42
 
-  const grocerySpend = 86.42 // placeholder; later wire to real transactions
+  if (!ready) return <div className="dw-mute">Loading shop…</div>
 
   return (
     <div>
@@ -55,7 +58,7 @@ export default function ShopPage() {
       <p className="dw-sub">Plan meals. Build the list. Send to Reminders.</p>
 
       <div style={{ display: 'flex', gap: 8, margin: '16px 0' }}>
-        <button className={`dw-link ${view === 'hub' ? '' : ''}`} onClick={() => setView('hub')} style={{ padding: '6px 12px', border: '1px solid var(--dw-line)', borderRadius: 8 }}>Hub</button>
+        <button className="dw-link" onClick={() => setView('hub')} style={{ padding: '6px 12px', border: '1px solid var(--dw-line)', borderRadius: 8 }}>Hub</button>
         <button className="dw-link" onClick={() => setView('meals')} style={{ padding: '6px 12px', border: '1px solid var(--dw-line)', borderRadius: 8 }}>Meals</button>
         <button className="dw-link" onClick={() => setView('list')} style={{ padding: '6px 12px', border: '1px solid var(--dw-line)', borderRadius: 8 }}>List</button>
         <button className="dw-link" onClick={() => setView('receipt')} style={{ padding: '6px 12px', border: '1px solid var(--dw-line)', borderRadius: 8 }}>Receipt</button>
@@ -100,10 +103,10 @@ export default function ShopPage() {
             style={{ width: '100%', marginTop: 8, background: 'var(--dw-card-2)', border: '1px solid var(--dw-line)', borderRadius: 8, padding: 12, color: 'var(--dw-text)', font: 'inherit' }}
           />
           <button className="dw-link" onClick={addMeal} style={{ marginTop: 8 }}>Generate meals</button>
-          {data.meals.map(m => (
+          {(data.meals || []).map(m => (
             <div key={m.id} style={{ marginTop: 16, padding: 12, border: '1px solid var(--dw-line)', borderRadius: 12 }}>
               <b>{m.name}</b>
-              {m.ingredients.map((ing, i) => (
+              {(m.ingredients || []).map((ing, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
                   <span>☐ {ing.qty} {ing.name}</span>
                   <span className="dw-mute">{ing.store}</span>
