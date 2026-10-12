@@ -128,6 +128,12 @@ async function dispatch(msg) {
   return rpcError(id, -32601, `Method not found: ${method}`)
 }
 
+function clientWantsStream(accept) {
+  const header = accept || ''
+  if (header.includes('application/json')) return false
+  return header.includes('text/event-stream')
+}
+
 export async function handleMcpRequest(request) {
   const method = (request.method || 'GET').toUpperCase()
   if (method === 'OPTIONS') {
@@ -164,11 +170,11 @@ export async function handleMcpRequest(request) {
   try {
     payload = await request.json()
   } catch {
-    return respond(rpcError(null, -32700, 'Parse error'), { sse: accept.includes('text/event-stream') })
+    return respond(rpcError(null, -32700, 'Parse error'), { sse: clientWantsStream(accept) })
   }
 
   const sessionId = request.headers.get('mcp-session-id') || crypto.randomUUID()
-  const useSse = accept.includes('text/event-stream')
+  const useSse = clientWantsStream(accept)
 
   try {
     if (Array.isArray(payload)) {
