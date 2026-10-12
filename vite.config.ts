@@ -124,7 +124,7 @@ function mcpDoorPlugin(): Plugin {
         try {
           const rawUrl = req.url ?? "";
           const pathOnly = rawUrl.split("?", 1)[0] ?? "";
-          if (pathOnly !== "/mcp") {
+          if (pathOnly.replace(/\/+$/, "") !== "/mcp") {
             next();
             return;
           }

@@ -34,7 +34,9 @@ export function grokSecretOk(request) {
   } catch {
     query = ''
   }
-  const got = bearer || extra || query
+  const apiKey = request.headers.get('x-api-key') || request.headers.get('api-key') || ''
+  const rawAuth = header && !header.startsWith('Bearer ') ? header.trim() : ''
+  const got = bearer || extra || query || apiKey || rawAuth
   if (!got) return false
   const a = crypto.createHash('sha256').update(String(got)).digest()
   const b = crypto.createHash('sha256').update(String(secret)).digest()

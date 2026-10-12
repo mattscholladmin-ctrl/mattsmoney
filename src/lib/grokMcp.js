@@ -3,14 +3,14 @@ import { grokSecretOk, runGrokAction } from './grokApi.js'
 
 const str = { type: 'string' }
 const num = { type: 'number' }
-const integer = { type: 'integer' }
+const integer = { type: 'number' }
 const bool = { type: 'boolean' }
 
 function tool(name, description, properties = {}, required = []) {
   return {
     name,
     description,
-    inputSchema: { type: 'object', properties, required, additionalProperties: false },
+    inputSchema: { type: 'object', properties, required },
   }
 }
 
@@ -89,7 +89,7 @@ async function dispatch(msg) {
     const version = params?.protocolVersion || '2025-03-26'
     return rpcResult(id, {
       protocolVersion: version,
-      capabilities: { tools: { listChanged: true } },
+      capabilities: { tools: {} },
       serverInfo: { name: 'matts-money', title: "Matt's Money", version: '2.0.0' },
       instructions:
         'Full read/write for Matt’s Money. Always budget_snapshot first. Confirm with the user in chat before any write.',
@@ -134,28 +134,26 @@ function clientWantsStream(accept) {
   return header.includes('text/event-stream')
 }
 
+function isOpenCall(payload) {
+  const msgs = Array.isArray(payload) ? payload : [payload]
+  return msgs.every((msg) => {
+    const method = msg?.method || ''
+    return (
+      method === 'initialize' ||
+      method === 'tools/list' ||
+      method === 'ping' ||
+      method === 'resources/list' ||
+      method === 'prompts/list' ||
+      method.startsWith('notifications/')
+    )
+  })
+}
+
 export async function handleMcpRequest(request) {
   const method = (request.method || 'GET').toUpperCase()
   if (method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders() })
   }
-  if (!process.env.GROK_SECRET) {
-    return new Response(JSON.stringify({ error: 'grok is not connected yet' }), {
-      status: 503,
-      headers: corsHeaders({ 'Content-Type': 'application/json' }),
-    })
-  }
-  if (!grokSecretOk(request)) {
-    return new Response(JSON.stringify({ error: 'unauthorized' }), {
-      status: 401,
-      headers: corsHeaders({
-        'Content-Type': 'application/json',
-      }),
-    })
-  }
-
-  const accept = request.headers.get('accept') || ''
-
   if (method === 'GET') {
     return new Response(null, { status: 405, headers: corsHeaders({ Allow: 'POST, OPTIONS' }) })
   }
@@ -166,11 +164,28 @@ export async function handleMcpRequest(request) {
     return new Response(null, { status: 405, headers: corsHeaders({ Allow: 'POST, OPTIONS' }) })
   }
 
+  const accept = request.headers.get('accept') || ''
+
   let payload
   try {
     payload = await request.json()
   } catch {
     return respond(rpcError(null, -32700, 'Parse error'), { sse: clientWantsStream(accept) })
+  }
+
+  if (!isOpenCall(payload)) {
+    if (!process.env.GROK_SECRET) {
+      return new Response(JSON.stringify({ error: 'grok is not connected yet' }), {
+        status: 503,
+        headers: corsHeaders({ 'Content-Type': 'application/json' }),
+      })
+    }
+    if (!grokSecretOk(request)) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401,
+        headers: corsHeaders({ 'Content-Type': 'application/json' }),
+      })
+    }
   }
 
   const sessionId = request.headers.get('mcp-session-id') || crypto.randomUUID()

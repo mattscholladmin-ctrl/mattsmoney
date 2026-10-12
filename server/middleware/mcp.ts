@@ -11,6 +11,7 @@ export default async function mcpDoor(
   event: McpEvent,
   next: () => unknown | Promise<unknown>,
 ): Promise<unknown> {
-  if (event.url?.pathname !== "/mcp") return next();
+  const path = event.url?.pathname?.replace(/\/+$/, "") || "";
+  if (path !== "/mcp") return next();
   return handleMcpRequest(new Request(event.url, event.req));
 }
