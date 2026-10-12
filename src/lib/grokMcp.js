@@ -129,9 +129,7 @@ async function dispatch(msg) {
 }
 
 function clientWantsStream(accept) {
-  const header = accept || ''
-  if (header.includes('application/json')) return false
-  return header.includes('text/event-stream')
+  return (accept || '').includes('text/event-stream')
 }
 
 function isOpenCall(payload) {
@@ -188,7 +186,6 @@ export async function handleMcpRequest(request) {
     }
   }
 
-  const sessionId = request.headers.get('mcp-session-id') || crypto.randomUUID()
   const useSse = clientWantsStream(accept)
 
   try {
@@ -199,12 +196,12 @@ export async function handleMcpRequest(request) {
         if (r) out.push(r)
       }
       if (!out.length) return new Response(null, { status: 202, headers: corsHeaders() })
-      return respond(out, { sse: useSse, sessionId })
+      return respond(out, { sse: useSse })
     }
     const r = await dispatch(payload)
-    if (!r) return new Response(null, { status: 202, headers: corsHeaders({ 'Mcp-Session-Id': sessionId }) })
-    return respond(r, { sse: useSse, sessionId })
+    if (!r) return new Response(null, { status: 202, headers: corsHeaders() })
+    return respond(r, { sse: useSse })
   } catch (e) {
-    return respond(rpcError(payload?.id ?? null, -32603, e.message || 'failed'), { sse: useSse, sessionId })
+    return respond(rpcError(payload?.id ?? null, -32603, e.message || 'failed'), { sse: useSse })
   }
 }
