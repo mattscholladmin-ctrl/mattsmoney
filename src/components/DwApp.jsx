@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { useAppPreferences } from '../lib/use-app-preferences.js'
 import ShopPage from './ShopPage'
 import GuideCard from './GuideCard'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -21,8 +22,6 @@ import {
   moneyCompact,
   monthKeyFrom,
   monthLabel,
-  loadDwState,
-  saveDwState,
   computeProduct,
   accountReviewBank,
   insightCards,
@@ -129,19 +128,7 @@ function paycheckWindowSpend(txns, pay) {
 }
 
 export default function DwApp({ data, setData, load, session, demo, syncing, refreshError }) {
-  const [state, setState] = useState(() => {
-    const saved = loadDwState()
-    return {
-      plan: PLAN_DEFAULT,
-      theme: 'dark',
-      estFreq: 'two-weeks',
-      meta: {},
-      budgets: {},
-      dismissed: [],
-      ...saved,
-      theme: 'dark',
-    }
-  })
+  const [state, setState, preferenceStatus, retryPreferences] = useAppPreferences(session?.user?.id || 'demo')
   const [page, setPage] = useState(() => {
     try {
       return localStorage.getItem('mm.dw.page') || 'home'
@@ -206,7 +193,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
   }, [data, load])
 
   useEffect(() => {
-    saveDwState(state)
     applyTheme()
     const fontScale = { s: '1.35', m: '1.56', l: '1.75', xl: '1.93' }
     document.documentElement.style.setProperty('--dw-type', fontScale[state.fs || 'm'])
@@ -1836,6 +1822,10 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
             </section>
             <section className="dw-card">
               <div className="dw-k" style={{ marginBottom: 4 }}>Preferences</div>
+              <p className="dw-mute" role={preferenceStatus.kind === 'error' ? 'alert' : 'status'}>
+                {preferenceStatus.kind === 'saved' ? 'Preferences saved to your account.' : preferenceStatus.kind === 'saving' ? 'Saving preferences…' : preferenceStatus.kind === 'error' ? `Kept on this device. Account sync failed: ${preferenceStatus.error}` : 'Loading account preferences…'}
+              </p>
+              {preferenceStatus.kind === 'error' && <button className="dw-link" onClick={retryPreferences}>Retry saving preferences</button>}
               <details><summary className="dw-field-row">How Matt’s Money works</summary><GuideCard current /></details>
               <button className="dw-field-row" onClick={() => load()}>
                 <span>Reload saved budget {syncing ? '…' : ''}</span><b>↻</b>
@@ -1854,6 +1844,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
     <div className="dw-app">
       <Sidebar />
       <main className="dw-main">
+        {preferenceStatus.kind === 'loading' && <p className="dw-mute" role="status">Loading your saved planning choices…</p>}
+        {preferenceStatus.kind === 'error' && <p className="dw-mute" role="alert">Your latest preferences are kept on this device. Account sync failed. <button className="dw-link" onClick={retryPreferences}>Retry</button></p>}
         {paymentError && <p className="dw-mute" role="alert">{paymentError}</p>}
         {page === 'home' && <Home />}
         {page === 'insights' && <Insights />}

@@ -84,5 +84,5 @@ export default function Dashboard({ session, demo = false }) {
     )
   }
 
-  return <DwApp data={data} setData={setData} load={load} session={session} demo={demo} syncing={syncing} refreshError={error} />
+  return <DwApp key={session?.user?.id || 'demo'} data={data} setData={setData} load={load} session={session} demo={demo} syncing={syncing} refreshError={error} />
 }

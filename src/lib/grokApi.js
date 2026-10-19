@@ -1,9 +1,11 @@
+import { fetchUserRows } from './fetch-user-rows.js'
+import { applyPreferences } from './app-preferences.js'
 import { computePaycheckPlan } from './paycheck-plan.js'
 // Shared Grok door: full read + writes. Used by /api/grok and the MCP connector.
 import crypto from 'node:crypto'
 import { adminClient } from './googleServer.js'
 import { refreshLinkedBanks, localToday } from './plaidServer.js'
-import { accountSummaries, obligationSchedule, isBillOccurrencePaid, moneyTotals } from './budget.js'
+import { accountSummaries, obligationSchedule, isBillOccurrencePaid, moneyTotals, dedupeTransactions } from './budget.js'
 import { isoDate } from './format.js'
 
 export function grokSecretOk(request) {
@@ -93,22 +95,26 @@ async function snapshot(db, uid) {
     scores,
     phases,
     payments,
+    preferences,
+    buckets,
   ] = await Promise.all([
     db.from('accounts').select('*').eq('user_id', uid).order('sort_order'),
-    db.from('balance_entries').select('id,account_id,balance,as_of,note,created_at').eq('user_id', uid).order('as_of', { ascending: false }),
+    fetchUserRows(db, 'balance_entries', uid, 'as_of'),
     db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance,start_date,smooth').eq('user_id', uid),
     db.from('recurring_bills').select('id,name,amount,due_day,cadence,active,category,start_date,smooth,paid_through,partial_paid,partial_for').eq('user_id', uid),
     db.from('goals').select('*').eq('user_id', uid).order('sort_order'),
     db.from('income_sources').select('id,name,amount,cadence,confirmed,anchor_date,due_day,active').eq('user_id', uid),
     db.from('set_asides').select('id,name,amount,due_date').eq('user_id', uid),
     db.from('settings').select('buffer_floor').eq('user_id', uid).maybeSingle(),
-    db.from('transactions').select('id,txn_date,merchant,amount,category,note,account_id,goal_id,income_source').eq('user_id', uid).order('txn_date', { ascending: false }).limit(500),
+    fetchUserRows(db, 'transactions', uid, 'txn_date'),
     db.from('budgets').select('id,category,monthly_limit').eq('user_id', uid),
     db.from('credit_scores').select('id,bureau,score,model,source,checked_on,note').eq('user_id', uid).order('checked_on', { ascending: false }).limit(12),
     db.from('phases').select('id,name,starts_on,ends_on').eq('user_id', uid).order('starts_on'),
     db.from('debt_payments').select('debt_id,paid_on').eq('user_id', uid),
+    db.from('app_preferences').select('preferences,revision,updated_at').eq('user_id', uid).maybeSingle(),
+    db.from('buckets').select('*').eq('user_id', uid),
   ])
-  const first = [accounts, balances, goals, income, settings, txns, budgets, setAsides].find((r) => r.error)
+  const first = [accounts, balances, goals, income, settings, txns, budgets, setAsides, preferences, buckets].find((r) => r.error)
   if (first?.error) throw new Error(first.error.message)
 
   if (debts.error) throw new Error(debts.error.message)
@@ -121,7 +127,7 @@ async function snapshot(db, uid) {
     ;(paidByDebt[p.debt_id] ||= []).push(p.paid_on)
   }
   const acctRows = (accounts.data || []).filter((a) => !a.hidden)
-  const txnRows = txns.error ? [] : txns.data || []
+  const txnRows = dedupeTransactions(txns.data || [])
   const goalRows = goals.data || []
   const incomeRows = income.data || []
   const budgetRows = budgets.error ? [] : budgets.data || []
@@ -132,11 +138,12 @@ async function snapshot(db, uid) {
   const bufferFloor = Number(settings.data?.buffer_floor || 0)
   // Shared with Home: use actual available cash, without invented spending
   // deductions since the last bank sync or re-adding received income.
+  const savedPreferences = applyPreferences({}, preferences.data?.preferences || {})
   const plan = computePaycheckPlan({ data: {
     accounts: acctRows, balances: balances.data || [], bills: billRows,
     debts: debtRows, goals: goalRows, income: incomeRows, transactions: txnRows,
-    budgets: budgetRows, setAsides: setAsideRows, settings: settings.data,
-  }, todayIso: today })
+    budgets: budgetRows, setAsides: setAsideRows, settings: settings.data, buckets: buckets.data || [],
+  }, todayIso: today, state: savedPreferences })
   const spendable = plan.safeToSpend
 
   const byId = Object.fromEntries((accounts.data || []).map((a) => [a.id, a]))
@@ -144,10 +151,11 @@ async function snapshot(db, uid) {
     as_of: today,
     spendable,
     spendable_breakdown: { available_cash: plan.start, bills_due: plan.info.billsBeforePay,
-      later_bills: plan.info.laterShare, goals: plan.info.goalReserve, debts: plan.debtReserve,
+      later_bills: savedPreferences.spreadBills === false ? 0 : plan.info.laterShare, goals: plan.info.goalReserve, debts: plan.debtReserve,
       buffer: plan.info.floor, saved_goals: plan.info.earmarked, set_asides: plan.info.setAside,
       everyday: plan.info.everyday },
-    planning_note: 'Uses all active commitments. Browser-only what-if switches are not shared with this snapshot.',
+    planning_note: 'Uses account-saved planning switches. Unsaved device changes appear after syncing.',
+    preference_revision: Number(preferences.data?.revision || 0),
     buffer_floor: bufferFloor,
     cash_total: Number(Number(totals.totalCash || 0).toFixed(2)),
     cards_count: debtRows.filter((d) => d.kind === 'card').length,
@@ -238,7 +246,8 @@ async function snapshot(db, uid) {
       amount: Number(s.amount || 0),
       due_date: s.due_date,
     })),
-    recent_transactions: (txns.error ? [] : txns.data || []).map((t) => ({
+    transaction_count: txnRows.length,
+    recent_transactions: txnRows.slice(0, 500).map((t) => ({
       id: t.id,
       date: t.txn_date,
       merchant: t.merchant,
