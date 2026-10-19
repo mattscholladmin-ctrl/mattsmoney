@@ -67,17 +67,15 @@ export function accountSummaries(accounts = [], balanceEntries = []) {
   return accounts.map((a) => {
     const entry = latest[a.id]
     const note = entry?.note || ''
-    const availableMissing = /available missing/.test(note)
-    const bankCurrent = parseMoneyFromNote(note, 'current') ?? parseMoneyFromNote(note, 'in bank')
-    const stored = entry && entry.balance != null && entry.balance !== '' ? Number(entry.balance) : null
-    // Available is the figure when the bank sent it. When it did not, the
-    // imported current balance is still the account balance. The toggle
-    // decides whether that balance counts in safe-to-spend.
-    const balance = !entry
-      ? null
-      : availableMissing
-        ? (bankCurrent != null ? bankCurrent : stored)
-        : stored
+    const explicitAvailable = entry?.available_balance ?? entry?.available
+    const bankLinked = !!a.plaid_account_id || /Auto-synced/.test(note)
+    const stored = entry?.balance != null && entry.balance !== '' ? Number(entry.balance) : null
+    const availableMissing = /available missing/.test(note) ||
+      (bankLinked && explicitAvailable == null && !/available(?: |$)/.test(note))
+    const bankCurrent = entry?.current_balance ?? parseMoneyFromNote(note, 'current') ?? parseMoneyFromNote(note, 'in bank')
+    // Synced balance_entries.balance stores AVAILABLE, identified by its note.
+    // A current-only bank entry cannot supply spending cash. Manual cash is explicit.
+    const balance = availableMissing ? null : explicitAvailable != null ? Number(explicitAvailable) : stored
     return {
       ...a,
       balance,
@@ -178,7 +176,7 @@ export function goalPaycheckShare(goals = [], transactions = [], ppy = 26, incom
 }
 
 export function moneyTotals(accounts = [], balanceEntries = [], debts = []) {
-  const summaries = accountSummaries(accounts, balanceEntries)
+  const summaries = accountSummaries(accounts, balanceEntries).filter((a) => !a.hidden && !/credit|card|loan/i.test(a.kind || a.type || ''))
   const usable = (a) => a.balance != null && !Number.isNaN(Number(a.balance))
   const spendableCash = summaries
     .filter((a) => countsAsSpendable(a) && usable(a))
@@ -1931,7 +1929,10 @@ export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(
     const d = t.txn_date || ''
     if (d < from || d > todayIso) return false
     const note = String(t.note || '')
-    if (billId && (t.bill_id === billId || note.includes(`paid:${billId}`))) return true
+    const exactMarker = `paid:${billId}@${due}`
+    const hasDatedMarker = billId && note.includes(`paid:${billId}@`)
+    if (hasDatedMarker) return note.includes(exactMarker)
+    if (billId && (t.bill_id === billId || note.split(/\s+/).includes(`paid:${billId}`))) return true
     const ta = Number(t.amount || 0)
     if (ta <= 0) return false
     if (Math.abs(ta - amt) > Math.max(0.5, amt * 0.02)) return false

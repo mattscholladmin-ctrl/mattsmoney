@@ -559,3 +559,11 @@ html[data-dw='1'] .dw-flat button:not(.bg-emerald-700):not(.text-emerald-700):no
   justify-content: flex-start !important;
   gap: 16px;
 }
+
+/* Keep the existing type scale and aesthetic; let text reflow within cards. */
+.dw-plan-nums { flex-wrap: wrap; }
+.dw-plan-nums .dw-big-n { max-width: 100%; overflow-wrap: anywhere; }
+.dw-plan-nums .dw-vs { flex-basis: 100%; }
+.dw-stat-row { gap: 10px; flex-wrap: wrap; }
+.dw-stat-row b { margin-left: auto; }
+.dw-pop { max-height: 65vh; overflow-y: auto; }

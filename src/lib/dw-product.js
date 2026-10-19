@@ -1,8 +1,9 @@
 // @ts-nocheck
 // Dollarwise-style product math for Matt's Money.
-// Safe to spend = monthly income × wants plan % − visible Wants spend in the selected month.
+// Spending insights are monthly; safe to spend always uses the cash/paycheck plan.
 
-import { countsAsSpendable } from './budget.js'
+import { countsAsSpendable, accountSummaries } from './budget.js'
+import { computePaycheckPlan } from './paycheck-plan.js'
 
 export const PLAN_DEFAULT = { needs: 50, wants: 30, savings: 20 }
 
@@ -189,7 +190,7 @@ export function computeProduct({ data, state, month }) {
     savings: classifiedTotal ? Math.round((byPurpose.savings / classifiedTotal) * 100) : 0,
   }
   const monthlyIncome = monthlyFromIncome(data.income, state)
-  const safeToSpend = monthlyIncome * (Number(plan.wants) / 100) - byPurpose.wants
+  const safeToSpend = computePaycheckPlan({ data, state }).safeToSpend
   const recentSpend = monthTx.filter((t) => isExpense(t) && t.category !== 'Transfers').reduce((s, t) => s + spendAmount(t), 0)
 
   const catSpend = {}
@@ -205,23 +206,16 @@ export function computeProduct({ data, state, month }) {
 
   const accounts = data.accounts || []
   const balances = data.balances || []
-  const latestByAcct = {}
-  for (const b of balances) {
-    const id = b.account_id
-    if (!latestByAcct[id] || String(b.as_of) > String(latestByAcct[id].as_of)) latestByAcct[id] = b
-  }
+  const summaries = accountSummaries(accounts, balances)
   const checking = []
   const savings = []
   const credit = []
   for (const a of accounts) {
     if (a.hidden) continue
-    const bal = latestByAcct[a.id]
-    const note = String(bal?.note || '')
-    const availableMissing = /available missing/.test(note)
-    const available = bal?.available_balance ?? bal?.available
-    const stored = bal?.current_balance ?? bal?.balance ?? a.balance
-    const shown = availableMissing ? null : available != null ? Number(available) : stored != null && stored !== '' ? Number(stored) : null
-    const row = { ...a, shown, availableMissing, available: available != null ? Number(available) : null, current: stored != null && stored !== '' ? Number(stored) : null, counts: countsAsSpendable(a) }
+    const summary = summaries.find((row) => row.id === a.id)
+    const availableMissing = summary.availableMissing || summary.balance == null
+    const shown = summary.balance
+    const row = { ...a, shown, availableMissing, available: shown, current: summary.bankCurrent, asOf: summary.asOf, counts: countsAsSpendable(a) }
     const kind = String(a.kind || a.type || '').toLowerCase()
     if (/credit|card/.test(kind)) credit.push(row)
     else if (/sav/.test(kind)) savings.push(row)

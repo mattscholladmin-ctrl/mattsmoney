@@ -5,17 +5,18 @@ import { dedupeTransactions, setCategoryAliases } from '../lib/budget'
 import { demoData } from '../lib/demoData'
 import DwApp from './DwApp'
 
-function loadCachedData() {
+function loadCachedData(cacheKey) {
   try {
-    return JSON.parse(localStorage.getItem('budget.cache') || 'null')
+    return JSON.parse(localStorage.getItem(cacheKey) || 'null')
   } catch {
     return null
   }
 }
 
 export default function Dashboard({ session, demo = false }) {
+  const cacheKey = `budget.cache:${session?.user?.id || 'demo'}`
   const [data, setData] = useState(() => {
-    if (!demo) return loadCachedData()
+    if (!demo) return loadCachedData(cacheKey)
     const d = demoData()
     const cleaned = dedupeTransactions(d.transactions)
     return { ...d, transactions: cleaned }
@@ -42,25 +43,26 @@ export default function Dashboard({ session, demo = false }) {
       applyAliases(raw.categoryAliases)
       setData(d)
       try {
-        localStorage.setItem('budget.cache', JSON.stringify(d))
+        localStorage.setItem(cacheKey, JSON.stringify(d))
       } catch {
         /* ignore */
       }
     } catch (err) {
       let cached = null
       try {
-        cached = JSON.parse(localStorage.getItem('budget.cache') || 'null')
+        cached = JSON.parse(localStorage.getItem(cacheKey) || 'null')
       } catch {
         cached = null
       }
       if (cached) {
         applyAliases(cached.categoryAliases)
         setData(cached)
-      } else setError(err.message)
+      }
+      setError(err.message || 'Budget refresh failed')
     } finally {
       setSyncing(false)
     }
-  }, [demo])
+  }, [demo, cacheKey])
 
   useEffect(() => {
     load()
@@ -82,5 +84,5 @@ export default function Dashboard({ session, demo = false }) {
     )
   }
 
-  return <DwApp data={data} setData={setData} load={load} session={session} demo={demo} syncing={syncing} />
+  return <DwApp data={data} setData={setData} load={load} session={session} demo={demo} syncing={syncing} refreshError={error} />
 }
