@@ -567,3 +567,11 @@ html[data-dw='1'] .dw-flat button:not(.bg-emerald-700):not(.text-emerald-700):no
 .dw-stat-row { gap: 10px; flex-wrap: wrap; }
 .dw-stat-row b { margin-left: auto; }
 .dw-pop { max-height: 65vh; overflow-y: auto; }
+
+/* Currency stays readable as one amount; navigation remains reachable on phones. */
+.dw-plan-nums { container-type: inline-size; }
+.dw-plan-nums .dw-big-n { font-size: min(calc(2.125rem * var(--dw-type, 1.56)), 13cqi); white-space: nowrap; overflow-wrap: normal; }
+@media (max-width: 1023px) {
+  .dw-tabs { overflow-x: auto; justify-content: flex-start; }
+  .dw-tabs button { flex: 1 0 auto; }
+}
