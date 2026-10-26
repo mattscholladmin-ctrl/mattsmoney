@@ -7,7 +7,7 @@ import { computePaycheckPlan } from './paycheck-plan.js'
 import crypto from 'node:crypto'
 import { adminClient } from './googleServer.js'
 import { refreshLinkedBanks, localToday } from './plaidServer.js'
-import { accountSummaries, obligationSchedule, isBillOccurrencePaid, moneyTotals, dedupeTransactions } from './budget.js'
+import { accountSummaries, obligationSchedule, isBillOccurrencePaid, moneyTotals } from './budget.js'
 import { isoDate } from './format.js'
 
 /** @param {Request} request */
@@ -117,8 +117,8 @@ async function snapshot(db, uid) {
   ] = await Promise.all([
     db.from('accounts').select('*').eq('user_id', uid).order('sort_order'),
     fetchUserRows(db, 'balance_entries', uid, 'as_of'),
-    db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance,start_date,smooth,smooth_since,smooth_saved,pay_frequency').eq('user_id', uid),
-    db.from('recurring_bills').select('id,name,amount,due_day,cadence,active,category,start_date,smooth,paid_through,partial_paid,partial_for').eq('user_id', uid),
+    db.from('debts').select('*').eq('user_id', uid),
+    db.from('recurring_bills').select('*').eq('user_id', uid),
     db.from('goals').select('*').eq('user_id', uid).order('sort_order'),
     db.from('income_sources').select('id,name,amount,cadence,confirmed,anchor_date,due_day,active').eq('user_id', uid),
     db.from('set_asides').select('id,name,amount,due_date').eq('user_id', uid),
@@ -148,7 +148,8 @@ async function snapshot(db, uid) {
   }
   /** @type {BudgetRecord[]} */
   const acctRows = (accounts.data || []).filter((a) => !a.hidden)
-  const txnRows = dedupeTransactions(txns.data || [])
+  // Match Home: every saved transaction is an input to the shared paycheck plan.
+  const txnRows = txns.data || []
   /** @type {BudgetRecord[]} */
   const goalRows = goals.data || []
   /** @type {BudgetRecord[]} */
