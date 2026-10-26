@@ -9,6 +9,7 @@ export const PLAN_DEFAULT = { needs: 50, wants: 30, savings: 20 }
 
 export const PURPOSES = [
   { id: 'unreviewed', label: 'Unreviewed' },
+  { id: 'paid', label: 'Reviewed (no bucket)' },
   { id: 'needs', label: 'Needs', solid: '#3d90de', soft: '#c8e4fd', text: '#164c7f' },
   { id: 'wants', label: 'Wants', solid: '#eed813', soft: '#eef6b2', text: '#756b11' },
   { id: 'savings', label: 'Savings', solid: '#2bc458', soft: '#8ef5ac', text: '#0d5222' },
@@ -87,13 +88,13 @@ export function txnMeta(state, t) {
   if (pm) fromNote.purpose = pm[1].toLowerCase()
   const fm = note.match(/feeling:(happy|neutral|sad)/i)
   if (fm) fromNote.feeling = fm[1].toLowerCase()
-  const hm = note.match(/hidden:(1|true)/i)
-  if (hm) fromNote.hidden = true
+  const hm = note.match(/hidden:(1|true|0|false)/i)
+  if (hm) fromNote.hidden = /^(1|true)$/i.test(hm[1])
   return {
-    purpose: stored.purpose || fromNote.purpose || 'unreviewed',
+    purpose: fromNote.purpose || 'unreviewed',
     feeling: stored.feeling || fromNote.feeling || 'neutral',
-    hidden: stored.hidden ?? fromNote.hidden ?? false,
-    category: stored.category || t.category || 'Other',
+    hidden: fromNote.hidden ?? false,
+    category: t.category || 'Other',
   }
 }
 
@@ -150,6 +151,7 @@ function inMonth(t, ym) {
 export function isExpense(t) {
   const amt = Number(t.amount || 0)
   if (t.direction === 'in' || t.income_source) return false
+  if (['Transfers', 'Debt Payments', 'Income'].includes(mapCategory(t.category))) return false
   const blob = `${t.category || ''} ${t.merchant || ''}`
   if (/income|payroll|deposit|transfer in/i.test(blob)) return false
   return amt > 0
@@ -180,7 +182,7 @@ export function computeProduct({ data, state, month }) {
   const txns = decorateTxns(data.transactions, state)
   const visible = (t) => !t.hidden
   const monthTx = txns.filter((t) => inMonth(t, month))
-  const classified = monthTx.filter((t) => visible(t) && t.purpose !== 'unreviewed' && isExpense(t) && t.category !== 'Transfers' && t.category !== 'Income')
+  const classified = monthTx.filter((t) => visible(t) && ['needs', 'wants', 'savings'].includes(t.purpose) && isExpense(t) && t.category !== 'Transfers' && t.category !== 'Income')
   const byPurpose = { needs: 0, wants: 0, savings: 0 }
   for (const t of classified) byPurpose[t.purpose] = (byPurpose[t.purpose] || 0) + spendAmount(t)
   const classifiedTotal = byPurpose.needs + byPurpose.wants + byPurpose.savings
@@ -191,7 +193,7 @@ export function computeProduct({ data, state, month }) {
   }
   const monthlyIncome = monthlyFromIncome(data.income, state)
   const safeToSpend = computePaycheckPlan({ data, state }).safeToSpend
-  const recentSpend = monthTx.filter((t) => isExpense(t) && t.category !== 'Transfers').reduce((s, t) => s + spendAmount(t), 0)
+  const recentSpend = monthTx.filter((t) => visible(t) && isExpense(t) && t.category !== 'Transfers').reduce((s, t) => s + spendAmount(t), 0)
 
   const catSpend = {}
   for (const name of SPEND_CATS) catSpend[name] = 0
@@ -239,8 +241,8 @@ export function computeProduct({ data, state, month }) {
   const onSofi = (t) => (t.account_id && sofiAccts.has(t.account_id)) || (t.plaid_item_id && sofiItems.has(t.plaid_item_id))
 
   const queue = txns
-    .filter((t) => t.purpose === 'unreviewed' && isExpense(t) && t.category !== 'Transfers' && (!sofiOnly || onSofi(t)))
-    .sort((a, b) => String(b.txn_date).localeCompare(String(a.txn_date)))
+    .filter((t) => t.purpose === 'unreviewed' && !t.pending && isExpense(t) && t.category !== 'Transfers' && (!sofiOnly || onSofi(t)))
+    .sort((a, b) => String(a.txn_date).localeCompare(String(b.txn_date)) || String(a.id).localeCompare(String(b.id)))
 
   return {
     plan,

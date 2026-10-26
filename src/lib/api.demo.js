@@ -4,7 +4,7 @@
 import { demoData } from "./demoData";
 import { isoDate } from "./format";
 
-const KEY = "budget.demoStore.v3";
+const KEY = "budget.demoStore.v4";
 
 function nid() {
   return globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -138,7 +138,12 @@ export async function addTransaction({
     bucket_goal_id: bucket_goal_id || null,
   });
 }
-export async function updateTransaction(id, fields) {
+export async function updateTransaction(id, fields, options = {}) {
+  const current = list('transactions').find((t) => t.id === id)
+  if (!current) throw new Error('Transaction no longer exists. Reload and try again.')
+  for (const [option, column] of [['expected_note', 'note'], ['expected_category', 'category']]) {
+    if (Object.prototype.hasOwnProperty.call(options, option) && (current[column] ?? null) !== options[option]) throw new Error('This transaction changed elsewhere. Reload and try again.')
+  }
   const patch = {};
   for (const k of ["txn_date", "merchant", "amount", "category", "note", "goal_id", "income_source"]) {
     if (fields[k] !== undefined) patch[k] = fields[k] || (k === "note" || k === "goal_id" || k === "income_source" ? null : fields[k]);

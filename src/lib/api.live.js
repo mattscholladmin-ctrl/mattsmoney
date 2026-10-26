@@ -236,7 +236,7 @@ export async function addTransaction({ txn_date, merchant, amount, category, not
   if (error) throw error
 }
 
-export async function updateTransaction(id, { txn_date, merchant, amount, category, note, goal_id, income_source }) {
+export async function updateTransaction(id, { txn_date, merchant, amount, category, note, goal_id, income_source }, options = {}) {
   const fields = {}
   if (txn_date !== undefined) fields.txn_date = txn_date
   if (merchant !== undefined) fields.merchant = merchant
@@ -247,8 +247,15 @@ export async function updateTransaction(id, { txn_date, merchant, amount, catego
   if (goal_id !== undefined) fields.goal_id = goal_id || null
   // '' clears the tag; a name sets it; undefined leaves it untouched.
   if (income_source !== undefined) fields.income_source = income_source || null
-  const { error } = await supabase.from('transactions').update(fields).eq('id', id)
+  let query = supabase.from('transactions').update(fields).eq('id', id)
+  for (const [option, column] of [['expected_note', 'note'], ['expected_category', 'category']]) {
+    if (Object.prototype.hasOwnProperty.call(options, option)) {
+      query = options[option] == null ? query.is(column, null) : query.eq(column, options[option])
+    }
+  }
+  const { data, error } = await query.select('id').maybeSingle()
   if (error) throw error
+  if (!data) throw new Error('This transaction changed elsewhere or no longer exists. Reload and try again.')
 }
 
 export async function deleteTransaction(id) {

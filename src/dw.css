@@ -575,3 +575,8 @@ html[data-dw='1'] .dw-flat button:not(.bg-emerald-700):not(.text-emerald-700):no
   .dw-tabs { overflow-x: auto; justify-content: flex-start; }
   .dw-tabs button { flex: 1 0 auto; }
 }
+
+/* Additional history controls wrap with larger text, using the same styles. */
+.dw-chips, .dw-page-h { flex-wrap: wrap; }
+.dw-toolbar .dw-field { min-width: 0; max-width: 100%; }
+.dw-search { min-width: 0; max-width: 100%; }

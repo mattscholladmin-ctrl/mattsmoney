@@ -17,8 +17,8 @@ export function demoData() {
       { id: 'a4', name: 'Cash on hand', kind: 'spending', sort_order: 4, include_in_spendable: true, manual: true },
     ],
     balances: [
-      { id: 'b1', account_id: 'a1', balance: 1284.56, as_of: today, note: 'Auto-synced' },
-      { id: 'b2', account_id: 'a2', balance: 850.0, as_of: today, note: 'Auto-synced' },
+      { id: 'b1', account_id: 'a1', balance: 1284.56, as_of: today, note: 'Auto-synced · available' },
+      { id: 'b2', account_id: 'a2', balance: 850.0, as_of: today, note: 'Auto-synced · available' },
       { id: 'b3', account_id: 'a3', balance: 312.4, as_of: today, note: 'Auto-synced' },
       { id: 'b4', account_id: 'a4', balance: 120.0, as_of: today, note: 'Balance update' },
       // Previous check-in a week ago — anchors the "since last check-in" recap.
@@ -120,7 +120,7 @@ export function demoData() {
       // Nearby charges that look like unpaid bills — exercises "is this the payment?"
       { id: 't21', txn_date: addDays(-5), merchant: 'GEICO', amount: 142.0, category: 'Auto' },
       { id: 't22', txn_date: addDays(-8), merchant: 'Public Storage', amount: 95.0, category: 'Housing' },
-    ],
+    ].map((t) => ({ ...t, account_id: t.id === 't20' ? 'a4' : 'a1' })),
     creditScores: [
       { id: 'cs1', score: 706, checked_on: addDays(-35), bureau: 'Equifax', model: 'VantageScore 3.0', source: 'Credit Karma' },
       { id: 'cs2', score: 718, checked_on: addDays(-3), bureau: 'Equifax', model: 'VantageScore 3.0', source: 'Credit Karma' },
