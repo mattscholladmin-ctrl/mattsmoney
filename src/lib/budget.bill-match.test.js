@@ -27,6 +27,7 @@ describe('bill payment matcher', () => {
     const bill = { id: 'ins', name: 'Progressive', amount: 138, due_day: 1, cadence: 'monthly', active: true, partial_paid: 69, partial_for: '2026-10-01' }
     const owed = unpaidBills([bill], [], '2026-10-02', 40)
     const row = owed.find((b) => b.billId === 'ins')
+    assert.ok(row)
     assert.equal(row.amount, 69)
     assert.equal(row.fullAmount, 138)
     const half = [{ id: 'p', merchant: 'Progressive', amount: 69, txn_date: '2026-10-02' }]
@@ -43,6 +44,7 @@ describe('bill payment matcher', () => {
   it('remembers a saved Apple split for the same total', () => {
     const txns = [{ id: 'a', merchant: 'APPLE.COM/BILL', amount: 14.98, txn_date: '2026-09-01', note: 'apple-split:yt=11.99,ic=2.99' }]
     const rule = rememberedAppleSplit(txns, 14.98)
+    assert.ok(rule)
     assert.deepEqual(rule.parts, [{ id: 'yt', amount: 11.99 }, { id: 'ic', amount: 2.99 }])
   })
 

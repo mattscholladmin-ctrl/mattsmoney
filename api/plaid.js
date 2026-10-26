@@ -12,6 +12,7 @@ import {
   readBody,
 } from '../src/lib/plaidServer.js'
 import { Products, CountryCode } from 'plaid'
+import { syncBankItems } from '../src/lib/bank-sync.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' })
@@ -33,6 +34,13 @@ export default async function handler(req, res) {
           optional_products: [Products.Liabilities],
           country_codes: [CountryCode.Us],
           language: 'en',
+        }
+        if (body.item_id) {
+          const item = (await listItems(user.id, db)).find(it => it.item_id === body.item_id)
+          if (!item) return res.status(404).json({ error: 'connection not found' })
+          opts.access_token = item.access_token
+          delete opts.products
+          delete opts.optional_products
         }
         if (process.env.PLAID_REDIRECT_URI) opts.redirect_uri = process.env.PLAID_REDIRECT_URI
         const r = await client.linkTokenCreate(opts)
@@ -72,6 +80,14 @@ export default async function handler(req, res) {
         for (const it of items) {
           let accounts = []
           let txnNote = null
+          let syncError = null
+          let errorCode = null
+          let transactionBankUpdated = null
+          try {
+            const status = await client.itemGet({access_token:it.access_token})
+            transactionBankUpdated = status.data.status?.transactions?.last_successful_update || status.data.status?.last_successful_update || null
+            if(status.data.item?.error){errorCode=status.data.item.error.error_code;syncError=errorCode==='ITEM_LOGIN_REQUIRED' ? 'Sign in again to repair this connection.' : 'The bank reports a connection issue. Try refreshing later.'}
+          }catch{/* Balance and transaction checks below still report their own errors. */}
           // Sum pending charges per account so we can see why available differs.
           const pendingByAccount = {}
           let pendingCount = 0
@@ -95,7 +111,9 @@ export default async function handler(req, res) {
             }
             txnNote = `${tx.data.transactions.length} txns, ${pendingCount} pending`
           } catch (e) {
-            txnNote = `txn fetch failed: ${plaidError(e)}`
+            txnNote = 'Transactions could not be checked.'
+            errorCode = e?.response?.data?.error_code || null
+            syncError = errorCode === 'ITEM_LOGIN_REQUIRED' ? 'Sign in again to repair this connection.' : 'Transaction update unavailable. Try again later.'
           }
           try {
             const acc = await client.accountsBalanceGet({
@@ -112,15 +130,21 @@ export default async function handler(req, res) {
               current: a.balances.current,
               available: a.balances.available,
               pending: pendingByAccount[a.account_id] || 0,
+              balance_updated_at: a.balances.last_updated_datetime || null,
             }))
-          } catch {
-            /* stale/sandbox item — skip its live balances */
+          } catch (e) {
+            errorCode = e?.response?.data?.error_code || errorCode
+            syncError = errorCode === 'ITEM_LOGIN_REQUIRED' ? 'Sign in again to repair this connection.' : 'Bank balances could not be checked. Saved balances are unchanged.'
           }
           out.push({
             item_id: it.item_id,
             institution: it.institution_name,
             updated_at: it.updated_at,
             txnNote,
+            transaction_bank_updated_at: transactionBankUpdated,
+            error: syncError,
+            error_code: errorCode,
+            needs_repair: errorCode === 'ITEM_LOGIN_REQUIRED',
             accounts,
           })
         }
@@ -129,18 +153,8 @@ export default async function handler(req, res) {
 
       case 'refresh': {
         const items = await listItems(user.id, db)
-        let synced = 0
-        for (const it of items) {
-          try {
-            await syncItemAccounts(user.id, it, db)
-            await syncItemTransactions(user.id, it, db)
-            synced++
-          } catch {
-            /* one bad item shouldn't block the rest */
-          }
-        }
-        await cleanupUnlinkedAccounts(user.id, db)
-        return res.status(200).json({ ok: true, items: items.length, synced })
+        const result = await syncBankItems(items, it => syncItemAccounts(user.id, it, db), it => syncItemTransactions(user.id, it, db))
+        return res.status(200).json(result)
       }
 
       case 'disconnect': {

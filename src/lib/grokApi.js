@@ -2,12 +2,15 @@ import { fetchUserRows } from './fetch-user-rows.js'
 import { applyPreferences } from './app-preferences.js'
 import { computePaycheckPlan } from './paycheck-plan.js'
 // Shared Grok door: full read + writes. Used by /api/grok and the MCP connector.
+/** @typedef {Record<string, any>} BudgetRecord */
+/** @typedef {import('@supabase/supabase-js').SupabaseClient<any>} BudgetDb */
 import crypto from 'node:crypto'
 import { adminClient } from './googleServer.js'
 import { refreshLinkedBanks, localToday } from './plaidServer.js'
 import { accountSummaries, obligationSchedule, isBillOccurrencePaid, moneyTotals, dedupeTransactions } from './budget.js'
 import { isoDate } from './format.js'
 
+/** @param {Request} request */
 export function grokSecretOk(request) {
   const secret = process.env.GROK_SECRET
   if (!secret) return false
@@ -29,15 +32,19 @@ export function grokSecretOk(request) {
   return crypto.timingSafeEqual(a, b)
 }
 
+/** @param {Request} request */
 function secretOk(request) {
   return grokSecretOk(request)
 }
 
+/** @param {number} status @param {unknown} body */
 function json(status, body) {
   return Response.json(body, { status })
 }
 
+/** @param {BudgetRecord} obj @param {string[]} keys @returns {BudgetRecord} */
 function pick(obj, keys) {
+  /** @type {BudgetRecord} */
   const out = {}
   for (const k of keys) {
     if (obj[k] !== undefined) out[k] = obj[k]
@@ -45,21 +52,28 @@ function pick(obj, keys) {
   return out
 }
 
+/** @param {BudgetDb} db */
 async function uidOf(db) {
-  const { data, error } = await db.from('settings').select('user_id').limit(1)
+  let query = db.from('settings').select('user_id')
+  if (process.env.GROK_OWNER_USER_ID) query = query.eq('user_id', process.env.GROK_OWNER_USER_ID)
+  const { data, error } = await query.limit(2)
   if (error) throw new Error(error.message)
-  if (!data?.[0]?.user_id) throw new Error('no user')
+  if (!data?.[0]?.user_id) throw new Error('no connector owner configured')
+  if (data.length !== 1) throw new Error('Connector owner is ambiguous. Configure GROK_OWNER_USER_ID before using this connection.')
   return data[0].user_id
 }
 
+/** @param {BudgetDb} db @param {string} table @param {string} uid @param {BudgetRecord} row */
 async function insert(db, table, uid, row) {
   const { data, error } = await db.from(table).insert({ ...row, user_id: uid }).select('id').maybeSingle()
   if (error) throw new Error(error.message)
   return data
 }
 
+/** @param {BudgetDb} db @param {string} table @param {string} uid @param {string} id @param {BudgetRecord} fields */
 async function patch(db, table, uid, id, fields) {
   if (!id) return { ok: false, error: 'missing id' }
+  /** @type {BudgetRecord} */
   const clean = {}
   for (const [k, v] of Object.entries(fields)) {
     if (v !== undefined) clean[k] = v
@@ -71,15 +85,18 @@ async function patch(db, table, uid, id, fields) {
   return { ok: true, data: { id, ...clean } }
 }
 
+/** @param {BudgetDb} db @param {string} table @param {string} uid @param {string} id */
 async function remove(db, table, uid, id) {
   if (!id) return { ok: false, error: 'missing id' }
-  const { error } = await db.from(table).delete().eq('id', id).eq('user_id', uid)
+  const { data, error } = await db.from(table).delete().eq('id', id).eq('user_id', uid).select('id').maybeSingle()
   if (error) throw new Error(error.message)
+  if (!data) return {ok:false,error:'Record not found — nothing deleted'}
   return { ok: true, data: { id, deleted: true } }
 }
 
+/** @param {BudgetDb} db @param {string} uid */
 async function snapshot(db, uid) {
-  await refreshLinkedBanks(uid, db)
+  const bankSync = await refreshLinkedBanks(uid, db)
   const today = localToday()
   const [
     accounts,
@@ -100,7 +117,7 @@ async function snapshot(db, uid) {
   ] = await Promise.all([
     db.from('accounts').select('*').eq('user_id', uid).order('sort_order'),
     fetchUserRows(db, 'balance_entries', uid, 'as_of'),
-    db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance,start_date,smooth').eq('user_id', uid),
+    db.from('debts').select('id,name,kind,balance,credit_limit,min_payment,plan_payment,due_day,apr,active,autopay,next_payment_date,original_balance,start_date,smooth,smooth_since,smooth_saved,pay_frequency').eq('user_id', uid),
     db.from('recurring_bills').select('id,name,amount,due_day,cadence,active,category,start_date,smooth,paid_through,partial_paid,partial_for').eq('user_id', uid),
     db.from('goals').select('*').eq('user_id', uid).order('sort_order'),
     db.from('income_sources').select('id,name,amount,cadence,confirmed,anchor_date,due_day,active').eq('user_id', uid),
@@ -119,18 +136,26 @@ async function snapshot(db, uid) {
 
   if (debts.error) throw new Error(debts.error.message)
   if (bills.error) throw new Error(bills.error.message)
+  /** @type {BudgetRecord[]} */
   const debtRows = debts.data || []
+  /** @type {BudgetRecord[]} */
   const billRows = bills.data || []
   const payRows = payments?.error ? [] : payments?.data || []
+  /** @type {Record<string,string[]>} */
   const paidByDebt = {}
   for (const p of payRows) {
     ;(paidByDebt[p.debt_id] ||= []).push(p.paid_on)
   }
+  /** @type {BudgetRecord[]} */
   const acctRows = (accounts.data || []).filter((a) => !a.hidden)
   const txnRows = dedupeTransactions(txns.data || [])
+  /** @type {BudgetRecord[]} */
   const goalRows = goals.data || []
+  /** @type {BudgetRecord[]} */
   const incomeRows = income.data || []
+  /** @type {BudgetRecord[]} */
   const budgetRows = budgets.error ? [] : budgets.data || []
+  /** @type {BudgetRecord[]} */
   const setAsideRows = setAsides.error ? [] : setAsides.data || []
 
   const sums = accountSummaries(acctRows, balances.data || [])
@@ -149,6 +174,7 @@ async function snapshot(db, uid) {
   const byId = Object.fromEntries((accounts.data || []).map((a) => [a.id, a]))
   return {
     as_of: today,
+    bank_sync: bankSync,
     spendable,
     spendable_breakdown: { available_cash: plan.start, bills_due: plan.info.billsBeforePay,
       later_bills: savedPreferences.spreadBills === false ? 0 : plan.info.laterShare, goals: plan.info.goalReserve, debts: plan.debtReserve,
@@ -278,6 +304,7 @@ async function snapshot(db, uid) {
   }
 }
 
+/** @param {Request} request */
 export async function handleGrokRequest(request) {
   const method = (request.method || 'GET').toUpperCase()
   if (method !== 'GET' && method !== 'POST') {
@@ -302,10 +329,11 @@ export async function handleGrokRequest(request) {
     if (!result.ok) return json(400, { error: result.error })
     return json(200, result.data)
   } catch (e) {
-    return json(500, { error: e.message || 'failed' })
+    return json(500, { error: e instanceof Error ? e.message : 'failed' })
   }
 }
 
+/** @param {BudgetRecord} [body] @returns {Promise<{ok:boolean,error?:string,data?:any}>} */
 export async function runGrokAction(body = {}) {
   const action = body.action || 'snapshot'
   const db = adminClient()
@@ -332,6 +360,7 @@ export async function runGrokAction(body = {}) {
 
   if (action === 'add_bill') {
     if (!body.name || body.amount == null) return { ok: false, error: 'need name and amount' }
+    /** @type {BudgetRecord} */
     const row = { ...pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'start_date']), active: true }
     row.amount = Number(row.amount)
     const data = await insert(db, 'recurring_bills', uid, row)
@@ -344,6 +373,7 @@ export async function runGrokAction(body = {}) {
 
   if (action === 'add_income') {
     if (!body.name) return { ok: false, error: 'need name' }
+    /** @type {BudgetRecord} */
     const row = { ...pick(body, ['name', 'amount', 'cadence', 'anchor_date', 'due_day', 'confirmed']), active: true }
     if (row.amount != null) row.amount = Number(row.amount)
     const data = await insert(db, 'income_sources', uid, row)

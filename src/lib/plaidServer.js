@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { syncBankItems } from './bank-sync.js'
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid'
 import { adminClient } from './googleServer.js'
 import { normalizeMerchant, isPendingPostedTwin } from './budget.js'
@@ -119,16 +120,20 @@ export async function syncItemAccounts(uid, item, db = adminClient()) {
       const same = prev && prev.as_of === today && (prev.note || '') === note && prevBal === cash
       if (!same) {
         const inserted = await db.from('balance_entries').insert({ user_id: uid, account_id: id, balance: cash, as_of: today, note }).select('id').single()
-        if (!inserted.error && inserted.data?.id) await db.from('balance_entries').delete().eq('account_id', id).eq('as_of', today).neq('id', inserted.data.id)
+        if (inserted.error) throw new Error(inserted.error.message)
+        if (inserted.data?.id) await db.from('balance_entries').delete().eq('account_id', id).eq('as_of', today).neq('id', inserted.data.id)
       }
       depository++
     } else if (a.type === 'credit' || a.type === 'loan') { await upsertDebt(db, uid, item, a); credit++ }
   }
-  await db.from('plaid_items').update({ updated_at: new Date().toISOString() }).eq('item_id', item.item_id).eq('user_id', uid)
+  const saved = await db.from('plaid_items').update({ updated_at: new Date().toISOString() }).eq('item_id', item.item_id).eq('user_id', uid)
+  if(saved.error)throw new Error(saved.error.message)
   return { depository, credit }
 }
 export async function cleanupUnlinkedAccounts(uid, db = adminClient()) {
-  await db.from('accounts').delete().eq('user_id', uid).is('plaid_account_id', null).neq('manual', true)
+  // An unlinked account may still contain manual records. Only an explicit
+  // user deletion may remove it; a bank refresh must not delete budget accounts.
+  return { ok: true }
 }
 export async function syncItemTransactions(uid, item, db = adminClient()) {
   const client = plaidClient()
@@ -139,7 +144,7 @@ export async function syncItemTransactions(uid, item, db = adminClient()) {
       added = added.concat(r.data.added); modified = modified.concat(r.data.modified); removed = removed.concat(r.data.removed)
       hasMore = r.data.has_more; cursor = r.data.next_cursor
     }
-  } catch (e) { return { added: 0, ready: false } }
+  } catch (e) { return { added: 0, ready: false, error: 'Transactions could not be updated. Try again later.', error_code: e?.response?.data?.error_code || null } }
   const ups = [...added, ...modified]
   if (ups.length) {
     const ids = ups.map((t) => t.transaction_id)
@@ -186,9 +191,10 @@ export async function syncItemTransactions(uid, item, db = adminClient()) {
       if (error) throw new Error(error.message)
     }
   }
-  if (removed.length) await db.from('transactions').delete().in('plaid_transaction_id', removed.map((t) => t.transaction_id))
+  if (removed.length) {const removedRows=await db.from('transactions').delete().eq('user_id',uid).in('plaid_transaction_id', removed.map((t) => t.transaction_id));if(removedRows.error)throw new Error(removedRows.error.message)}
   await collapsePostedTwins(uid, db)
-  await db.from('plaid_items').update({ cursor }).eq('item_id', item.item_id).eq('user_id', uid)
+  const cursorSaved=await db.from('plaid_items').update({ cursor }).eq('item_id', item.item_id).eq('user_id', uid)
+  if(cursorSaved.error)throw new Error(cursorSaved.error.message)
   return { added: added.length, ready: true }
 }
 
@@ -262,7 +268,6 @@ export async function readBody(req) {
 export async function refreshLinkedBanks(uid, db = adminClient()) {
   try {
     const items = await listItems(uid, db)
-    for (const it of items) { try { await syncItemAccounts(uid, it, db); await syncItemTransactions(uid, it, db) } catch {} }
-    return { ok: true, items: items.length }
+    return await syncBankItems(items,it=>syncItemAccounts(uid,it,db),it=>syncItemTransactions(uid,it,db))
   } catch { return { ok: false, items: 0 } }
 }

@@ -8,6 +8,7 @@ import {
 } from "../lib/transaction-review.js";
 import { checkPurchase } from "../lib/purchase-check.js";
 import ShopPage from "./ShopPage";
+import PlanningPanel from "./PlanningPanel.jsx";
 import GuideCard from "./GuideCard";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -741,7 +742,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
           {page === "activity" && <Activity />}
           {page === "review" && <Review />}
           {page === "bills" && <Bills />}
-          {page === "shop" && <ShopPage />}
+          {page === "shop" && <ShopPage key={session?.user?.id || "demo"} userId={session?.user?.id || "demo"} transactions={product.txns} grocerySpend={product.catSpend?.Groceries || 0} groceryBudget={(data.budgets || []).find(b=>b.category === "Groceries")?.monthly_limit ?? null} monthLabel={monthLabel(month)}/> }
           {page === "profile" && <Profile />}
         </main>
         <nav className="dw-tabs">
@@ -1031,6 +1032,10 @@ function Profile() {
           <section className="dw-card">
             <div className="dw-k">Connections</div>
             <div className="dw-conn">
+              <div>
+                <b>ChatGPT</b>
+                <p>Choose Matt’s Money in a regular ChatGPT chat, then ask it to read your budget or propose a record change. Set its permissions to Allow read actions so it asks before changes. The connection uses a private address and access key; the public address below alone does not grant access. It cannot move money.</p>
+              </div>
               <div>
                 <b>Grok</b>
                 <p>
@@ -2060,6 +2065,11 @@ function Home() {
         balance: String(d.balance ?? ""),
         monthly: String(d.plan_payment ?? ""),
         firstDate: d.start_date || d.next_payment_date || "",
+        frequency: d.pay_frequency || "monthly",
+        minimum: String(d.min_payment ?? 0),
+        apr: d.apr == null ? "" : String(d.apr),
+        debtType: d.kind || "loan",
+        bankLinked: Boolean(d.plaid_account_id),
       });
     }
   }
@@ -2069,7 +2079,7 @@ function Home() {
     setPlanMsg("");
     const name = editor.name.trim();
     const monthly = Number(editor.monthly);
-    if (!name || !(monthly > 0)) {
+    if (!name || !Number.isFinite(monthly) || !(monthly > 0)) {
       setPlanMsg("Name and a monthly amount are required.");
       return;
     }
@@ -2087,20 +2097,22 @@ function Home() {
         if (editor.id) await updateGoal(editor.id, fields);
         else await addGoal(fields);
       } else {
-        if (!editor.firstDate) {
-          setPlanMsg("First due date is required.");
+        if (!editor.firstDate || !Number.isFinite(Number(editor.balance || 0)) || Number(editor.balance || 0) < 0 || !Number.isFinite(Number(editor.minimum || 0)) || Number(editor.minimum || 0) < 0 || (editor.apr !== "" && editor.apr != null && (!Number.isFinite(Number(editor.apr)) || Number(editor.apr) < 0 || Number(editor.apr) > 1000))) {
+          setPlanMsg("Check the first due date, balance, minimum payment, and APR.");
           setPlanBusy(false);
           return;
         }
         const fields = {
           name,
-          balance: Number(editor.balance || 0),
+          ...(editor.bankLinked ? {} : {balance: Number(editor.balance || 0)}),
           plan_payment: monthly,
-          min_payment: monthly,
+          min_payment: Number(editor.minimum || 0),
+          apr: editor.apr === "" || editor.apr == null ? null : Number(editor.apr),
           due_day: Number(editor.firstDate.slice(8, 10)),
           start_date: editor.firstDate,
-          pay_frequency: "monthly",
-          kind: "loan",
+          next_payment_date: editor.firstDate,
+          pay_frequency: editor.frequency || "monthly",
+          kind: editor.debtType || "loan",
         };
         if (editor.id) await updateDebt(editor.id, fields);
         else await addDebt(fields);
@@ -2223,6 +2235,7 @@ function Home() {
           </section>
 
           <PurchaseCheck />
+          <PlanningPanel data={data} state={state} onChanged={load} refreshError={refreshError}/>
 
           <section className="dw-card">
             <div className="dw-row-head">
@@ -2427,11 +2440,12 @@ function Home() {
                         type="number"
                         step="0.01"
                         value={editor.balance}
+                        readOnly={editor.bankLinked}
                         onChange={(e) => setEditor({ ...editor, balance: e.target.value })}
                       />
                     </label>
                     <label className="dw-field">
-                      Payment per month
+                      Planned amount each payment
                       <input
                         type="number"
                         step="0.01"
@@ -2439,6 +2453,11 @@ function Home() {
                         onChange={(e) => setEditor({ ...editor, monthly: e.target.value })}
                       />
                     </label>
+                    {editor.bankLinked && <p className="dw-mute">This balance comes from the bank. Editing the payment plan keeps it unchanged.</p>}
+                    <label className="dw-field">Payment frequency<select value={editor.frequency || "monthly"} onChange={e=>setEditor({...editor,frequency:e.target.value})}><option value="monthly">Monthly</option><option value="biweekly">Every two weeks</option><option value="weekly">Weekly</option></select></label>
+                    <label className="dw-field">Minimum each payment<input type="number" min="0" step="0.01" value={editor.minimum || ""} onChange={e=>setEditor({...editor,minimum:e.target.value})}/></label>
+                    <label className="dw-field">APR %, optional<input type="number" min="0" max="1000" step="0.01" value={editor.apr || ""} onChange={e=>setEditor({...editor,apr:e.target.value})}/></label>
+                    <label className="dw-field">Debt type<select value={editor.debtType || "loan"} onChange={e=>setEditor({...editor,debtType:e.target.value})}><option value="loan">Loan</option><option value="card">Credit card</option></select></label>
                     <label className="dw-field">
                       First due date
                       <input

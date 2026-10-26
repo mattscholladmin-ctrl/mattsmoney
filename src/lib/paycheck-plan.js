@@ -40,10 +40,11 @@ export function checkingBalance(data) {
 // The monthly payment is unchanged by an extra payment.
 // If the balance is now below one monthly payment, this check holds only what's left.
 export function debtPaycheckShare(debt, periodsPerYear) {
-  const monthly = Number(debt?.plan_payment || 0)
+  const monthly = Math.max(Number(debt?.plan_payment || 0), Number(debt?.min_payment || 0))
   if (!(monthly > 0)) return 0
   const periods = Math.max(1, Number(periodsPerYear) || 12)
-  const slice = (monthly * 12) / periods
+  const frequency = debt?.pay_frequency === 'weekly' ? 52 : debt?.pay_frequency === 'biweekly' ? 26 : 12
+  const slice = (monthly * frequency) / periods
   const owed = Math.max(0, Number(debt?.balance || 0))
   const share = owed < monthly ? owed : Math.min(slice, owed)
   return Math.round(share * 100) / 100

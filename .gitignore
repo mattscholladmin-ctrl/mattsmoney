@@ -17,3 +17,6 @@ coverage
 *.log
 .wrangler
 server/db*.sqlite*
+
+# Generated from pinned npm packages before dev/build.
+/public/ocr/

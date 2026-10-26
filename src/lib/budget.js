@@ -486,6 +486,7 @@ export function obligationCycles(item, throughIso) {
   return out
 }
 
+/** @param {any} item @param {string} today @param {{unpaid?:boolean,paidDates?:string[]}} options */
 export function obligationSchedule(item = {}, today = isoDate(), { unpaid = true, paidDates = [] } = {}) {
   const start = item.start_date || null
   const paid = new Set((paidDates || []).map((d) => String(d).slice(0, 10)))

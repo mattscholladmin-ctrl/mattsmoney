@@ -350,12 +350,9 @@ async function live_updateBill(id, { name, amount, category, cadence, due_day, s
 }
 
 async function live_markBillPaid(id, paid_through) {
-  let { error } = await supabase.from('recurring_bills').update({ paid_through, partial_paid: null, partial_for: null }).eq('id', id)
-  if (error && isMissingColumn(error)) {
-    ;({ error } = await supabase.from('recurring_bills').update({ paid_through }).eq('id', id))
-    if (error && isMissingColumn(error)) return
-  }
+  const { data, error } = await supabase.from('recurring_bills').update({ paid_through, partial_paid: null, partial_for: null }).eq('id', id).select('id').maybeSingle()
   if (error) throw error
+  if (!data) throw new Error('Bill not found — nothing saved')
 }
 
 async function live_setBillPartial(id, partial_paid, partial_for) {
@@ -734,7 +731,7 @@ async function live_addDebt({ name, balance, apr, plan_payment, min_payment, due
   const row = {
     name,
     balance,
-    apr: apr ?? 0,
+    apr: apr === undefined ? 0 : apr,
     plan_payment: plan_payment ?? 0,
     min_payment: min_payment ?? 0,
     due_day: due_day ?? null,
@@ -813,7 +810,7 @@ async function live_toggleCreditTask(id, done) {
 async function live_updateDebt(id, { name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date, start_date }) {
   const fields = {
     name,
-    apr: apr ?? 0,
+    apr: apr === undefined ? 0 : apr,
     plan_payment: plan_payment ?? 0,
     min_payment: min_payment ?? 0,
     due_day: due_day ?? null,

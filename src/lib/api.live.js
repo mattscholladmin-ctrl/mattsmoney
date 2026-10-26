@@ -688,7 +688,7 @@ export async function addDebt({ name, balance, apr, plan_payment, min_payment, d
   const row = {
     name,
     balance,
-    apr: apr ?? 0,
+    apr: apr === undefined ? 0 : apr,
     plan_payment: plan_payment ?? 0,
     min_payment: min_payment ?? 0,
     due_day: due_day ?? null,
@@ -767,7 +767,7 @@ export async function toggleCreditTask(id, done) {
 export async function updateDebt(id, { name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date, start_date }) {
   const fields = {
     name,
-    apr: apr ?? 0,
+    apr: apr === undefined ? 0 : apr,
     plan_payment: plan_payment ?? 0,
     min_payment: min_payment ?? 0,
     due_day: due_day ?? null,

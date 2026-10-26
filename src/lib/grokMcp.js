@@ -6,11 +6,13 @@ const num = { type: 'number' }
 const integer = { type: 'number' }
 const bool = { type: 'boolean' }
 
+/** @param {string} name @param {string} description @param {Record<string,any>} [properties] @param {string[]} [required] */
 function tool(name, description, properties = {}, required = []) {
   return {
     name,
     description,
-    inputSchema: { type: 'object', properties, required },
+    annotations: { readOnlyHint: name === 'budget_snapshot', destructiveHint: /^(delete_|remove_)/.test(name), idempotentHint: name !== 'set_account_balance' && /^(budget_snapshot|update_|set_|pause_|unpause_)/.test(name), openWorldHint: false },
+    inputSchema: { type: 'object', properties, required, additionalProperties: false },
   }
 }
 
@@ -49,6 +51,7 @@ const TOOLS = [
   tool('delete_credit_score', 'Delete a credit score log.', { id: str }, ['id']),
 ]
 
+/** @param {Record<string,string>} [extra] @returns {Record<string,string>} */
 function corsHeaders(extra = {}) {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -60,14 +63,17 @@ function corsHeaders(extra = {}) {
   }
 }
 
+/** @param {any} id @param {any} result */
 function rpcResult(id, result) {
   return { jsonrpc: '2.0', id: id ?? null, result }
 }
 
+/** @param {any} id @param {number} code @param {string} message */
 function rpcError(id, code, message) {
   return { jsonrpc: '2.0', id: id ?? null, error: { code, message } }
 }
 
+/** @param {any} payload @param {{sse?:boolean,status?:number,sessionId?:string}} [options] */
 function respond(payload, { sse, status = 200, sessionId } = {}) {
   const headers = corsHeaders({
     'MCP-Protocol-Version': '2025-03-26',
@@ -83,6 +89,7 @@ function respond(payload, { sse, status = 200, sessionId } = {}) {
   return new Response(JSON.stringify(payload), { status, headers })
 }
 
+/** @param {any} msg */
 async function dispatch(msg) {
   const { id, method, params } = msg || {}
   if (method === 'initialize') {
@@ -92,7 +99,7 @@ async function dispatch(msg) {
       capabilities: { tools: {} },
       serverInfo: { name: 'matts-money', title: "Matt's Money", version: '2.0.0' },
       instructions:
-        'Full read/write for Matt’s Money. Always budget_snapshot first. Confirm with the user in chat before any write.',
+        'Read Matt’s Money and carry out only the user’s approved budget edits. Always budget_snapshot first. Before each write, summarize the exact record and fields being changed and obtain user approval. Never change bank balances unless specifically requested. These tools record budget data; they do not move money.',
     })
   }
   if (method === 'notifications/initialized' || method === 'notifications/cancelled') {
@@ -112,8 +119,19 @@ async function dispatch(msg) {
         isError: true,
       })
     }
+    const definition = TOOLS.find(t => t.name === name)
+    if (!args || Array.isArray(args) || typeof args !== 'object' || definition?.inputSchema.required.some(key => !Object.prototype.hasOwnProperty.call(args,key))) {
+      return rpcResult(id,{content:[{type:'text',text:'Missing required tool arguments.'}],isError:true})
+    }
+    for (const [key,value] of Object.entries(args)) {
+      const schema = definition?.inputSchema.properties[key]
+      if (!schema || typeof value !== schema.type || (schema.type === 'number' && !Number.isFinite(value))) {
+        return rpcResult(id,{content:[{type:'text',text:`Invalid argument: ${key}`}],isError:true})
+      }
+    }
     const action = name === 'budget_snapshot' ? 'snapshot' : name
-    const result = await runGrokAction({ action, ...args })
+    // The tool definition, never a caller-supplied argument, selects the action.
+    const result = await runGrokAction({ ...args, action })
     if (!result.ok) {
       return rpcResult(id, {
         content: [{ type: 'text', text: result.error || 'failed' }],
@@ -128,10 +146,12 @@ async function dispatch(msg) {
   return rpcError(id, -32601, `Method not found: ${method}`)
 }
 
+/** @param {string} accept */
 function clientWantsStream(accept) {
   return (accept || '').includes('text/event-stream')
 }
 
+/** @param {any} payload */
 function isOpenCall(payload) {
   const msgs = Array.isArray(payload) ? payload : [payload]
   return msgs.every((msg) => {
@@ -147,6 +167,7 @@ function isOpenCall(payload) {
   })
 }
 
+/** @param {Request} request */
 export async function handleMcpRequest(request) {
   const method = (request.method || 'GET').toUpperCase()
   if (method === 'OPTIONS') {
@@ -202,6 +223,6 @@ export async function handleMcpRequest(request) {
     if (!r) return new Response(null, { status: 202, headers: corsHeaders() })
     return respond(r, { sse: useSse })
   } catch (e) {
-    return respond(rpcError(payload?.id ?? null, -32603, e.message || 'failed'), { sse: useSse })
+    return respond(rpcError(payload?.id ?? null, -32603, e instanceof Error ? e.message : 'failed'), { sse: useSse })
   }
 }

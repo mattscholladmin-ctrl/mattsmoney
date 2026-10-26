@@ -592,3 +592,10 @@ html[data-dw='1'] .dw-flat button:not(.bg-emerald-700):not(.text-emerald-700):no
 .dw-legend-row b, .dw-stat-row b { white-space: nowrap; }
 .dw-donut-hole { container-type: inline-size; }
 .dw-donut-hole b { font-size: min(calc(1rem * var(--dw-type, 1.56)), 16cqi); white-space: nowrap; }
+.dw-field textarea {
+  min-width: 0; max-width: 100%; min-height: 110px; padding: 12px;
+  background: var(--dw-card-2); border: 1px solid var(--dw-line); border-radius: 8px;
+  color: var(--dw-text); font: inherit; resize: vertical;
+}
+.dw-card details { margin: 12px 0; }
+.dw-card button:disabled { opacity: .5; cursor: not-allowed; }

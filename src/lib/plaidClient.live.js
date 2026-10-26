@@ -24,8 +24,8 @@ async function call(action, extra = {}) {
 }
 
 // Returns { link_token }
-export function createLinkToken() {
-  return call('link-token')
+export function createLinkToken(item_id) {
+  return call('link-token', item_id ? {item_id} : {})
 }
 
 // Returns { ok, institution, depository, credit }
