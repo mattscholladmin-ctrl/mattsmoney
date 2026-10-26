@@ -6,6 +6,7 @@ import {
   deferReview,
   filterActivity,
 } from "../lib/transaction-review.js";
+import { checkPurchase } from "../lib/purchase-check.js";
 import ShopPage from "./ShopPage";
 import GuideCard from "./GuideCard";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -2221,6 +2222,8 @@ function Home() {
             )}
           </section>
 
+          <PurchaseCheck />
+
           <section className="dw-card">
             <div className="dw-row-head">
               <div className="dw-k">Spending this month</div>
@@ -2828,6 +2831,71 @@ function Home() {
         </div>
       </div>
     </div>
+  );
+}
+
+function PurchaseCheck() {
+  const { pay, safeShown, product, refreshError } = useContext(DwContext);
+  const [amount, setAmount] = useState("");
+  const result = checkPurchase({
+    amount,
+    safeToSpend: safeShown,
+    daysLeft: pay.daysLeft,
+    missingAvailable: product.missingAvailable || [],
+    refreshError,
+  });
+  return (
+    <details className="dw-card">
+      <summary className="dw-link">Check a purchase</summary>
+      <p className="dw-mute">
+        Try a new expense that is not already covered by a bill or category budget. This is a
+        preview; it does not save a transaction or move money.
+      </p>
+      <label className="dw-field">
+        Purchase amount
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          inputMode="decimal"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+      </label>
+      <div role="status" aria-live="polite">
+        {amount && !result && <p className="dw-mute">Enter an amount greater than zero.</p>}
+        {result && (
+          <>
+            <div className="dw-stat-row">
+              <span>Safe to spend after purchase</span>
+              <b>{moneyFull(result.remaining)}</b>
+            </div>
+            <p className="dw-mute">
+              {result.incomplete
+                ? "This estimate is incomplete because an included balance is missing or the latest reload failed. Check your account data before relying on it."
+                : result.fits
+                  ? "This fits within the cash left after your current commitments."
+                  : `Your current commitments and this purchase exceed included cash by ${moneyFull(result.shortfall)}.`}
+            </p>
+            {result.perDay != null && pay.nextIncome && (
+              <p className="dw-mute">
+                After this purchase: about {moneyFull(result.perDay)} a day until{" "}
+                {shortDate(pay.nextIncome.date)}.
+              </p>
+            )}
+            {!pay.nextIncome && (
+              <p className="dw-mute">
+                Add a confirmed payday to check how long this money needs to last.
+              </p>
+            )}
+            <p className="dw-mute">
+              Uses the current saved balances and plan switches. Expected pay is not added to
+              today's cash.
+            </p>
+          </>
+        )}
+      </div>
+    </details>
   );
 }
 

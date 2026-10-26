@@ -105,7 +105,9 @@ export default function ShopPage() {
   return (
     <div>
       <h1 className="dw-h1">Shop</h1>
-      <p className="dw-sub">Plan meals. Build the list. Send to Reminders.</p>
+      <p className="dw-sub">Meal planning preview and a list saved in this browser.</p>
+
+      <p className="dw-mute" role="note">Preview: ingredients and grocery totals below are examples. Recipes, prices, receipt scanning, and direct Reminders sync are not connected. Lists stay in this browser.</p>
 
       <div style={{ display: 'flex', gap: 8, margin: '16px 0', flexWrap: 'wrap' }}>
         {['hub', 'meals', 'list', 'staples', 'receipt'].map(v => (
@@ -124,12 +126,12 @@ export default function ShopPage() {
               placeholder="What do you want to eat this week?"
               style={{ width: '100%', marginTop: 8, background: 'var(--dw-card-2)', border: '1px solid var(--dw-line)', borderRadius: 8, padding: 12, color: 'var(--dw-text)', font: 'inherit' }}
             />
-            <button className="dw-link" onClick={generateFromMeals} style={{ marginTop: 8 }}>Add meals</button>
+            <button className="dw-link" onClick={generateFromMeals} style={{ marginTop: 8 }}>Add sample meals</button>
           </div>
           <div className="dw-card">
-            <div className="dw-k">Grocery spend</div>
+            <div className="dw-k">Example grocery spend</div>
             <div style={{ fontSize: '2.4rem', fontWeight: 800, margin: '8px 0' }}>${grocerySpend.toFixed(2)}</div>
-            <div className="dw-mute">of $120 budget</div>
+            <div className="dw-mute">Example $120 budget · not your saved budget</div>
           </div>
           <div className="dw-card">
             <div className="dw-k">Shopping list preview</div>
@@ -144,7 +146,7 @@ export default function ShopPage() {
                 ))}
               </div>
             ))}
-            <button className="dw-link" onClick={sendToReminders} style={{ marginTop: 16, background: 'var(--dw-blue)', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 600 }}>Send to Reminders</button>
+            <button className="dw-link" onClick={sendToReminders} style={{ marginTop: 16, background: 'var(--dw-blue)', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 600 }}>Copy list for Reminders</button>
           </div>
         </>
       )}
@@ -158,7 +160,7 @@ export default function ShopPage() {
             placeholder="spaghetti carbonara and easy chicken tacos"
             style={{ width: '100%', marginTop: 8, background: 'var(--dw-card-2)', border: '1px solid var(--dw-line)', borderRadius: 8, padding: 12, color: 'var(--dw-text)', font: 'inherit' }}
           />
-          <button className="dw-link" onClick={generateFromMeals} style={{ marginTop: 8 }}>Generate</button>
+          <button className="dw-link" onClick={generateFromMeals} style={{ marginTop: 8 }}>Add sample meals</button>
           {(data.meals || []).map(m => (
             <div key={m.id} style={{ marginTop: 16, padding: 12, border: '1px solid var(--dw-line)', borderRadius: 12 }}>
               <b>{m.name}</b>
@@ -191,7 +193,7 @@ export default function ShopPage() {
               ))}
             </div>
           ))}
-          <button className="dw-link" onClick={sendToReminders} style={{ marginTop: 8, background: 'var(--dw-blue)', color: '#fff', padding: '10px 16px', borderRadius: 8 }}>Send to Reminders</button>
+          <button className="dw-link" onClick={sendToReminders} style={{ marginTop: 8, background: 'var(--dw-blue)', color: '#fff', padding: '10px 16px', borderRadius: 8 }}>Copy list for Reminders</button>
         </div>
       )}
 
@@ -212,14 +214,14 @@ export default function ShopPage() {
       {view === 'receipt' && (
         <div className="dw-card">
           <div className="dw-k">Receipt upload</div>
-          <p className="dw-mute">Photo → extract items → categorize → confirm. (OCR wiring next)</p>
-          <input type="file" accept="image/*" style={{ marginTop: 12 }} />
+          <p className="dw-mute">Receipt scanning is not available yet. The row below is a sample.</p>
+          <input type="file" accept="image/*" disabled aria-label="Receipt scanning not available yet" style={{ marginTop: 12 }} />
           <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--dw-line)' }}>
               <span>Example item</span><span>$3.49</span><span className="dw-chip">Groceries</span>
             </div>
           </div>
-          <button className="dw-link" style={{ marginTop: 16, background: 'var(--dw-blue)', color: '#fff', padding: '10px 16px', borderRadius: 8 }}>Confirm</button>
+          <button className="dw-link" disabled style={{ marginTop: 16, background: 'var(--dw-blue)', color: '#fff', padding: '10px 16px', borderRadius: 8 }}>Not available yet</button>
         </div>
       )}
     </div>

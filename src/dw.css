@@ -580,3 +580,15 @@ html[data-dw='1'] .dw-flat button:not(.bg-emerald-700):not(.text-emerald-700):no
 .dw-chips, .dw-page-h { flex-wrap: wrap; }
 .dw-toolbar .dw-field { min-width: 0; max-width: 100%; }
 .dw-search { min-width: 0; max-width: 100%; }
+
+/* Cards follow the space left beside the sidebar, including at larger type sizes. */
+.dw-main { min-width: 0; container-type: inline-size; }
+@container (max-width: 60rem) {
+  .dw-2col, .dw-ins-2 { grid-template-columns: minmax(0, 1fr); }
+}
+.dw-card { min-width: 0; overflow-wrap: anywhere; }
+.dw-field input, .dw-field select { min-width: 0; max-width: 100%; }
+.dw-legend-row { flex-wrap: wrap; }
+.dw-legend-row b, .dw-stat-row b { white-space: nowrap; }
+.dw-donut-hole { container-type: inline-size; }
+.dw-donut-hole b { font-size: min(calc(1rem * var(--dw-type, 1.56)), 16cqi); white-space: nowrap; }
