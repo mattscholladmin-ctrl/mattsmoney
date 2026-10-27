@@ -32,6 +32,9 @@ export function useShopping(userId) {
             setMessage(
               "Another device saved changes. Your draft is kept here; copy it if needed, then reload the account version before saving.",
             );
+          } else {
+            setConflict(false);
+            setMessage("Unsaved shopping changes on this device. Save to sync them, or reload the account list to discard this draft.");
           }
         } else {
           setData(cleanShop(remote.content));

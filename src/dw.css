@@ -28,6 +28,9 @@ html[data-dw='1'] {
   --dw-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
+/* Legacy light-theme headings must not turn dark text on dark cards. */
+html[data-dw='1'] .dw-app :is(h1, h2, h3) { color: var(--dw-text); }
+
 html[data-dw='1'] body,
 html[data-dw='1'] .dw-app {
   background: var(--dw-canvas);
