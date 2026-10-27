@@ -1,4 +1,5 @@
 // @ts-nocheck
+import {applyDemoAppleMatch} from "./apple-bill-match.js";
 // In-memory store for the preview mock. Same function names as the live
 // Supabase API so every screen stays interactive.
 import { demoData } from "./demoData";
@@ -380,3 +381,5 @@ export async function updateBucketCurrent(id, current) {
 export async function deleteBucket(id) {
   del("buckets", id);
 }
+
+export async function confirmAppleBillMatch(payload) { store=applyDemoAppleMatch(get(),payload);save();return {ok:true}; }

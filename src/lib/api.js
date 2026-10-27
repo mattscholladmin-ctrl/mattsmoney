@@ -961,3 +961,10 @@ export const updateTransaction = (...args) => (useLive ? live_updateTransaction(
 export const markTransactionsPaid = (...args) => (useLive ? live_markTransactionsPaid(...args) : demoBackend.markTransactionsPaid(...args))
 export const upsertBudget = (...args) => (useLive ? live_upsertBudget(...args) : demoBackend.upsertBudget(...args))
 export const upsertCategoryAlias = (...args) => (useLive ? live_upsertCategoryAlias(...args) : demoBackend.upsertCategoryAlias(...args))
+
+export async function confirmAppleBillMatch(payload) {
+ if(!useLive)return demoBackend.confirmAppleBillMatch(payload)
+ const {data,error}=await supabase.rpc("confirm_apple_bill_match",payload)
+ if(error)throw error
+ return data
+}

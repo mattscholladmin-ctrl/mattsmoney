@@ -10,6 +10,7 @@ import { checkPurchase } from "../lib/purchase-check.js";
 import ShopPage from "./ShopPage";
 import PlanningPanel from "./PlanningPanel.jsx";
 import GuideCard from "./GuideCard";
+import AppleBillMatcher from "./AppleBillMatcher.jsx";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   updateTransaction,
@@ -41,9 +42,6 @@ import IncomeCard from "./IncomeCard";
 import {
   upcomingIncome,
   suggestBillPayment,
-  isAppleMerchant,
-  uniqueBillForCharge,
-  rememberedAppleSplit,
   unpaidBills,
   obligationSchedule,
 } from "../lib/budget";
@@ -319,13 +317,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
     return obligationSchedule(bill, isoDate()).next_due || isoDate();
   }
 
-  function nearDue(charge, due) {
-    const c = Date.parse(charge);
-    const d = Date.parse(due);
-    if (!Number.isFinite(c) || !Number.isFinite(d)) return false;
-    return (c - d) / 86400000 >= -21 && (c - d) / 86400000 <= 3;
-  }
-
   async function saveReviewedBill(bill) {
     const name = String(bill?.name || "").trim();
     const amount = Number(bill?.amount);
@@ -524,72 +515,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
     { id: "shop", label: "Shop", icon: ICONS.receipt },
     { id: "profile", label: "Settings", icon: ICONS.person },
   ];
-
-  const appleTried = useRef(new Set());
-  useEffect(() => {
-    const bills = (data?.bills || []).filter((b) => b.active !== false);
-    const txns = data?.transactions || [];
-    const today = isoDate();
-    const jobs = [];
-    for (const t of txns) {
-      if (!isAppleMerchant(t.merchant) || !(Number(t.amount) > 0)) continue;
-      const note = String(t.note || "");
-      if (note.includes("apple-split:") || note.includes("apple-paid:")) continue;
-      if (appleTried.current.has(t.id)) continue;
-      const day = String(t.txn_date || "").slice(0, 10);
-      if (!day) continue;
-      const age = (Date.parse(today) - Date.parse(day)) / 86400000;
-      if (!Number.isFinite(age) || age > 45 || age < -1) continue;
-      const rule = rememberedAppleSplit(txns, t.amount);
-      if (
-        rule &&
-        rule.parts.every((p) => {
-          const bill = bills.find((b) => b.id === p.id);
-          return bill && Math.abs(Number(bill.amount) - p.amount) < 0.02;
-        })
-      ) {
-        jobs.push({ t, rule });
-        continue;
-      }
-      const unique = uniqueBillForCharge(bills, t.amount);
-      if (!unique) continue;
-      const due = currentDue(unique);
-      if (!nearDue(day, due)) continue;
-      jobs.push({ t, unique, due });
-    }
-    if (!jobs.length) return;
-    let cancel = false;
-    (async () => {
-      for (const job of jobs) {
-        appleTried.current.add(job.t.id);
-        try {
-          if (job.unique) {
-            await markBillPaid(job.unique.id, job.due);
-            const note = String(job.t.note || "");
-            await updateTransaction(job.t.id, {
-              note: `${note} apple-paid:${job.unique.id}`.trim(),
-            });
-          } else {
-            for (const part of job.rule.parts) {
-              const bill = bills.find((b) => b.id === part.id);
-              const due = currentDue(bill);
-              if (bill.paid_through && due <= bill.paid_through) continue;
-              await markBillPaid(bill.id, due);
-            }
-            const note = String(job.t.note || "");
-            const body = job.rule.parts.map((p) => `${p.id}=${p.amount}`).join(",");
-            await updateTransaction(job.t.id, { note: `${note} apple-split:${body}`.trim() });
-          }
-        } catch {
-          /* the charge stays unmatched so it can be split by hand */
-        }
-      }
-      if (!cancel) load();
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, [data, load]);
 
   /* ================= HOME (paycheck-first overview) ================= */
 
@@ -1960,37 +1885,12 @@ function Home() {
   const [planBusy, setPlanBusy] = useState(false);
   const [partialId, setPartialId] = useState(null);
   const [partialAmt, setPartialAmt] = useState("");
-  const [applePicks, setApplePicks] = useState({});
   const dueNow = pay.info.windowItems || [];
   const payday = pay.nextIncome?.date;
   const shares = (pay.info.laterItems || []).filter((b) => b.due && payday && b.due > payday);
   const upcomingBills = unpaidBills(data.bills || [], data.transactions || [], isoDate(), 90)
     .filter((b) => (payday ? b.date > payday : b.date > isoDate()))
     .map((b) => ({ ...b, id: b.billId, due: b.originalDate || b.date }));
-  const appleCharge =
-    (data.transactions || [])
-      .filter((t) => {
-        if (!isAppleMerchant(t.merchant) || !(Number(t.amount) > 0)) return false;
-        const note = String(t.note || "");
-        if (note.includes("apple-split:") || note.includes("apple-paid:")) return false;
-        const day = String(t.txn_date || "").slice(0, 10);
-        const age = (Date.parse(isoDate()) - Date.parse(day)) / 86400000;
-        if (!day || !Number.isFinite(age) || age > 45) return false;
-        const rule = rememberedAppleSplit(data.transactions || [], t.amount);
-        const bills = data.bills || [];
-        if (
-          rule &&
-          rule.parts.every((p) => {
-            const bill = bills.find((b) => b.id === p.id);
-            return bill && Math.abs(Number(bill.amount) - p.amount) < 0.02;
-          })
-        )
-          return false;
-        if (uniqueBillForCharge(bills, t.amount)) return false;
-        return true;
-      })
-      .sort((a, b) => String(b.txn_date).localeCompare(String(a.txn_date)))[0] || null;
-  const appleSum = Object.values(applePicks).reduce((s, v) => s + (Number(v) || 0), 0);
   const next = pay.nextIncome;
   const segs = [
     { label: "Safe to spend", amount: Math.max(0, safeShown), color: "#22c55e" },
@@ -2534,76 +2434,7 @@ function Home() {
             )}
           </section>
 
-          {appleCharge && (
-            <section className="dw-card">
-              <div className="dw-k">
-                Apple charge {moneyFull(Math.abs(Number(appleCharge.amount || 0)))}
-              </div>
-              <p className="dw-mute" style={{ margin: "6px 0 10px" }}>
-                {shortDate(String(appleCharge.txn_date || "").slice(0, 10))}. Pick the bills this
-                paid. The amounts have to add up to the charge.
-              </p>
-              {(data.bills || [])
-                .filter((b) => b.active !== false)
-                .map((b) => (
-                  <label key={`${b.id}-${b.due || ""}`} className="dw-plan-toggle">
-                    <input
-                      type="checkbox"
-                      checked={applePicks[b.id] != null}
-                      onChange={(e) => {
-                        setApplePicks((prev) => {
-                          const next = { ...prev };
-                          if (e.target.checked) next[b.id] = String(b.amount || "");
-                          else delete next[b.id];
-                          return next;
-                        });
-                      }}
-                    />
-                    <span className="grow">
-                      <b>{b.name}</b>
-                    </span>
-                    {applePicks[b.id] != null && (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={applePicks[b.id]}
-                        onChange={(e) =>
-                          setApplePicks((prev) => ({ ...prev, [b.id]: e.target.value }))
-                        }
-                        style={{ width: 90 }}
-                      />
-                    )}
-                  </label>
-                ))}
-              <button
-                className="dw-ctl-btn"
-                type="button"
-                style={{ marginTop: 8 }}
-                disabled={Math.abs(appleSum - Math.abs(Number(appleCharge.amount || 0))) > 0.02}
-                onClick={async () => {
-                  const parts = Object.entries(applePicks)
-                    .map(([id, v]) => ({ id, amount: Math.round(Number(v) * 100) / 100 }))
-                    .filter((p) => p.amount > 0);
-                  for (const part of parts) {
-                    const bill = (data.bills || []).find((b) => b.id === part.id);
-                    if (!bill) continue;
-                    const due = currentDue(bill);
-                    if (part.amount >= Number(bill.amount) - 0.02) await markBillPaid(bill.id, due);
-                    else await setBillPartial(bill.id, part.amount, due);
-                  }
-                  const note = String(appleCharge.note || "");
-                  const body = parts.map((p) => `${p.id}=${p.amount}`).join(",");
-                  await updateTransaction(appleCharge.id, {
-                    note: `${note} apple-split:${body}`.trim(),
-                  });
-                  setApplePicks({});
-                  load();
-                }}
-              >
-                Save split
-              </button>
-            </section>
-          )}
+          <AppleBillMatcher data={data} onSaved={load} />
 
           <section className="dw-card">
             <div className="dw-plan-sec">

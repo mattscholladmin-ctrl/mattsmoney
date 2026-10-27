@@ -84,8 +84,14 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
   const onSuccess = useCallback(
     async (public_token) => {
       try {
-        if (repairId) await refreshPlaid();
-        else await exchangePublicToken(public_token);
+        if (repairId) {
+          const result = await refreshPlaid();
+          setSyncMessage(
+            result.ok
+              ? "Bank access reconnected and balances refreshed."
+              : "Bank access reconnected, but some balances or transactions could not refresh. Check the bank status below.",
+          );
+        } else await exchangePublicToken(public_token);
         localStorage.removeItem(LS_TOKEN);
         localStorage.removeItem("plaid.repair_item");
         window.history.replaceState({}, "", window.location.pathname);
@@ -131,7 +137,13 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
           : `Updated ${result.synced} of ${result.items} connections. Some balances or transactions could not be updated.`,
       );
       await loadStatus();
-      if(result.results) setItems(old=>old.map(it=>{const r=result.results.find(r=>r.item_id===it.item_id);return r?.error ? {...it,error:r.error,needs_repair:r.needs_repair} : it}));
+      if (result.results)
+        setItems((old) =>
+          old.map((it) => {
+            const r = result.results.find((r) => r.item_id === it.item_id);
+            return r?.error ? { ...it, error: r.error, needs_repair: r.needs_repair } : it;
+          }),
+        );
       onChanged?.();
     } catch (e) {
       setError(e.message);
@@ -182,7 +194,12 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
           <div className="dw-bank-h">
             <div>
               <b>{it.institution || "Bank"}</b>
-              {it.transaction_bank_updated_at && <span>Bank transaction update {new Date(it.transaction_bank_updated_at).toLocaleString()}</span>}
+              {it.transaction_bank_updated_at && (
+                <span>
+                  Bank transaction update{" "}
+                  {new Date(it.transaction_bank_updated_at).toLocaleString()}
+                </span>
+              )}
               <span>
                 {it.updated_at
                   ? `Last saved balance sync ${new Date(it.updated_at).toLocaleString()}`
@@ -198,16 +215,16 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
               {it.error}
             </p>
           )}
-          {it.needs_repair && (
+          {
             <button
               type="button"
               className="dw-ctl-btn"
               disabled={busy}
               onClick={() => start(it.item_id)}
             >
-              Repair connection
+              {it.needs_repair ? "Repair connection" : "Reconnect bank access"}
             </button>
-          )}
+          }
           {(it.accounts || []).map((a, i) => {
             const mask = String(a.mask || "").trim();
             const matches = accounts.filter(

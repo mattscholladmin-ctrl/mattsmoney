@@ -65,6 +65,7 @@ export function demoData() {
       { id: 'g9', name: 'Christmas', target: 400, current: 80, monthly_contribution: 40, status: 'active', sort_order: 9, target_date: addDays(110), reserved: true },
     ],
     bills: [
+      { id: 'demo-apple-bill', name: 'Demo iCloud', amount: 9.99, cadence: 'monthly', due_day: Number(addDays(-1).slice(-2)), active: true, start_date: addDays(-1) },
       { id: 'bi1', name: 'Car Insurance', amount: 142, category: 'Auto', cadence: 'monthly', due_day: 4, active: true },
       { id: 'bi2', name: 'Phone', amount: 85, category: 'Utilities', cadence: 'monthly', due_day: 8, active: true },
       { id: 'bi3', name: 'Storage Unit', amount: 95, category: 'Housing', cadence: 'monthly', due_day: 2, active: true },
@@ -85,6 +86,8 @@ export function demoData() {
       { id: 'bk1', name: 'Summer Trip', current: 180, target: 600, event_date: addDays(40) },
     ],
     transactions: [
+      { id: 'demo-apple-posted', txn_date: addDays(-1), merchant: 'Apple.com/bill', amount: 9.99, category: 'Subscription', note: 'Demo posted subscription' },
+      { id: 'demo-apple-pending', txn_date: addDays(-1), merchant: 'Apple.com/bill', amount: 4.99, category: 'Subscription', pending: true },
       { id: 't1', txn_date: today, merchant: 'City Market', amount: 42.18, category: 'FOOD_AND_DRINK', pending: true },
       // A cash purchase paid from "Cash on hand" — deleting/editing it reverses
       // that account's balance (the "Paid with" tag drives it).

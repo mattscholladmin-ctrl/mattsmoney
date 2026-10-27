@@ -106,19 +106,70 @@ export default function ShopPage({
     setReceiptText(text);
   }
   async function scan(file) {
-    if(!file)return;
-    if(!/^image\/(png|jpeg|webp|bmp)$/.test(file.type) || file.size>15*1024*1024){setOcrMessage('Choose a PNG, JPEG, WebP or BMP image under 15 MB.');return;}
-    setOcrBusy(true);setOcrMessage('Loading the local receipt reader. The image stays in this browser.');
-    let worker=null,cancelled=false;
-    const timeout=(promise,ms)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Receipt reading timed out. Try a smaller, clearer image or enter the text.')),ms);Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value)},error=>{clearTimeout(timer);reject(error)})});
+    if (!file) return;
+    if (!/^image\/(png|jpeg|webp|bmp)$/.test(file.type) || file.size > 15 * 1024 * 1024) {
+      setOcrMessage("Choose a PNG, JPEG, WebP or BMP image under 15 MB.");
+      return;
+    }
+    setOcrBusy(true);
+    setOcrMessage("Loading the local receipt reader. The image stays in this browser.");
+    let worker = null,
+      cancelled = false;
+    const timeout = (promise, ms) =>
+      new Promise((resolve, reject) => {
+        const timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Receipt reading timed out. Try a smaller, clearer image or enter the text.",
+              ),
+            ),
+          ms,
+        );
+        Promise.resolve(promise).then(
+          (value) => {
+            clearTimeout(timer);
+            resolve(value);
+          },
+          (error) => {
+            clearTimeout(timer);
+            reject(error);
+          },
+        );
+      });
     try {
-      const {createWorker}=await import('tesseract.js');
-      const loading=createWorker('eng',1,{workerPath:'/ocr/7.0.0/worker.min.js',corePath:'/ocr/7.0.0',langPath:'/ocr/7.0.0',workerBlobURL:false,logger:m=>{if(!cancelled && m.status==='recognizing text')setOcrMessage(`Reading receipt: ${Math.round(m.progress*100)}%`)}}).then(loaded=>{if(cancelled){loaded.terminate();throw new Error('Reading cancelled.')}return loaded});
-      worker=await timeout(loading,30000);workerRef.current=worker;
-      const result=await timeout(worker.recognize(file),45000);
-      prepareReceipt(result.data.text);setOcrMessage('Review the extracted details. Nothing has been saved.');
-    }catch(e){setOcrMessage(`Could not read this image. You can paste or type the receipt text below. ${e.message}`)}
-    finally{cancelled=true;await worker?.terminate();if(workerRef.current===worker)workerRef.current=null;setOcrBusy(false);}
+      const { createWorker } = await import("tesseract.js");
+      const loading = createWorker("eng", 1, {
+        workerPath: "/ocr/7.0.0/worker.min.js",
+        corePath: "/ocr/7.0.0",
+        langPath: "/ocr/7.0.0",
+        workerBlobURL: false,
+        logger: (m) => {
+          if (!cancelled && m.status === "recognizing text")
+            setOcrMessage(`Reading receipt: ${Math.round(m.progress * 100)}%`);
+        },
+      }).then((loaded) => {
+        if (cancelled) {
+          loaded.terminate();
+          throw new Error("Reading cancelled.");
+        }
+        return loaded;
+      });
+      worker = await timeout(loading, 30000);
+      workerRef.current = worker;
+      const result = await timeout(worker.recognize(file), 45000);
+      prepareReceipt(result.data.text);
+      setOcrMessage("Review the extracted details. Nothing has been saved.");
+    } catch (e) {
+      setOcrMessage(
+        `Could not read this image. You can paste or type the receipt text below. ${e.message}`,
+      );
+    } finally {
+      cancelled = true;
+      await worker?.terminate();
+      if (workerRef.current === worker) workerRef.current = null;
+      setOcrBusy(false);
+    }
   }
   function confirmReceipt() {
     if (
@@ -369,6 +420,53 @@ export default function ShopPage({
       {view === "list" && (
         <div className="dw-col-stack">
           <section className="dw-card">
+            <div className="dw-k">Reminders</div>
+            <p className="dw-mute">
+              Copy the list, or run your Apple Shortcut with the list as text input. The shortcut
+              must already exist on this device.
+            </p>
+            <button className="dw-ctl-btn" onClick={copyList}>
+              Copy shopping list
+            </button>
+            <label className="dw-field">
+              Apple Shortcut name
+              <input
+                value={data.remindersShortcut || ""}
+                onChange={(e) => edit((d) => ({ ...d, remindersShortcut: e.target.value }))}
+              />
+            </label>
+            {remindersUrl(data) ? (
+              <a className="dw-ctl-btn" href={remindersUrl(data)}>
+                Run Reminders shortcut
+              </a>
+            ) : (
+              <>
+                <button className="dw-ctl-btn" disabled>
+                  Run Reminders shortcut
+                </button>
+                <p className="dw-mute">
+                  {!String(data.remindersShortcut || "").trim()
+                    ? "Enter your Apple Shortcut name above to enable this button."
+                    : "Add an unchecked item to your list to enable this button."}
+                </p>
+              </>
+            )}
+            <details>
+              <summary className="dw-link">Shortcut setup and list text</summary>
+              <p className="dw-mute">
+                In Apple Shortcuts, create a shortcut with the name above. Split Shortcut Input by
+                new lines, repeat each line, and add Repeat Item as a reminder to your shopping
+                list. Use Run Reminders shortcut above on your Mac or iPhone.
+              </p>
+              <textarea
+                aria-label="Shopping list text"
+                readOnly
+                value={remindersText(data)}
+                style={{ width: "100%" }}
+              />
+            </details>
+          </section>
+          <section className="dw-card">
             <div className="dw-k">Shopping list</div>
             <label className="dw-field">
               Store for new items
@@ -442,42 +540,6 @@ export default function ShopPage({
                   ))}
               </section>
             ))}
-          </section>
-          <section className="dw-card">
-            <div className="dw-k">Reminders</div>
-            <p className="dw-mute">
-              Copy the list, or run your Apple Shortcut with the list as text input. The shortcut
-              must already exist on this device.
-            </p>
-            <button className="dw-ctl-btn" onClick={copyList}>
-              Copy shopping list
-            </button>
-            <label className="dw-field">
-              Apple Shortcut name
-              <input
-                value={data.remindersShortcut || ""}
-                onChange={(e) => edit((d) => ({ ...d, remindersShortcut: e.target.value }))}
-              />
-            </label>
-            {remindersUrl(data) && (
-              <a className="dw-ctl-btn" href={remindersUrl(data)}>
-                Run Reminders shortcut
-              </a>
-            )}
-            <details>
-              <summary className="dw-link">Shortcut setup and list text</summary>
-              <p className="dw-mute">
-                In Apple Shortcuts, create a shortcut with the name above. Split Shortcut Input by
-                new lines, repeat each line, and add Repeat Item as a reminder to your shopping
-                list. Use Run Reminders shortcut above on your Mac or iPhone.
-              </p>
-              <textarea
-                aria-label="Shopping list text"
-                readOnly
-                value={remindersText(data)}
-                style={{ width: "100%" }}
-              />
-            </details>
           </section>
         </div>
       )}

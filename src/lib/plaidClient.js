@@ -89,7 +89,7 @@ async function demoPlaidStatus() {
 async function demoRefreshPlaid() {
   const items = demoGetItems().map((it) => ({ ...it, updated_at: new Date().toISOString() }));
   demoSetItems(items);
-  return { ok: true, items, synced: true };
+  return { ok: true, items: items.length, synced: items.length, results: items.map(it => ({ item_id: it.item_id, ok: true })) };
 }
 
 async function demoDisconnectPlaid(item_id) {
@@ -99,8 +99,8 @@ async function demoDisconnectPlaid(item_id) {
 
 // ---- public API ----
 // Returns { link_token }
-export const createLinkToken = () =>
-  useLive ? liveCall('link-token') : demoCreateLinkToken()
+export const createLinkToken = (item_id) =>
+  useLive ? liveCall('link-token', typeof item_id === 'string' && item_id ? { item_id } : {}) : demoCreateLinkToken()
 
 // Returns { ok, institution, depository, credit }
 export const exchangePublicToken = (public_token) =>
