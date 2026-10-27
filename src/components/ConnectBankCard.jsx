@@ -84,8 +84,10 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
   const onSuccess = useCallback(
     async (public_token) => {
       try {
+        let reconnectResult = null;
         if (repairId) {
           const result = await refreshPlaid();
+          reconnectResult = result;
           setSyncMessage(
             result.ok
               ? "Bank access reconnected and balances refreshed."
@@ -96,6 +98,15 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
         localStorage.removeItem("plaid.repair_item");
         window.history.replaceState({}, "", window.location.pathname);
         await loadStatus();
+        if (reconnectResult?.results)
+          setItems((old) =>
+            old.map((it) => {
+              const outcome = reconnectResult.results.find((r) => r.item_id === it.item_id);
+              return outcome?.error
+                ? { ...it, error: outcome.error, needs_repair: outcome.needs_repair }
+                : it;
+            }),
+          );
         onChanged?.();
       } catch (e) {
         setError(e.message);
