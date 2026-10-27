@@ -32,12 +32,15 @@ export const transactionMatchState = (t) => ({
   pending: Boolean(t.pending),
 });
 export function unmatchedAppleCharges(transactions = [], today = isoDate()) {
+  const earliest = day(today, -45);
   return transactions
     .filter(
       (t) =>
         !t.pending &&
         isAppleMerchant(t.merchant) &&
+        !/apple\s*cash/i.test(t.merchant || "") &&
         Number(t.amount) > 0 &&
+        t.txn_date >= earliest &&
         t.txn_date <= today &&
         !/\bapple-(?:split|paid|reviewed):/.test(String(t.note || "")),
     )

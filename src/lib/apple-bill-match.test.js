@@ -106,3 +106,17 @@ test("pending charges never pay bills; Apple merchant and amount alone never pro
   );
   assert.equal(suggestBillPayment(occ, [{ ...tx, pending: true }], "2026-10-26"), null);
 });
+
+test("Home matching excludes old history and Apple Cash transfers", () => {
+  assert.deepEqual(
+    unmatchedAppleCharges(
+      [
+        tx,
+        { ...tx, id: "old", txn_date: "2025-01-01" },
+        { ...tx, id: "cash", merchant: "APPLE CASH SENT MONEY" },
+      ],
+      "2026-10-26",
+    ),
+    [tx],
+  );
+});
