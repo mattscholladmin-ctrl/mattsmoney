@@ -208,8 +208,8 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
 
   useEffect(() => {
     applyTheme();
-    const fontScale = { s: "1.35", m: "1.56", l: "1.75", xl: "1.93" };
-    document.documentElement.style.setProperty("--dw-type", fontScale[state.fs || "m"]);
+    const fontScale = { s: "0.9", m: "1", l: "1.1", xl: "1.2" };
+    document.documentElement.style.setProperty("--dw-type", fontScale[state.fs] || fontScale.m);
     delete document.documentElement.dataset.fs;
   }, [state]);
   useEffect(() => {
