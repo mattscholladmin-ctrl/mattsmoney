@@ -9,7 +9,7 @@ import { computePaycheckPlan } from './paycheck-plan.js'
 import crypto from 'node:crypto'
 import { adminClient } from './googleServer.js'
 import { refreshLinkedBanks, localToday } from './plaidServer.js'
-import { accountSummaries, obligationSchedule, isBillOccurrencePaid, moneyTotals } from './budget.js'
+import { accountSummaries, obligationSchedule, isBillOccurrencePaid, moneyTotals, countsAsSpendable } from './budget.js'
 import { isoDate } from './format.js'
 
 /** @param {Request} request */
@@ -197,7 +197,7 @@ async function snapshot(db, uid) {
       current: a.bankCurrent,
       available_missing: !!a.availableMissing,
       as_of: a.asOf,
-      include_in_spendable: byId[a.id]?.include_in_spendable !== false,
+      include_in_spendable: countsAsSpendable(byId[a.id] || a),
     })),
     cards: debtRows
       .filter((d) => d.kind === 'card')
