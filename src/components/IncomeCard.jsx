@@ -76,7 +76,7 @@ export default function IncomeCard({ income, upcomingIncome, shortfalls = [], go
                 className="flex justify-between gap-2 py-2 text-sm cursor-pointer rounded-lg -mx-2 px-2 hover:bg-slate-100/60"
                 title="Tap to edit"
               >
-                <span className="flex-1 min-w-0 text-slate-700 truncate">
+                <span className="flex-1 min-w-0 text-slate-700 break-words">
                   {s.name}{' '}
                   <span className="text-slate-400">({cadenceLabel(s)})</span>
                   {s.confirmed === false && (

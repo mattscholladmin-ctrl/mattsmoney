@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { accountSummaries } from '../lib/budget.js';
 import { useState, useCallback, useEffect } from "react";
 import { usePlaidLink } from "react-plaid-link";
 import {
@@ -27,7 +28,8 @@ function accountTitle(name, mask) {
 
 const LS_TOKEN = "plaid.link_token";
 
-export default function ConnectBankCard({ onChanged, accounts = [], plain = false, onToggle }) {
+export default function ConnectBankCard({ onChanged, accounts = [], balances = [], plain = false, onToggle }) {
+  const savedAccounts = accountSummaries(accounts, balances);
   const [linkToken, setLinkToken] = useState(null);
   const [repairId, setRepairId] = useState(null);
   const [syncMessage, setSyncMessage] = useState("");
@@ -65,6 +67,13 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
     }
   }, [isOAuthReturn]);
 
+  async function toggleAccount(account, included) {
+    if (busy) return;
+    setBusy(true);setError(null);
+    try { await onToggle?.(account.id, !included) }
+    catch (e) { setError(e.message || 'Could not save the account setting. Try again.') }
+    finally { setBusy(false) }
+  }
   const start = async (itemId = null) => {
     setRepairId(typeof itemId === "string" ? itemId : null);
     setError(null);
@@ -178,7 +187,7 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
   };
 
   return (
-    <section className={plain ? "dw-flat" : "rounded-2xl bg-white p-5 shadow space-y-3"}>
+    <section className={plain ? "dw-flat dw-bank-connections" : "rounded-2xl bg-white p-5 shadow space-y-3"}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <h2 className="font-semibold text-slate-800">Bank &amp; card connections</h2>
@@ -238,7 +247,7 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
           }
           {(it.accounts || []).map((a, i) => {
             const mask = String(a.mask || "").trim();
-            const matches = accounts.filter(
+            const matches = savedAccounts.filter(
               (x) => mask && (String(x.mask || "") === mask || String(x.name || "").includes(mask)),
             );
             const app =
@@ -257,7 +266,9 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
                     type="button"
                     className={`dw-switch${included ? " on" : ""}`}
                     aria-pressed={included}
-                    onClick={() => onToggle?.(app.id, !included)}
+                    aria-label={`Include ${app.name} in Safe to Spend`}
+                    disabled={busy}
+                    onClick={() => toggleAccount(app, included)}
                   />
                 )}
                 <span className="grow">
@@ -267,7 +278,9 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
                   </em>
                 </span>
                 <span className="dw-amt">
-                  {a.available != null ? money(a.available) : "No available balance"}
+                  {app?.balance != null ? money(app.balance) : "No available balance"}
+                  <em>{app?.asOf ? `Saved balance used by Home · ${app.asOf}` : "No saved balance"}</em>
+                  {app && a.available != null && Number(a.available) !== Number(app.balance) && <em role="status">The bank reports a newer balance. Refresh to update the app.</em>}
                 </span>
               </div>
             );
@@ -298,7 +311,9 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
                 type="button"
                 className={`dw-switch${included ? " on" : ""}`}
                 aria-pressed={included}
-                onClick={() => onToggle?.(a.id, !included)}
+                    aria-label={`Include ${a.name} in Safe to Spend`}
+                disabled={busy}
+                onClick={() => toggleAccount(a, included)}
               />
               <span className="grow">
                 <b>{a.name}</b>
@@ -316,7 +331,7 @@ export default function ConnectBankCard({ onChanged, accounts = [], plain = fals
         {busy ? "Working…" : items.length ? "+ Connect another" : "+ Connect a bank or card"}
       </button>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
 
       {!plain && <AccountOrderCard accounts={accounts} onChanged={onChanged} embedded />}
     </section>

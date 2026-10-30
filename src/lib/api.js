@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { billFields, expectBill, BILL_CONFLICT } from './bill-write.js'
 // Single data client for Matt's Money.
 //
 // Backend is chosen once at load:
@@ -323,7 +324,7 @@ function isMissingColumn(error) {
 }
 
 async function live_addBill({ name, amount, category, cadence, due_day, smooth, start_date }) {
-  const row = { name, amount, category, cadence, due_day, active: true }
+  const row = { ...billFields({ name, amount, category, cadence, due_day }), active: true }
   if (smooth !== undefined) row.smooth = smooth
   if (start_date) row.start_date = start_date
   let { error } = await supabase.from('recurring_bills').insert(row)
@@ -335,18 +336,13 @@ async function live_addBill({ name, amount, category, cadence, due_day, smooth, 
   if (error) throw error
 }
 
-async function live_updateBill(id, { name, amount, category, cadence, due_day, smooth, start_date }) {
-  const fields = { name, amount, category, cadence, due_day }
-  if (smooth !== undefined) fields.smooth = smooth
-  if (start_date !== undefined) fields.start_date = start_date || null
-  let { data, error } = await supabase.from('recurring_bills').update(fields).eq('id', id).select('id').maybeSingle()
-  if (error && isMissingColumn(error)) {
-    delete fields.smooth
-    delete fields.start_date
-    ;({ data, error } = await supabase.from('recurring_bills').update(fields).eq('id', id).select('id').maybeSingle())
-  }
+async function live_updateBill(id, input, expected) {
+  const fields = billFields(input)
+  if (!Object.keys(fields).length) return
+  const query = expectBill(supabase.from('recurring_bills').update(fields).eq('id', id), expected)
+  const { data, error } = await query.select('id').maybeSingle()
   if (error) throw error
-  if (!data) throw new Error('Bill not found — nothing saved')
+  if (!data) throw new Error(expected ? BILL_CONFLICT : 'Bill not found — nothing saved')
 }
 
 async function live_markBillPaid(id, paid_through) {
@@ -364,9 +360,11 @@ async function live_setBillPartial(id, partial_paid, partial_for) {
   if (error) throw error
 }
 
-async function live_deleteBill(id) {
-  const { error } = await supabase.from('recurring_bills').delete().eq('id', id)
+async function live_deleteBill(id, expected) {
+  const query = expectBill(supabase.from('recurring_bills').delete().eq('id', id), expected)
+  const { data, error } = await query.select('id').maybeSingle()
   if (error) throw error
+  if (!data) throw new Error(expected ? BILL_CONFLICT : 'Bill not found — nothing removed')
 }
 
 // Toggle "save each paycheck" (smoothing) on a bill or a debt. Tolerant of the

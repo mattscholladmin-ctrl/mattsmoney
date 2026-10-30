@@ -1,9 +1,11 @@
 // @ts-nocheck
+import { useToday } from '../lib/use-today.js';
 import { useMemo, useState } from "react";
 import { forecastCash, estimatePayoff, nextDebtDate } from "../lib/planning.js";
 import { computePaycheckPlan } from "../lib/paycheck-plan.js";
 import { upsertBudget, deleteBudget } from "../lib/api";
 import { CATEGORY_CATALOG, moneyFull } from "../lib/dw-product.js";
+import { unpricedBillCosts } from "../lib/purchase-check.js";
 import { isoDate, shortDate } from "../lib/format.js";
 
 export default function PlanningPanel({ data, state, onChanged, refreshError }) {
@@ -16,6 +18,8 @@ export default function PlanningPanel({ data, state, onChanged, refreshError }) 
   );
 }
 function Forecast({ data, state, refreshError }) {
+  const today=useToday();
+  const extraCosts=unpricedBillCosts(data.bills);
   const [horizon, setHorizon] = useState("30");
   const [daily, setDaily] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -28,8 +32,8 @@ function Forecast({ data, state, refreshError }) {
   const spending = daily === "" ? suggested : Number(daily);
   const valid = Number.isFinite(spending) && spending >= 0;
   const forecast = useMemo(
-    () => forecastCash({ data, state, horizon: Number(horizon), dailySpend: valid ? spending : 0 }),
-    [data, state, horizon, spending, valid],
+    () => forecastCash({ data, state, today, horizon: Number(horizon), dailySpend: valid ? spending : 0 }),
+    [data, state, today, horizon, spending, valid],
   );
   return (
     <details className="dw-card">
@@ -64,6 +68,7 @@ function Forecast({ data, state, refreshError }) {
           : "Your daily amount replaces the category-budget assumption for this preview."}{" "}
         Keep recurring bills out of this amount to avoid counting them twice.
       </p>
+      {extraCosts.length>0 && <p className="dw-mute" role="status">Incomplete estimate: additional tax for {extraCosts.join(', ')} is not included. The projection uses the confirmed base price.</p>}
       {!valid ? (
         <p role="alert" className="dw-mute">
           Enter a daily amount of zero or more.

@@ -1,3 +1,5 @@
+import { billFields } from './bill-write.js'
+import { unpricedBillCosts } from './purchase-check.js'
 import { fetchUserRows } from './fetch-user-rows.js'
 import { applyPreferences } from './app-preferences.js'
 import { computePaycheckPlan } from './paycheck-plan.js'
@@ -181,7 +183,8 @@ async function snapshot(db, uid) {
       later_bills: savedPreferences.spreadBills === false ? 0 : plan.info.laterShare, goals: plan.info.goalReserve, debts: plan.debtReserve,
       buffer: plan.info.floor, saved_goals: plan.info.earmarked, set_asides: plan.info.setAside,
       everyday: plan.info.everyday },
-    planning_note: 'Uses account-saved planning switches. Unsaved device changes appear after syncing.',
+    unpriced_costs: unpricedBillCosts(billRows),
+    planning_note: 'Uses account-saved planning switches. Unsaved device changes appear after syncing.' + (unpricedBillCosts(billRows).length ? ' Bills marked + tax use base prices; additional tax is not included and estimates are incomplete.' : ''),
     preference_revision: Number(preferences.data?.revision || 0),
     buffer_floor: bufferFloor,
     cash_total: Number(Number(totals.totalCash || 0).toFixed(2)),
@@ -362,13 +365,13 @@ export async function runGrokAction(body = {}) {
   if (action === 'add_bill') {
     if (!body.name || body.amount == null) return { ok: false, error: 'need name and amount' }
     /** @type {BudgetRecord} */
-    const row = { ...pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'start_date']), active: true }
+    const row = { ...billFields(pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'start_date'])), active: true }
     row.amount = Number(row.amount)
     const data = await insert(db, 'recurring_bills', uid, row)
     return { ok: true, data }
   }
   if (action === 'update_bill') {
-    return patch(db, 'recurring_bills', uid, body.id, pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'active', 'start_date']))
+    return patch(db, 'recurring_bills', uid, body.id, billFields(pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'active', 'start_date'])))
   }
   if (action === 'delete_bill') return remove(db, 'recurring_bills', uid, body.id)
 

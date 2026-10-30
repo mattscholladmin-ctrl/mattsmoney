@@ -38,5 +38,5 @@ function Gate() {
   }
 
   if (!session) return <Login />;
-  return <Dashboard session={session} />;
+  return <Dashboard key={session.user.id} session={session} />;
 }

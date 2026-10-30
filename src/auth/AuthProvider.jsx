@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
+/** @type {import('react').Context<{session:import('@supabase/supabase-js').Session|null,loading:boolean}>} */
 const AuthContext = createContext({ session: null, loading: true })
 
 export function AuthProvider({ children }) {

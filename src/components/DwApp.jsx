@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { balanceFreshness } from '../lib/balance-freshness.js';
+import { useToday } from '../lib/use-today.js';
 import { useAppPreferences } from "../lib/use-app-preferences.js";
 import {
   reviewPatch,
@@ -6,7 +8,7 @@ import {
   deferReview,
   filterActivity,
 } from "../lib/transaction-review.js";
-import { checkPurchase } from "../lib/purchase-check.js";
+import { checkPurchase, unpricedBillCosts } from "../lib/purchase-check.js";
 import ShopPage from "./ShopPage";
 import PlanningPanel from "./PlanningPanel.jsx";
 import GuideCard from "./GuideCard";
@@ -180,7 +182,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
       return "home";
     }
   });
-  const [month, setMonth] = useState(() => monthKeyFrom(new Date()));
+  const today = useToday();
+  const [selectedMonth, setMonth] = useState(null);
+  const month = selectedMonth || today.slice(0,7);
   const [infoOpen, setInfoOpen] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [filterPurpose, setFilterPurpose] = useState("all");
@@ -220,11 +224,11 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
     }
   }, [page]);
 
-  const product = useMemo(() => computeProduct({ data, state, month }), [data, state, month]);
-  const pay = useMemo(() => computePaycheckPlan({ data, state }), [data, state]);
+  const product = useMemo(() => computeProduct({ data, state, month, today }), [data, state, month, today]);
+  const pay = useMemo(() => computePaycheckPlan({ data, state, todayIso: today }), [data, state, today]);
   const upcoming = useMemo(
-    () => upcomingIncome(data.income || [], isoDate(), 30, data.transactions || []),
-    [data],
+    () => upcomingIncome(data.income || [], today, 30, data.transactions || []),
+    [data, today],
   );
   const insights = useMemo(
     () => insightCards(product, month).filter((c) => !state.dismissed?.includes(c.id)),
@@ -786,6 +790,7 @@ function Profile() {
               Each account is listed once. The switch keeps it in or out of safe to spend.
             </p>
             <ConnectBankCard
+          balances={data.balances || []}
               plain
               accounts={accounts}
               onChanged={load}
@@ -842,7 +847,7 @@ function Profile() {
                         deleteIncome(s.id).then(() => {
                           setJobMsg("Paycheck removed.");
                           load();
-                        })
+                        }).catch(err=>setJobMsg(err.message || "Could not remove the paycheck."))
                       }
                     >
                       Delete
@@ -2075,6 +2080,8 @@ function Home() {
         <div>
           <h1>Welcome back, {firstName}</h1>
           <p className="dw-sub">Here's what's happening with your money.</p>
+          <BankFreshness />
+          {unpricedBillCosts(data.bills).length>0 && <p className="dw-mute" role="status">Bills marked “+ tax” use the confirmed base price. Additional tax is not yet included in the reserve.</p>}
           {product.missingAvailable?.length > 0 && (
             <p className="dw-mute" role="status">
               Available balance missing: {product.missingAvailable.join(", ")}. Excluded from this
@@ -2134,8 +2141,6 @@ function Home() {
             )}
           </section>
 
-          <PurchaseCheck />
-          <PlanningPanel data={data} state={state} onChanged={load} refreshError={refreshError}/>
 
           <section className="dw-card">
             <div className="dw-row-head">
@@ -2245,6 +2250,7 @@ function Home() {
                           type="button"
                           className={`dw-switch${on ? " on" : ""}`}
                           aria-pressed={on}
+                          aria-label={`Include ${r.name} in the paycheck plan`}
                           onClick={() =>
                             patchState({ planOff: { ...(state.planOff || {}), [r.id]: on } })
                           }
@@ -2443,6 +2449,7 @@ function Home() {
                 type="button"
                 className={`dw-switch${spreadOn ? " on" : ""}`}
                 aria-pressed={spreadOn}
+                aria-label="Spread later bills across paychecks"
                 onClick={() => patchState({ spreadBills: !spreadOn })}
               />
             </div>
@@ -2678,6 +2685,8 @@ function Home() {
               </div>
             </div>
           </section>
+          <PurchaseCheck />
+          <PlanningPanel data={data} state={state} onChanged={load} refreshError={refreshError}/>
         </div>
       </div>
     </div>
@@ -2685,13 +2694,14 @@ function Home() {
 }
 
 function PurchaseCheck() {
-  const { pay, safeShown, product, refreshError } = useContext(DwContext);
+  const { pay, safeShown, product, refreshError, data } = useContext(DwContext);
   const [amount, setAmount] = useState("");
   const result = checkPurchase({
     amount,
     safeToSpend: safeShown,
     daysLeft: pay.daysLeft,
     missingAvailable: product.missingAvailable || [],
+    unpricedCosts: unpricedBillCosts(data.bills),
     refreshError,
   });
   return (
@@ -2722,7 +2732,7 @@ function PurchaseCheck() {
             </div>
             <p className="dw-mute">
               {result.incomplete
-                ? "This estimate is incomplete because an included balance is missing or the latest reload failed. Check your account data before relying on it."
+                ? "This estimate is incomplete: an included balance, a refresh, or an additional bill cost such as tax is not confirmed. Check the noted items before relying on it."
                 : result.fits
                   ? "This fits within the cash left after your current commitments."
                   : `Your current commitments and this purchase exceed included cash by ${moneyFull(result.shortfall)}.`}
@@ -2945,4 +2955,15 @@ function TxSheet({ t, onClose }) {
       </aside>
     </div>
   );
+}
+
+function BankFreshness() {
+  const {data,load,syncing}=useContext(DwContext);
+  const freshness=balanceFreshness(data);
+  if (!freshness) return null;
+  return <p className="dw-mute" role="status">
+    {freshness.stale ? 'Saved bank balances may be out of date. ' : 'Bank balances checked '}
+    {freshness.checkedAt ? new Date(freshness.checkedAt).toLocaleString() : 'No saved balance check.'}
+    {' '}<button className="dw-link" disabled={syncing} onClick={()=>load({bank:true,force:true})}>{syncing ? 'Refreshing balances…' : 'Refresh bank balances'}</button>
+  </p>;
 }

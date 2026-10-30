@@ -177,7 +177,7 @@ export function accountReviewBank(account) {
   return ''
 }
 
-export function computeProduct({ data, state, month }) {
+export function computeProduct({ data, state, month, today }) {
   const plan = { ...PLAN_DEFAULT, ...(state.plan || {}) }
   const txns = decorateTxns(data.transactions, state)
   const visible = (t) => !t.hidden
@@ -192,7 +192,7 @@ export function computeProduct({ data, state, month }) {
     savings: classifiedTotal ? Math.round((byPurpose.savings / classifiedTotal) * 100) : 0,
   }
   const monthlyIncome = monthlyFromIncome(data.income, state)
-  const safeToSpend = computePaycheckPlan({ data, state }).safeToSpend
+  const safeToSpend = computePaycheckPlan({ data, state, todayIso: today }).safeToSpend
   const recentSpend = monthTx.filter((t) => visible(t) && isExpense(t) && t.category !== 'Transfers').reduce((s, t) => s + spendAmount(t), 0)
 
   const catSpend = {}

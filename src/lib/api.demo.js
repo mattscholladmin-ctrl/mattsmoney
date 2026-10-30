@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { billFields, checkBillSnapshot } from './bill-write.js';
 import {applyDemoAppleMatch} from "./apple-bill-match.js";
 // In-memory store for the preview mock. Same function names as the live
 // Supabase API so every screen stays interactive.
@@ -22,17 +23,21 @@ function loadStore() {
 }
 
 let store = null;
+let storedVersion = null;
 function get() {
-  if (!store) store = loadStore();
+  try {
+    const raw=localStorage.getItem(KEY);
+    if (!store || (raw && raw!==storedVersion)) {store=raw ? JSON.parse(raw) : demoData();storedVersion=raw;}
+  } catch { if (!store) store=demoData(); }
   return store;
 }
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(store));
-  } catch {
-    /* ignore */
-  }
+    const raw=JSON.stringify(store);
+    localStorage.setItem(KEY,raw);storedVersion=raw;
+  } catch { /* The demo remains usable in memory. */ }
 }
+
 function list(key) {
   const s = get();
   if (!Array.isArray(s[key])) s[key] = [];
@@ -170,7 +175,7 @@ export async function setIncomeSources(ids = [], source) {
 export async function addBill({ name, amount, category, cadence, due_day, smooth, start_date }) {
   add("bills", {
     name,
-    amount: Number(amount) || 0,
+    amount: billFields({amount}).amount,
     category: category || null,
     cadence: cadence || "monthly",
     due_day: due_day ?? null,
@@ -179,13 +184,15 @@ export async function addBill({ name, amount, category, cadence, due_day, smooth
     smooth: !!smooth,
   });
 }
-export async function updateBill(id, fields) {
-  upd("bills", id, fields);
+export async function updateBill(id, fields, expected) {
+  checkBillSnapshot(list("bills").find(b => b.id === id), expected);
+  upd("bills", id, billFields(fields));
 }
 export async function setBillPartial(id, partial_paid, partial_for) {
   upd("bills", id, { partial_paid, partial_for: partial_for || null });
 }
-export async function deleteBill(id) {
+export async function deleteBill(id, expected) {
+  checkBillSnapshot(list("bills").find(b => b.id === id), expected);
   del("bills", id);
 }
 export async function setBillSmooth(id, smooth) {

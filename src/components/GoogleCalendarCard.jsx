@@ -21,6 +21,7 @@ function Toggle({ label, hint, on, busy, onChange }) {
         disabled={busy}
         onClick={() => onChange(!on)}
         aria-pressed={on}
+        aria-label={label}
         className={`shrink-0 rounded-full px-1 w-14 h-8 flex items-center transition-colors ${
           on ? 'bg-emerald-600 justify-end' : 'bg-slate-300 justify-start'
         } ${busy ? 'opacity-50' : ''}`}

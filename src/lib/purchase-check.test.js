@@ -25,7 +25,7 @@ test("existing shortfall grows and cents remain exact", () => {
   assert.equal(result.fits, false);
 });
 test("missing balances or failed reload cannot return an all-clear", () => {
-  for (const extra of [{ missingAvailable: ["Checking"] }, { refreshError: true }]) {
+  for (const extra of [{ missingAvailable: ["Checking"] }, { refreshError: true }, {unpricedCosts:['Google AI Pro + tax']}]) {
     const result = checkPurchase({ amount: 10, safeToSpend: 100, ...extra });
     assert.ok(result);
     assert.equal(result.fits, false);

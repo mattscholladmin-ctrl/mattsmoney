@@ -1,7 +1,8 @@
 // @ts-nocheck
-import { useMemo, useState } from 'react'
-import { money } from '../lib/format'
-import { addBill, updateBill, deleteBill, setBillSmooth } from '../lib/api'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { billFields, billSnapshot } from '../lib/bill-write.js'
+import { money, isoDate } from '../lib/format'
+import { addBill, updateBill, deleteBill } from '../lib/api'
 import { detectRecurring } from '../lib/budget'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -16,6 +17,8 @@ const scheduleLabel = (b) =>
 export default function RecurringBillsCard({ bills = [], transactions = [], ppy = 26, onChanged, embedded = false, board = false }) {
   const [showAdd, setShowAdd] = useState(false)
   const [addingKey, setAddingKey] = useState(null)
+  const detectedWrite = useRef(false)
+  const [hubError,setHubError]=useState('')
   const [dismissed, setDismissed] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('budget.dismissedRecurring') || '[]')
@@ -48,11 +51,16 @@ export default function RecurringBillsCard({ bills = [], transactions = [], ppy 
     })
   }
   async function addDetectedAsBill(d) {
-    setAddingKey(d.merchant)
+    if (detectedWrite.current) return
+    detectedWrite.current = true
+    setAddingKey(d.merchant);setHubError('')
     try {
       await addBill({ name: d.merchant, amount: d.amount, category: d.category || 'Bills', cadence: d.cadence, due_day: d.due_day })
-      onChanged()
+      await onChanged()
+    } catch (err) {
+      setHubError(err.message || 'Could not add this bill. Try again.')
     } finally {
+      detectedWrite.current = false
       setAddingKey(null)
     }
   }
@@ -70,6 +78,7 @@ export default function RecurringBillsCard({ bills = [], transactions = [], ppy 
         your Safe to spend.
       </p>
 
+      {hubError && <p role="alert" className="text-sm text-red-600">{hubError}</p>}
       {showAdd && <AddBillForm onChanged={onChanged} onDone={() => setShowAdd(false)} />}
 
       {sorted.length === 0 ? (
@@ -159,6 +168,7 @@ function ScheduleFields({ cadence, setCadence, dueDay, setDueDay }) {
 }
 
 function AddBillForm({ onChanged, onDone }) {
+  const inFlight = useRef(false)
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('Bills')
@@ -170,15 +180,18 @@ function AddBillForm({ onChanged, onDone }) {
 
   async function add(e) {
     e.preventDefault()
+    if (inFlight.current) return
+    inFlight.current = true
     setBusy(true)
     setError(null)
     try {
-      await addBill({ name: name.trim(), amount: Number(amount), category: category.trim() || 'Bills', cadence, due_day: Number(dueDay), start_date: startDate || null })
-      onChanged()
+      await addBill({ name: name.trim(), amount: billFields({amount}).amount, category: category.trim() || 'Bills', cadence, due_day: Number(dueDay), start_date: startDate || null })
+      await onChanged()
       onDone()
     } catch (err) {
       setError(err.message)
     } finally {
+      inFlight.current = false
       setBusy(false)
     }
   }
@@ -209,10 +222,6 @@ function AddBillForm({ onChanged, onDone }) {
 function BillRow({ bill, ppy = 26, onChanged }) {
   const [editing, setEditing] = useState(false)
   const perPaycheck = ((Number(bill.amount) || 0) * (bill.cadence === 'weekly' ? 52 : 12)) / ppy
-  async function toggleSmooth() {
-    await setBillSmooth(bill.id, !bill.smooth)
-    onChanged()
-  }
   const [name, setName] = useState(bill.name)
   const [category, setCategory] = useState(bill.category || 'Bills')
   const [cadence, setCadence] = useState(bill.cadence)
@@ -221,33 +230,50 @@ function BillRow({ bill, ppy = 26, onChanged }) {
   const [busy, setBusy] = useState(false)
   const [amtDraft, setAmtDraft] = useState(String(bill.amount))
 
-  // Inline amount edit — tap the box, tap away to save (like budgets). Sends the
-  // full row so nothing else gets blanked.
-  async function saveAmount(v) {
-    const n = Number(v)
-    if (Number.isNaN(n) || n === Number(bill.amount)) return
-    await updateBill(bill.id, { name: bill.name, amount: n, category: bill.category || 'Bills', cadence: bill.cadence, due_day: bill.due_day, start_date: bill.start_date || null })
-    onChanged()
-  }
-  async function saveEdit(e) {
-    e.preventDefault()
-    setBusy(true)
+  const [error, setError] = useState('')
+  const base = useRef(billSnapshot(bill))
+  const dirty = useRef(false)
+  const inFlight = useRef(false)
+  useEffect(() => {
+    if (dirty.current || editing || inFlight.current) return
+    base.current = billSnapshot(bill)
+    setAmtDraft(String(bill.amount))
+    setName(bill.name); setCategory(bill.category || 'Bills')
+    setCadence(bill.cadence); setDueDay(String(bill.due_day)); setStartDate(bill.start_date || '')
+  }, [bill, editing])
+  async function perform(write, after) {
+    if (inFlight.current) return
+    inFlight.current = true; setBusy(true); setError('')
     try {
-      await updateBill(bill.id, { name: name.trim(), amount: Number(bill.amount), category: category.trim() || 'Bills', cadence, due_day: Number(dueDay), start_date: startDate || null })
-      setEditing(false)
-      onChanged()
-    } finally {
-      setBusy(false)
-    }
+      await write()
+      dirty.current = false
+      after?.()
+      await onChanged()
+    } catch (err) {
+      setError(err.message || 'Could not save. Your edit is still here. Try again.')
+    } finally { inFlight.current = false; setBusy(false) }
   }
-  async function remove() {
-    await deleteBill(bill.id)
-    onChanged()
+  function toggleSmooth() {
+    return perform(() => updateBill(bill.id, {smooth: !bill.smooth, smooth_since: !bill.smooth ? isoDate() : null}, billSnapshot(bill)))
   }
+  function saveAmount(v) {
+    return perform(() => updateBill(bill.id, billFields({amount:v}), base.current))
+  }
+  function saveEdit(e) {
+    e.preventDefault()
+    return perform(() => updateBill(bill.id, {name:name.trim(), category:category.trim() || 'Bills', cadence, due_day:Number(dueDay), start_date:startDate || null}, base.current), () => setEditing(false))
+  }
+  function remove() {
+    if (!window.confirm(`Delete ${bill.name}? This removes the tracked bill.`)) return
+    return perform(() => deleteBill(bill.id, billSnapshot(bill)))
+  }
+  function beginEdit() { base.current=billSnapshot(bill); setName(bill.name);setCategory(bill.category || 'Bills');setCadence(bill.cadence);setDueDay(String(bill.due_day));setStartDate(bill.start_date || '');setError(''); setEditing(true) }
+  function cancelEdit() { dirty.current=false; setError(''); setEditing(false) }
 
   if (editing) {
     return (
       <li className="py-3">
+        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         <form onSubmit={saveEdit} className="space-y-2">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Bill name" required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" />
           <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" />
@@ -257,7 +283,7 @@ function BillRow({ bill, ppy = 26, onChanged }) {
             <button type="submit" disabled={busy} className="flex-1 bg-emerald-700 text-white font-semibold rounded-lg px-4 py-2">
               {busy ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" onClick={() => setEditing(false)} className="flex-1 border border-slate-300 text-slate-600 rounded-lg px-4 py-2">
+            <button type="button" onClick={cancelEdit} disabled={busy} className="flex-1 border border-slate-300 text-slate-600 rounded-lg px-4 py-2">
               Cancel
             </button>
           </div>
@@ -268,12 +294,16 @@ function BillRow({ bill, ppy = 26, onChanged }) {
 
   return (
     <li className="dw-bill-row">
+      {error && <p role="alert" className="dw-bill-error">{error} <button type="button" onClick={() => {dirty.current=false; setEditing(false); setError(''); onChanged()}}>Reload latest bill and discard this edit</button></p>}
       <div className="dw-bill-copy">
         <b>{bill.name}</b>
         <span>{scheduleLabel(bill)}</span>
         <button
           type="button"
           onClick={toggleSmooth}
+          disabled={busy}
+          aria-label={`Set aside each paycheck for ${bill.name}`}
+          aria-pressed={!!bill.smooth}
           className={bill.smooth ? 'on' : ''}
           title="Set aside a share of this out of every paycheck instead of it hitting all at once"
         >
@@ -288,15 +318,16 @@ function BillRow({ bill, ppy = 26, onChanged }) {
             step="0.01"
             inputMode="decimal"
             value={amtDraft}
-            onChange={(e) => setAmtDraft(e.target.value)}
+            onChange={(e) => { if (!dirty.current) base.current=billSnapshot(bill); dirty.current=true; setAmtDraft(e.target.value) }}
+            disabled={busy}
             title="Change the amount, then Save"
           />
           {Number(amtDraft) !== Number(bill.amount) && (
-            <button type="button" onClick={() => saveAmount(amtDraft)}>Save</button>
+            <button type="button" disabled={busy} onClick={() => saveAmount(amtDraft)}>Save</button>
           )}
         </span>
-        <button type="button" onClick={() => setEditing(true)}>Edit</button>
-        <button type="button" className="danger" onClick={remove}>Delete</button>
+        <button type="button" disabled={busy} onClick={beginEdit}>Edit</button>
+        <button type="button" className="danger" disabled={busy} onClick={remove}>Delete</button>
       </div>
     </li>
   )
