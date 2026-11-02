@@ -13,7 +13,7 @@ import ShopPage from "./ShopPage";
 import PlanningPanel from "./PlanningPanel.jsx";
 import GuideCard from "./GuideCard";
 import AppleBillMatcher from "./AppleBillMatcher.jsx";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   updateTransaction,
   addTransaction,
@@ -182,6 +182,14 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
       return "home";
     }
   });
+  const mainRef = useRef(null);
+  useLayoutEffect(() => {
+    // Desktop scrolls inside main; phones scroll the document. Only navigation
+    // resets either position, so refreshed budget data leaves reading/editing alone.
+    const origin = { top: 0, left: 0, behavior: "instant" };
+    mainRef.current?.scrollTo(origin);
+    window.scrollTo(origin);
+  }, [page]);
   const today = useToday();
   const [selectedMonth, setMonth] = useState(null);
   const month = selectedMonth || today.slice(0,7);
@@ -633,7 +641,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
     <DwContext.Provider value={context}>
       <div className="dw-app">
         <Sidebar />
-        <main className="dw-main">
+        <main ref={mainRef} className="dw-main">
           {transactionError && (
             <p className="dw-mute" role="alert">
               {transactionError}{" "}
