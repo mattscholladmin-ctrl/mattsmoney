@@ -8,7 +8,7 @@ test('persisted biweekly bill repeats from first date across month/year boundari
   assert.deepEqual(billOccurrences(bill,'2026-11-09',90),['2026-11-19','2026-12-03','2026-12-17','2026-12-31','2027-01-14','2027-01-28']);
   assert.deepEqual(billOccurrences(bill,'2026-12-04',15),['2026-12-17']);
   assert.equal(upcomingBills([bill],'2026-11-09',90).reduce((n,b)=>n+b.amount,0),360);
-  assert.equal(unpaidBills([bill],[],'2026-11-09',30)[0].originalDate,'2026-11-19');
+  assert.equal(unpaidBills([bill],[],'2026-11-09',30)[0].date,'2026-11-19');
   assert.deepEqual(billOccurrences({...bill,start_date:null},'2026-11-09',30),[]);
 });
 test('biweekly schedules preserve weekdays across daylight saving and validate their saved anchor',()=>{
