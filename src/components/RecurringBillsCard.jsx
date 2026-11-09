@@ -7,7 +7,7 @@ import { detectRecurring } from '../lib/budget'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const scheduleLabel = (b) =>
-  b.cadence === 'weekly' ? `weekly · ${WEEKDAYS[Number(b.due_day)] || '—'}` : `monthly · day ${b.due_day}`
+  b.cadence === 'biweekly' ? `every 2 weeks · from ${b.start_date || '—'}` : b.cadence === 'weekly' ? `weekly · ${WEEKDAYS[Number(b.due_day)] || '—'}` : `monthly · day ${b.due_day}`
 
 // The full recurring-bills hub (lives on Insights): every tracked bill, editable
 // in place, plus charges the app has spotted that you can confirm or dismiss.
@@ -140,6 +140,7 @@ function ScheduleFields({ cadence, setCadence, dueDay, setDueDay }) {
   return (
     <div className="flex gap-2">
       <select
+        aria-label="Bill schedule"
         value={cadence}
         onChange={(e) => {
           setCadence(e.target.value)
@@ -149,8 +150,9 @@ function ScheduleFields({ cadence, setCadence, dueDay, setDueDay }) {
       >
         <option value="monthly">Monthly</option>
         <option value="weekly">Weekly</option>
+        <option value="biweekly">Every two weeks</option>
       </select>
-      {cadence === 'monthly' ? (
+      {cadence === 'biweekly' ? null : cadence === 'monthly' ? (
         <select value={dueDay} onChange={(e) => setDueDay(e.target.value)} className={`${inputCls} bg-white`}>
           {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
             <option key={d} value={d}>Day {d}</option>
@@ -210,7 +212,7 @@ function AddBillForm({ onChanged, onDone }) {
         <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className={inputCls} />
       </div>
       <ScheduleFields cadence={cadence} setCadence={setCadence} dueDay={dueDay} setDueDay={setDueDay} />
-      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} title="First due date" />
+      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} title="First due date" aria-label="First due date" required={cadence === 'biweekly'} />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button type="submit" disabled={busy} className="w-full bg-emerald-700 text-white font-semibold rounded-lg px-4 py-2">
         {busy ? 'Saving…' : 'Add bill'}
@@ -221,7 +223,7 @@ function AddBillForm({ onChanged, onDone }) {
 
 function BillRow({ bill, ppy = 26, onChanged }) {
   const [editing, setEditing] = useState(false)
-  const perPaycheck = ((Number(bill.amount) || 0) * (bill.cadence === 'weekly' ? 52 : 12)) / ppy
+  const perPaycheck = ((Number(bill.amount) || 0) * (bill.cadence === 'weekly' ? 52 : bill.cadence === 'biweekly' ? 26 : 12)) / ppy
   const [name, setName] = useState(bill.name)
   const [category, setCategory] = useState(bill.category || 'Bills')
   const [cadence, setCadence] = useState(bill.cadence)
@@ -278,7 +280,7 @@ function BillRow({ bill, ppy = 26, onChanged }) {
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Bill name" required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" />
           <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" />
           <ScheduleFields cadence={cadence} setCadence={setCadence} dueDay={dueDay} setDueDay={setDueDay} />
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" title="First due date" />
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" title="First due date" aria-label="First due date" required={cadence === 'biweekly'} />
           <div className="flex gap-2">
             <button type="submit" disabled={busy} className="flex-1 bg-emerald-700 text-white font-semibold rounded-lg px-4 py-2">
               {busy ? 'Saving…' : 'Save'}

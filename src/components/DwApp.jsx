@@ -1896,6 +1896,8 @@ function Home() {
   const [extraPayment, setExtraPayment] = useState(null);
   const [planMsg, setPlanMsg] = useState("");
   const [planBusy, setPlanBusy] = useState(false);
+  const extraInFlight = useRef(false);
+  const extraRequest = useRef(null);
   const [partialId, setPartialId] = useState(null);
   const [partialAmt, setPartialAmt] = useState("");
   const dueNow = pay.info.windowItems || [];
@@ -2059,25 +2061,32 @@ function Home() {
 
   async function saveExtra(e) {
     e.preventDefault();
+    if (extraInFlight.current) return;
     const amount = Number(extraPayment.amount);
-    if (!(amount > 0)) {
+    if (!Number.isFinite(amount) || !(amount > 0)) {
       setPlanMsg("Enter the payment amount.");
       return;
     }
     setPlanBusy(true);
     setPlanMsg("");
+    extraInFlight.current = true;
     try {
+      const signature = JSON.stringify([extraPayment.id, amount, extraPayment.date]);
+      if (extraRequest.current?.signature !== signature) extraRequest.current = {signature, id: crypto.randomUUID()};
       await addDebtPayment({
         debt_id: extraPayment.id,
+        request_id: extraRequest.current.id,
         amount,
         paid_on: extraPayment.date || isoDate(),
       });
       setExtraPayment(null);
-      setPlanMsg("Balance lowered. Monthly payment unchanged.");
+      extraRequest.current = null;
+      setPlanMsg("Payment recorded. Monthly payment unchanged.");
       load();
     } catch (err) {
       setPlanMsg(err.message || "Could not log the payment.");
     } finally {
+      extraInFlight.current = false;
       setPlanBusy(false);
     }
   }

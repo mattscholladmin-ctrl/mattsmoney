@@ -371,6 +371,8 @@ function LogPaymentModal({ debts, focusId = null, onClose, onChanged }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
+  const inFlight = useRef(false)
+  const request = useRef(null)
   const debt = active.find((d) => d.id === debtId)
   const amt = Number(amount) || 0
   const bankLinked = !!(debt && (debt.plaid_account_id || debt.plaid_item_id))
@@ -378,19 +380,25 @@ function LogPaymentModal({ debts, focusId = null, onClose, onChanged }) {
 
   async function submit(e) {
     e.preventDefault()
-    if (!debt || amt <= 0) return setError('Enter the amount you paid.')
+    if (inFlight.current) return
+    if (!debt || !Number.isFinite(amt) || amt <= 0) return setError('Enter the amount you paid.')
+    inFlight.current = true
     setBusy(true)
     setError(null)
     try {
       // Records the dated payment and (for a manual debt) lowers the balance.
       // Live-read inside so a payment can't clobber a balance that changed since
       // the modal opened.
-      await addDebtPayment({ debt_id: debt.id, amount: amt, paid_on: date, bankLinked })
+      const signature = JSON.stringify([debt.id,amt,date])
+      if (request.current?.signature !== signature) request.current = {signature,id:crypto.randomUUID()}
+      await addDebtPayment({ debt_id: debt.id, amount: amt, paid_on: date, request_id:request.current.id })
       onChanged()
       onClose()
     } catch (err) {
       setError(err.message)
       setBusy(false)
+    } finally {
+      inFlight.current = false
     }
   }
 

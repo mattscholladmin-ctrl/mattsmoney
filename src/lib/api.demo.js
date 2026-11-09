@@ -175,7 +175,7 @@ export async function setIncomeSources(ids = [], source) {
 export async function addBill({ name, amount, category, cadence, due_day, smooth, start_date }) {
   add("bills", {
     name,
-    amount: billFields({amount}).amount,
+    ...billFields({amount,cadence:cadence || "monthly",start_date:start_date || null}),
     category: category || null,
     cadence: cadence || "monthly",
     due_day: due_day ?? null,
@@ -314,22 +314,35 @@ export async function decrementDebtBalance(id, delta) {
   if (!d) return;
   upd("debts", id, { balance: Math.max(0, Number(d.balance || 0) - Number(delta || 0)) });
 }
-export async function addDebtPayment({ debt_id, amount, paid_on, note, bankLinked }) {
-  add("debtPayments", {
-    debt_id,
-    amount: Number(amount) || 0,
-    paid_on: paid_on || isoDate(),
-    note: note || null,
-  });
-  if (!bankLinked) await decrementDebtBalance(debt_id, amount);
-}
-export async function deleteDebtPayment(id, { bankLinked } = {}) {
-  const p = list("debtPayments").find((x) => String(x.id) === String(id));
-  del("debtPayments", id);
-  if (p && !bankLinked) {
-    const d = list("debts").find((x) => String(x.id) === String(p.debt_id));
-    if (d) upd("debts", d.id, { balance: Number(d.balance || 0) + Number(p.amount || 0) });
+export async function addDebtPayment({ debt_id, amount, paid_on, note, request_id }) {
+  const amt = Number(amount), day = paid_on || isoDate();
+  if (!Number.isFinite(amt) || amt<=0 || !Number.isSafeInteger(Math.round(amt*100)) || Math.abs(amt*100-Math.round(amt*100))>0.000001) throw new Error("Enter a positive payment with at most two decimal places.");
+  const debt = list("debts").find(d=>d.id===debt_id);
+  if (!debt) throw new Error("Debt not found");
+  const prior = request_id && list("debtPayments").find(p=>p.id===request_id);
+  if (prior) {
+    if(prior.debt_id!==debt_id || prior.amount!==amt || prior.paid_on!==day || prior.note!==(note || null)) throw new Error("This payment request was already used with different details");
+    return prior;
   }
+  const effect = debt.plaid_account_id || debt.plaid_item_id ? 0 : amt;
+  if(effect>Number(debt.balance || 0)) throw new Error("Payment exceeds the recorded balance");
+  const row = {id:request_id || nid(),debt_id,amount:amt,balance_effect:effect,paid_on:day,note:note || null};
+  list("debtPayments").push(row);
+  debt.balance=Number(debt.balance || 0)-effect;
+  save();
+  return row;
+}
+export async function deleteDebtPayment(id, _options = {}) {
+  const payment = list("debtPayments").find(p=>p.id===id);
+  if(!payment) return false;
+  const debt = list("debts").find(d=>d.id===payment.debt_id);
+  if(!debt) throw new Error("Debt not found");
+  const effect=Number(payment.balance_effect ?? payment.amount ?? 0);
+  if(effect && (debt.plaid_account_id || debt.plaid_item_id)) throw new Error("This debt is now bank-linked; its bank balance cannot be restored manually");
+  debt.balance=Number(debt.balance || 0)+effect;
+  get().debtPayments=list("debtPayments").filter(p=>p.id!==id);
+  save();
+  return true;
 }
 export async function updateGoal(id, fields) {
   upd("goals", id, fields);

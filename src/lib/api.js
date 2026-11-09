@@ -118,7 +118,8 @@ async function live_fetchAll() {
     goals.error ||
     debts.error ||
     phases.error ||
-    buckets.error
+    buckets.error ||
+    debtPayments.error
   if (firstError) throw firstError
 
   return {
@@ -140,8 +141,8 @@ async function live_fetchAll() {
     creditTasks: creditTasks.error ? [] : creditTasks.data || [],
     // set_asides table is added by set_asides.sql — tolerate it being absent.
     setAsides: setAsides.error ? [] : setAsides.data || [],
-    // debt_payments table is added by debt_payments.sql — tolerate it being absent.
-    debtPayments: debtPayments.error ? [] : debtPayments.data || [],
+    // History is required: a failed read must not pretend there are no payments.
+    debtPayments: debtPayments.data || [],
     // category_aliases table is added by category_aliases.sql — tolerate it absent.
     categoryAliases: categoryAliases.error ? [] : categoryAliases.data || [],
   }
@@ -324,11 +325,11 @@ function isMissingColumn(error) {
 }
 
 async function live_addBill({ name, amount, category, cadence, due_day, smooth, start_date }) {
-  const row = { ...billFields({ name, amount, category, cadence, due_day }), active: true }
+  const row = { ...billFields({ name, amount, category, cadence, due_day, start_date }), active: true }
   if (smooth !== undefined) row.smooth = smooth
   if (start_date) row.start_date = start_date
   let { error } = await supabase.from('recurring_bills').insert(row)
-  if (error && isMissingColumn(error)) {
+  if (error && isMissingColumn(error) && cadence !== 'biweekly') {
     delete row.smooth
     delete row.start_date
     ;({ error } = await supabase.from('recurring_bills').insert(row))
@@ -636,59 +637,19 @@ async function live_decrementDebtBalance(id, delta) {
   if (error) throw error
 }
 
-function isMissingDebtPaymentsTable(error) {
-  // ONLY the genuine "relation absent / not in the schema cache" signals — never
-  // the bare table name, or a real RLS / FK / NOT NULL / check-constraint failure
-  // (whose message also contains "debt_payments") would be silently swallowed and
-  // lower the balance without ever saving the payment.
-  const code = error?.code
-  const msg = error?.message || ''
-  return (
-    code === '42P01' ||
-    code === 'PGRST205' ||
-    /could not find the table .*debt_payments|relation .*debt_payments.* does not exist/i.test(msg)
-  )
-}
-
-// A logged debt payment: a dated record (today or backdated) that lowers the
-// debt's balance and shows in a history under the debt. For a bank-linked debt
-// the bank owns the balance, so we record the payment but don't touch it (the
-// sync will reflect it) — pass bankLinked so the balance isn't double-counted.
-async function live_addDebtPayment({ debt_id, amount, paid_on, note, bankLinked }) {
-  let amt = Number(amount) || 0
-  // For a manual debt, never record more than actually comes off the balance
-  // (which clamps at 0). Otherwise an over-payment stores the full amount but the
-  // balance only drops to 0 — and deleting it later would restore more than was
-  // subtracted, inflating the balance above where it started.
-  if (!bankLinked) {
-    const { data } = await supabase.from('debts').select('balance').eq('id', debt_id).maybeSingle()
-    if (data) amt = Math.min(amt, Math.max(0, Number(data.balance || 0)))
-  }
-  const row = {
-    debt_id,
-    amount: amt,
-    paid_on: paid_on || new Date().toISOString().slice(0, 10),
-    note: note || null,
-  }
-  const { error } = await supabase.from('debt_payments').insert(row)
-  // debt_payments table not created yet? Still lower the balance so logging a
-  // payment works — the dated history just won't persist until the SQL is run.
-  if (error && !isMissingDebtPaymentsTable(error)) throw error
-  if (!bankLinked) await live_decrementDebtBalance(debt_id, amt)
-}
-
-// Remove a logged payment and (for a manual debt) add its amount back to the
-// balance, so a mistaken entry fully reverses.
-async function live_deleteDebtPayment(id, { bankLinked } = {}) {
-  const { data: p, error: readErr } = await supabase
-    .from('debt_payments')
-    .select('debt_id,amount')
-    .eq('id', id)
-    .maybeSingle()
-  if (readErr) throw readErr
-  const { error } = await supabase.from('debt_payments').delete().eq('id', id)
+// The database saves history and its balance effect in one transaction. No fallback writes.
+async function live_addDebtPayment({ debt_id, amount, paid_on, note, request_id }) {
+  const { data, error } = await supabase.rpc('record_debt_payment', {
+    p_debt_id: debt_id, p_amount: amount, p_paid_on: paid_on || new Date().toISOString().slice(0,10),
+    p_note: note || null, p_request_id: request_id || crypto.randomUUID(),
+  })
   if (error) throw error
-  if (p && !bankLinked) await live_decrementDebtBalance(p.debt_id, -Number(p.amount || 0))
+  return data
+}
+async function live_deleteDebtPayment(id, _options = {}) {
+  const { data, error } = await supabase.rpc('remove_debt_payment', { p_payment_id: id })
+  if (error) throw error
+  return data
 }
 
 async function live_updateGoal(id, { name, target, current, monthly_contribution, note, target_date, status, account_id, pace_since }) {

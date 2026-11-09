@@ -1571,8 +1571,10 @@ export function billOccurrences(bill, fromIso, horizonDays) {
 
   if (bill.cadence === 'biweekly') {
     // Every 14 days from an anchor date (e.g. a debt paid every 2 weeks).
-    if (!bill.anchor) return out
-    const d = parseISO(bill.anchor)
+    const anchor = bill.anchor || bill.start_date
+    if (!anchor) return out
+    const d = parseISO(anchor)
+    if (!Number.isFinite(d.getTime())) return out
     while (d < from) d.setDate(d.getDate() + 14)
     while (d <= end) {
       out.push(isoDate(d))

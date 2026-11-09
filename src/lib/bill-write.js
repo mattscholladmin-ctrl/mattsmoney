@@ -18,7 +18,8 @@ export function billFields(input) {
       throw new Error('Enter a bill amount greater than zero, with no more than two decimal places.');
     out.amount = Math.round(n * 100) / 100;
   }
-  if ('cadence' in out && !['monthly','weekly'].includes(out.cadence)) throw new Error('Choose a monthly or weekly schedule.');
+  if ('cadence' in out && !['monthly','weekly','biweekly'].includes(out.cadence)) throw new Error('Choose a monthly, weekly, or every-two-weeks schedule.');
+  if (out.cadence === 'biweekly' && (!/^\d{4}-\d{2}-\d{2}$/.test(out.start_date || '') || !Number.isFinite(Date.parse(out.start_date + 'T12:00:00Z')) || new Date(out.start_date + 'T12:00:00Z').toISOString().slice(0,10) !== out.start_date)) throw new Error('Choose the first payment date for every two weeks.');
   if ('due_day' in out && out.due_day != null) {
     const n = Number(out.due_day);
     if (!Number.isInteger(n) || n < 0 || n > 31 || (out.cadence === 'monthly' && n < 1) || (out.cadence === 'weekly' && n > 6)) throw new Error('Choose a valid due day.');
