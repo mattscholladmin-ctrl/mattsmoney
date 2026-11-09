@@ -1,4 +1,4 @@
-import { billFields } from './bill-write.js'
+import { billFields, OUTSTANDING_KEYS } from './bill-write.js'
 import { unpricedBillCosts } from './purchase-check.js'
 import { fetchUserRows } from './fetch-user-rows.js'
 import { applyPreferences } from './app-preferences.js'
@@ -245,6 +245,7 @@ async function snapshot(db, uid) {
         category: b.category,
         active: b.active !== false,
         start_date: b.start_date || null,
+        ...Object.fromEntries(OUTSTANDING_KEYS.map(k=>[k,b[k] ?? null])),
         next_due: sched.next_due,
         status: paid ? 'paid' : sched.status,
       }
@@ -371,7 +372,7 @@ export async function runGrokAction(body = {}) {
     return { ok: true, data }
   }
   if (action === 'update_bill') {
-    return patch(db, 'recurring_bills', uid, body.id, billFields(pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'active', 'start_date'])))
+    return patch(db, 'recurring_bills', uid, body.id, billFields(pick(body, ['name', 'amount', 'category', 'cadence', 'due_day', 'active', 'start_date', ...OUTSTANDING_KEYS])))
   }
   if (action === 'delete_bill') return remove(db, 'recurring_bills', uid, body.id)
 

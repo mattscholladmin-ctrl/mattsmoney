@@ -1,5 +1,7 @@
 // @ts-nocheck
 import { balanceFreshness } from '../lib/balance-freshness.js';
+import { balancePayment } from '../lib/bill-balance.js';
+import { billSnapshot } from '../lib/bill-write.js';
 import { useToday } from '../lib/use-today.js';
 import { useAppPreferences } from "../lib/use-app-preferences.js";
 import {
@@ -25,6 +27,7 @@ import {
   markBillPaid,
   setBillPartial,
   addBill,
+  updateBill,
   addGoal,
   updateGoal,
   deleteGoal,
@@ -277,10 +280,23 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
   const laterRows = pay.info.laterItems || [];
   const safeShown = pay.safeToSpend;
   const [paymentError, setPaymentError] = useState("");
+  const balancePaymentInFlight = useRef(false);
+  async function recordBalancePayment(bill, amount) {
+    if (balancePaymentInFlight.current) return false;
+    balancePaymentInFlight.current=true;
+    try {
+      const source=(data.bills || []).find(b=>b.id===bill.id);
+      if (!source || Number(source.outstanding_amount)!==Number(bill.amount)) throw new Error('Balance changed. Reload before recording payment.');
+      await updateBill(bill.id,balancePayment(source,amount,isoDate()),billSnapshot(source));
+      await load(); return true;
+    } catch(err) { setPaymentError(err.message || 'Could not save payment.'); return false; }
+    finally { balancePaymentInFlight.current=false; }
+  }
   const payMatch = (() => {
     if (state.matchSkip) return null;
     const bills = [...(pay.info.windowItems || []), ...(pay.info.laterItems || [])];
     for (const b of bills) {
+      if (b.outstandingBalance) continue;
       const txn = suggestBillPayment(
         { name: b.name, amount: b.fullAmount || b.amount, date: b.due || isoDate(), billId: b.id },
         data.transactions || [],
@@ -295,7 +311,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
     const due = bill.due || isoDate();
     setPaymentError("");
     try {
-      await markBillPaid(bill.id, due);
+      if (bill.outstandingBalance) {
+        return await recordBalancePayment(bill,bill.amount);
+      } else await markBillPaid(bill.id, due);
       patchState({ matchSkip: true });
       await load();
       return true;
@@ -308,6 +326,9 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
   async function logPartial(bill, raw) {
     const add = Number(raw);
     if (!(add > 0)) return false;
+    if (bill.outstandingBalance) {
+      return await recordBalancePayment(bill,add);
+    }
     const full = Number(bill.fullAmount || bill.amount || 0);
     const next = Number(bill.partialPaid || 0) + add;
     if (full > 0 && next >= full - 0.009) {
@@ -2497,7 +2518,7 @@ function Home() {
                         <span className="dw-amt">{moneyFull(hold)}</span>
                       </div>
                       <em>
-                        {b.full
+                        {b.outstandingBalance ? `Outstanding · ${b.estimated ? 'calculated' : 'confirmed'} as of ${b.balanceAsOf}` : b.full
                           ? `Due ${b.due ? shortDate(b.due) : "soon"}${paid > 0 ? "" : " · full amount"}`
                           : `${moneyFull(hold)} of ${moneyFull(b.fullAmount || b.amount)}${b.due ? ` · due ${shortDate(b.due)}` : ""}`}
                         {paid > 0 ? ` · ${moneyFull(paid)} paid` : ""}

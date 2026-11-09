@@ -4,6 +4,7 @@ import { billFields, billSnapshot } from '../lib/bill-write.js'
 import { money, isoDate } from '../lib/format'
 import { addBill, updateBill, deleteBill } from '../lib/api'
 import { detectRecurring } from '../lib/budget'
+import BillBalanceFields, {initialBalance} from './BillBalanceFields.jsx'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const scheduleLabel = (b) =>
@@ -222,6 +223,8 @@ function AddBillForm({ onChanged, onDone }) {
 }
 
 function BillRow({ bill, ppy = 26, onChanged }) {
+  const [balanceEnabled,setBalanceEnabled]=useState(bill.outstanding_amount != null)
+  const [balance,setBalance]=useState(()=>initialBalance(bill))
   const [editing, setEditing] = useState(false)
   const perPaycheck = ((Number(bill.amount) || 0) * (bill.cadence === 'weekly' ? 52 : bill.cadence === 'biweekly' ? 26 : 12)) / ppy
   const [name, setName] = useState(bill.name)
@@ -263,13 +266,13 @@ function BillRow({ bill, ppy = 26, onChanged }) {
   }
   function saveEdit(e) {
     e.preventDefault()
-    return perform(() => updateBill(bill.id, {name:name.trim(), category:category.trim() || 'Bills', cadence, due_day:Number(dueDay), start_date:startDate || null}, base.current), () => setEditing(false))
+    return perform(() => updateBill(bill.id, {name:name.trim(), category:category.trim() || 'Bills', cadence, due_day:Number(dueDay), start_date:startDate || null, ...(balanceEnabled ? balance : {})}, base.current), () => setEditing(false))
   }
   function remove() {
     if (!window.confirm(`Delete ${bill.name}? This removes the tracked bill.`)) return
     return perform(() => deleteBill(bill.id, billSnapshot(bill)))
   }
-  function beginEdit() { base.current=billSnapshot(bill); setName(bill.name);setCategory(bill.category || 'Bills');setCadence(bill.cadence);setDueDay(String(bill.due_day));setStartDate(bill.start_date || '');setError(''); setEditing(true) }
+  function beginEdit() { base.current=billSnapshot(bill); setName(bill.name);setCategory(bill.category || 'Bills');setCadence(bill.cadence);setDueDay(String(bill.due_day));setStartDate(bill.start_date || '');setBalance(initialBalance(bill));setBalanceEnabled(bill.outstanding_amount!=null);setError(''); setEditing(true) }
   function cancelEdit() { dirty.current=false; setError(''); setEditing(false) }
 
   if (editing) {
@@ -280,6 +283,8 @@ function BillRow({ bill, ppy = 26, onChanged }) {
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Bill name" required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" />
           <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" />
           <ScheduleFields cadence={cadence} setCadence={setCadence} dueDay={dueDay} setDueDay={setDueDay} />
+          <label className="block"><input type="checkbox" checked={balanceEnabled} disabled={bill.outstanding_amount != null} onChange={e=>setBalanceEnabled(e.target.checked)}/> Track an outstanding balance separately</label>
+          {balanceEnabled && <BillBalanceFields value={balance} onChange={setBalance}/>}
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base" title="First due date" aria-label="First due date" required={cadence === 'biweekly'} />
           <div className="flex gap-2">
             <button type="submit" disabled={busy} className="flex-1 bg-emerald-700 text-white font-semibold rounded-lg px-4 py-2">
@@ -300,6 +305,7 @@ function BillRow({ bill, ppy = 26, onChanged }) {
       <div className="dw-bill-copy">
         <b>{bill.name}</b>
         <span>{scheduleLabel(bill)}</span>
+        {bill.outstanding_amount != null && <span>{money(bill.outstanding_amount)} outstanding · {bill.outstanding_estimated ? 'calculated' : 'confirmed'} as of {bill.outstanding_as_of}</span>}
         <button
           type="button"
           onClick={toggleSmooth}

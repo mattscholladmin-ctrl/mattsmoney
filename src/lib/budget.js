@@ -1598,7 +1598,7 @@ export function billOccurrences(bill, fromIso, horizonDays) {
     const dueDay = Number(bill.due_day) // 1..31
     let year = from.getFullYear()
     let month = from.getMonth()
-    for (let i = 0; i < 13; i++) {
+    for (let i = 0; i < Math.ceil(horizonDays / 28) + 2; i++) {
       const dim = daysInMonth(year, month)
       const day = Math.min(dueDay, dim)
       const occ = new Date(year, month, day)
@@ -1898,6 +1898,7 @@ export function upcomingBills(bills = [], fromIso = isoDate(), horizonDays = 30)
   for (const bill of bills) {
     if (bill.active === false) continue
     for (const date of billOccurrences(bill, fromIso, horizonDays)) {
+      if (hasOutstandingBalance(bill, fromIso) && date <= bill.outstanding_through) continue
       const owed = owedOn(bill, date)
       items.push({
         date,
@@ -1922,6 +1923,9 @@ export function upcomingBills(bills = [], fromIso = isoDate(), horizonDays = 30)
 // safe-to-spend.
 const PAID_WINDOW_DAYS = 5
 export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(), windowDays = PAID_WINDOW_DAYS) {
+  // A statement balance already includes prior payments; it needs an explicit
+  // reconciliation, never a guessed payment or an old paid-through marker.
+  if (occ.outstandingBalance) return false
   const billId = occ.billId || occ.id
   const due = occ.originalDate || occ.date
   if (occ.paid_through && due <= occ.paid_through) return true
@@ -1964,6 +1968,10 @@ const OVERDUE_LOOKBACK_DAYS = 40
 // narrower than their actual habit.
 const OVERDUE_PAID_WINDOW_DAYS = 21
 
+function hasOutstandingBalance(bill, today) {
+  return bill.outstanding_amount != null && Number.isFinite(Number(bill.outstanding_amount)) && Number(bill.outstanding_amount)>=0 && bill.outstanding_through && bill.outstanding_as_of && bill.outstanding_as_of<=today
+}
+
 // upcomingBills minus occurrences that already have a matching payment in the
 // transactions feed. Use this anywhere "money still owed" is what matters
 // (safe-to-spend, projections, the cash-flow calendar, due reminders).
@@ -1979,6 +1987,29 @@ const OVERDUE_PAID_WINDOW_DAYS = 21
 // Skipped when `forward` already has a same-bill occurrence due exactly
 // today — that already covers it, so this doesn't double the bill up.
 export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), horizonDays = 30, goals = []) {
+  const balances = []
+  for (const bill of bills) {
+    if (bill.active === false || !hasOutstandingBalance(bill, fromIso)) continue
+    if (Number(bill.outstanding_amount)>0) balances.push({
+      billId: bill.id, name: bill.name, date: fromIso,
+      originalDate: bill.outstanding_due_date || bill.outstanding_through,
+      amount: Number(bill.outstanding_amount), fullAmount: Number(bill.outstanding_amount), partialPaid: 0,
+      category: bill.category || 'Bills', cadence: bill.cadence, overdue: true,
+      outstandingBalance: true, estimated: !!bill.outstanding_estimated,
+      balanceAsOf: bill.outstanding_as_of, balanceThrough: bill.outstanding_through,
+      balanceNote: bill.outstanding_note,
+    })
+    // Preserve every subsequent unpaid cycle as time passes, not just the most
+    // recent one. The saved balance replaces all cycles through its cutoff.
+    const start=bill.outstanding_through
+    const days=Math.max(0,Math.ceil((parseISO(fromIso)-parseISO(start))/DAY_MS))
+    for (const due of billOccurrences(bill,start,days).filter(d=>d>bill.outstanding_through && d<fromIso)) {
+      if (bill.paid_through && due<=bill.paid_through) continue
+      const owed=owedOn(bill,due)
+      const occ={billId:bill.id,name:bill.name,date:due,cadence:bill.cadence,category:bill.category || 'Bills',...owed}
+      if (owed.amount>0.009 && !isBillOccurrencePaid(occ,transactions,fromIso,OVERDUE_PAID_WINDOW_DAYS)) balances.push({...occ,date:fromIso,originalDate:due,overdue:true})
+    }
+  }
   const preStartIds = new Set()
   const preStartHolds = []
   for (const bill of bills) {
@@ -2022,6 +2053,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
   const lookbackFrom = isoDate(new Date(parseISO(fromIso).getTime() - OVERDUE_LOOKBACK_DAYS * DAY_MS))
   for (const bill of bills) {
     if (bill.active === false || dueTodayBillIds.has(bill.id) || preStartIds.has(bill.id)) continue
+    if (hasOutstandingBalance(bill, fromIso)) continue
     if (overdueGoalCovers(bill, goals)) continue
     const past = billOccurrences(bill, lookbackFrom, OVERDUE_LOOKBACK_DAYS).filter((d) => d < fromIso)
     const mostRecent = past[past.length - 1]
@@ -2044,7 +2076,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
       overdue.push({ ...occ, date: fromIso, overdue: true, originalDate: mostRecent })
     }
   }
-  return [...preStartHolds, ...overdue, ...forward].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  return [...balances, ...preStartHolds, ...overdue, ...forward].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
 }
 
 function overdueGoalCovers(bill, goals = []) {
@@ -2248,6 +2280,7 @@ export function rejectKey(billId, txnId) {
 // Suggest a payment only when the merchant is the bill (or a known payee).
 // Dollar-proximity alone is not a match. Rejected pairs never come back.
 export function suggestBillPayment(occ, transactions = [], todayIso = isoDate(), rejected = []) {
+  if (occ.outstandingBalance) return null
   const amt = Number(occ.amount || 0)
   const billId = occ.billId || occ.id
   const rejectedSet = new Set(rejected)
@@ -2508,6 +2541,7 @@ export function spendableToday(
     // list for the current paycheck window. Additive display data; the math
     // above is unchanged.
     windowItems: thisWindow.map((b) => ({
+      outstandingBalance: !!b.outstandingBalance, estimated: !!b.estimated, balanceAsOf: b.balanceAsOf,
       id: b.billId || b.id || b.name,
       name: b.name,
       amount: Number(b.amount || 0),

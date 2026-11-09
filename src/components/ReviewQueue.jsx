@@ -67,6 +67,7 @@ export default function ReviewQueue({
       if (!byKey.has(key)) byKey.set(key, { ...b, billId, occDate })
     }
     for (const b of byKey.values()) {
+      if (b.outstandingBalance) continue
       if (isBillOccurrencePaid(b, transactions, today)) continue
       const t = suggestBillPayment(b, transactions, today, rejected)
       const id = `bill-${b.billId}-${b.occDate}`
