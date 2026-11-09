@@ -1907,6 +1907,7 @@ export function upcomingBills(bills = [], fromIso = isoDate(), horizonDays = 30)
         partialPaid: owed.partialPaid,
         category: bill.category || 'Bills',
         billId: bill.id,
+        cadence: bill.cadence,
       })
     }
   }
@@ -1937,6 +1938,13 @@ export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(
     const hasDatedMarker = billId && note.includes(`paid:${billId}@`)
     if (hasDatedMarker) return note.includes(exactMarker)
     if (billId && (t.bill_id === billId || note.split(/\s+/).includes(`paid:${billId}`))) return true
+    // A biweekly payment can cover only its own cycle, never two future dates.
+    // Explicit dated confirmations above can still record an unusually early/late payment.
+    if (occ.cadence === 'biweekly') {
+      const earliest = isoDate(new Date(parseISO(due).getTime() - 5 * DAY_MS))
+      const latest = isoDate(new Date(parseISO(due).getTime() + 8 * DAY_MS))
+      if (d < earliest || d > latest) return false
+    }
     // Apple groups unrelated purchases. Only an explicit dated match proves which bill was paid.
     if (isAppleMerchant(t.merchant)) return false
     const ta = Number(t.amount || 0)
@@ -1990,6 +1998,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
         billId: bill.id,
         overdue: false,
         preStart: true,
+        cadence: bill.cadence,
         originalDate: start,
       })
     }
@@ -2023,6 +2032,7 @@ export function unpaidBills(bills = [], transactions = [], fromIso = isoDate(), 
     if (owed.amount <= 0.009) continue
     const occ = {
       date: mostRecent,
+      cadence: bill.cadence,
       name: bill.name,
       amount: owed.amount,
       fullAmount: owed.fullAmount,
