@@ -18,7 +18,7 @@ test('debt history and balances are atomic, idempotent, owner-scoped and reversi
       create table public.recurring_bills(id int,cadence text constraint recurring_bills_cadence_check check(cadence in ('monthly','weekly')),start_date date);`);
     await db.query('insert into auth.users values($1),($2)',[owner,other]);
     await db.query('insert into public.debts values($1,$2,100,null,null),($3,$2,100,\'bank-account\',null),($4,$5,200,null,null)',[manual,owner,linked,foreign,other]);
-    await db.exec(await readFile(new URL('../supabase/migrations/20261109134419_debt_history_biweekly_bills.sql',import.meta.url),'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/20261109141527_debt_history_biweekly_bills.sql',import.meta.url),'utf8'));
     await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${owner}',false)`);
     const pay=(id,amount,key=randomUUID())=>db.query('select (public.record_debt_payment($1,$2,$3,$4,$5)).*',[id,amount,'2026-11-09','test',key]);
     const balance=async(id)=>Number((await db.query('select balance from public.debts where id=$1',[id])).rows[0].balance);
