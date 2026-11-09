@@ -6,7 +6,7 @@ test('outstanding balances preserve owner security and reject incomplete or inva
  const db=new PGlite()
  try {
  await db.exec(`create role authenticated; create table public.recurring_bills(id int primary key,user_id text,amount numeric); insert into public.recurring_bills values(1,'owner',179),(2,'other',50); alter table public.recurring_bills enable row level security; create policy own on public.recurring_bills to authenticated using(user_id=current_setting('app.owner',true)) with check(user_id=current_setting('app.owner',true)); grant select,update on public.recurring_bills to authenticated;`)
- await db.exec(await readFile(new URL('../bill-outstanding.sql',import.meta.url),'utf8'))
+ await db.exec(await readFile(new URL('../supabase/migrations/20261109182427_bill_outstanding_balances.sql',import.meta.url),'utf8'))
  await db.exec(`set role authenticated;set app.owner='owner';`)
  assert.equal((await db.query('select * from public.recurring_bills')).rows.length,1)
  for(const patch of ["outstanding_amount=-1","outstanding_amount=1.001","outstanding_amount=716","outstanding_amount='NaN'","outstanding_amount='Infinity'"]) await assert.rejects(db.exec(`update public.recurring_bills set ${patch} where id=1`))
