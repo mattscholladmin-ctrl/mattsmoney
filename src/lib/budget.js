@@ -1968,7 +1968,7 @@ const OVERDUE_LOOKBACK_DAYS = 40
 // narrower than their actual habit.
 const OVERDUE_PAID_WINDOW_DAYS = 21
 
-function hasOutstandingBalance(bill, today) {
+export function hasOutstandingBalance(bill, today) {
   return bill.outstanding_amount != null && Number.isFinite(Number(bill.outstanding_amount)) && Number(bill.outstanding_amount)>=0 && bill.outstanding_through && bill.outstanding_as_of && bill.outstanding_as_of<=today
 }
 

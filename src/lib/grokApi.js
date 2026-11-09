@@ -9,7 +9,7 @@ import { computePaycheckPlan } from './paycheck-plan.js'
 import crypto from 'node:crypto'
 import { adminClient } from './googleServer.js'
 import { refreshLinkedBanks, localToday } from './plaidServer.js'
-import { accountSummaries, obligationSchedule, isBillOccurrencePaid, moneyTotals, countsAsSpendable } from './budget.js'
+import { accountSummaries, obligationSchedule, isBillOccurrencePaid, moneyTotals, countsAsSpendable, hasOutstandingBalance } from './budget.js'
 import { isoDate } from './format.js'
 
 /** @param {Request} request */
@@ -234,6 +234,7 @@ async function snapshot(db, uid) {
       }),
     bills: billRows.map((b) => {
       const sched = obligationSchedule({ ...b, plan_payment: b.amount }, today)
+      const balanceDue = b.active !== false && hasOutstandingBalance(b,today) && Number(b.outstanding_amount)>0 ? b.outstanding_due_date : null
       const occ = { ...b, billId: b.id, date: sched.next_due, amount: b.amount, name: b.name }
       const paid = sched.next_due && isBillOccurrencePaid(occ, txnRows, today)
       return {
@@ -246,8 +247,8 @@ async function snapshot(db, uid) {
         active: b.active !== false,
         start_date: b.start_date || null,
         ...Object.fromEntries(OUTSTANDING_KEYS.map(k=>[k,b[k] ?? null])),
-        next_due: sched.next_due,
-        status: paid ? 'paid' : sched.status,
+        next_due: balanceDue || sched.next_due,
+        status: balanceDue ? (balanceDue<today ? 'late' : 'due') : paid ? 'paid' : sched.status,
       }
     }),
     goals: (goals.data || []).map((g) => ({
