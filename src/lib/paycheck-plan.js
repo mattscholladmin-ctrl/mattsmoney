@@ -26,6 +26,7 @@ import {
   debtsAsBills,
 } from './budget.js'
 import { isoDate } from './format.js'
+import { catchUpSchedule } from './card-catch-up.js'
 
 // Cash that is actually in Safe to spend.
 // The account switch decides which accounts count.
@@ -75,6 +76,14 @@ export function computePaycheckPlan({ data, todayIso, state = {} } = {}) {
   }
   for (const debt of d.debts || []) {
     if (debt.active === false) continue
+    const temporary=catchUpSchedule(debt,today,d.debtPayments || [],60)
+    if (temporary) {
+      const cardWindowEnd=nextPay?.date || new Date(Date.parse(today+'T12:00:00Z')+31*86400000).toISOString().slice(0,10)
+      const dueTotal=temporary.items.filter(p=>p.originalDate<=cardWindowEnd).reduce((n,p)=>n+p.amount,0)
+      const share=Math.round(Math.min(Math.max(0,Number(debt.balance || 0)),Math.max(temporary.monthly*12/ppy,dueTotal))*100)/100
+      if(share>0) planRows.push({id:`d-${debt.id}`,name:debt.name,share,kind:'Debt',note:`${temporary.completed}/${temporary.plan.count} catch-up payments recorded · ${temporary.needsMinimumReview?'Review regular statement minimum':`$${temporary.plan.amount.toFixed(2)} monthly through ${temporary.scheduledEnd}`}`,catchUp:temporary})
+      continue
+    }
     // The regular share prepares for later payments. An actual due payment
     // needs its full remaining amount, counted once rather than plus its share.
     const asBills = debtsAsBills([{ ...debt, smooth: false }])

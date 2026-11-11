@@ -2,6 +2,8 @@
 import { balanceFreshness } from '../lib/balance-freshness.js';
 import { balancePayment } from '../lib/bill-balance.js';
 import { billSnapshot } from '../lib/bill-write.js';
+import { catchUpSchedule, validateCatchUpPlan, validatePlanPayment } from '../lib/card-catch-up.js';
+import CatchUpPlanFields from './CatchUpPlanFields.jsx';
 import { useToday } from '../lib/use-today.js';
 import { useAppPreferences } from "../lib/use-app-preferences.js";
 import {
@@ -2006,6 +2008,7 @@ function Home() {
         apr: d.apr == null ? "" : String(d.apr),
         debtType: d.kind || "loan",
         bankLinked: Boolean(d.plaid_account_id),
+        catchUp: d.catch_up_plan || null,
       });
     }
   }
@@ -2015,7 +2018,7 @@ function Home() {
     setPlanMsg("");
     const name = editor.name.trim();
     const monthly = Number(editor.monthly);
-    if (!name || !Number.isFinite(monthly) || !(monthly > 0)) {
+    if (!name || !Number.isFinite(monthly) || !(monthly > 0 || (editor.kind==='debt' && editor.catchUp && monthly===0))) {
       setPlanMsg("Name and a monthly amount are required.");
       return;
     }
@@ -2049,6 +2052,7 @@ function Home() {
           next_payment_date: editor.firstDate,
           pay_frequency: editor.frequency || "monthly",
           kind: editor.debtType || "loan",
+          catch_up_plan: validateCatchUpPlan(editor.catchUp),
         };
         if (editor.id) await updateDebt(editor.id, fields);
         else await addDebt(fields);
@@ -2092,17 +2096,23 @@ function Home() {
     setPlanMsg("");
     extraInFlight.current = true;
     try {
-      const signature = JSON.stringify([extraPayment.id, amount, extraPayment.date]);
+      const note=extraPayment.planDue ? `catch-up:${extraPayment.planDue}` : null;
+      if (extraPayment.planDue) {
+        if(extraPayment.date>isoDate()) throw new Error('Record a plan payment only after it has completed.');
+        validatePlanPayment((data.debts || []).find(d=>d.id===extraPayment.id),extraPayment.planDue,amount,data.debtPayments || []);
+      }
+      const signature = JSON.stringify([extraPayment.id, amount, extraPayment.date,note]);
       if (extraRequest.current?.signature !== signature) extraRequest.current = {signature, id: crypto.randomUUID()};
       await addDebtPayment({
         debt_id: extraPayment.id,
         request_id: extraRequest.current.id,
         amount,
         paid_on: extraPayment.date || isoDate(),
+        note,
       });
       setExtraPayment(null);
       extraRequest.current = null;
-      setPlanMsg("Payment recorded. Monthly payment unchanged.");
+      setPlanMsg(extraPayment.planDue ? 'Plan payment recorded. Remaining card balance retained.' : "Payment recorded. Monthly payment unchanged.");
       load();
     } catch (err) {
       setPlanMsg(err.message || "Could not log the payment.");
@@ -2296,6 +2306,7 @@ function Home() {
                         <span className="grow">
                           <b>{r.name}</b>
                           <em>{r.note}</em>
+                          {r.catchUp && <em>{r.catchUp.installments.map(p=>`${p.due}: ${p.remaining<=0?'recorded':`${moneyFull(p.remaining)} left`}`).join(' · ')}<br/>After the plan, confirm the latest regular statement minimum; the card is not paid off.</em>}
                         </span>
                         <span className="dw-amt">{moneyFull(r.share)}</span>
                         <button
@@ -2317,10 +2328,12 @@ function Home() {
                                 name: r.name,
                                 amount: "",
                                 date: isoDate(),
+                                planDue: r.catchUp?.installments.find(p=>p.remaining>0)?.due || '',
+                                planDates: r.catchUp?.installments || [],
                               });
                             }}
                           >
-                            Extra payment
+                            {r.catchUp ? 'Record payment' : 'Extra payment'}
                           </button>
                         )}
                       </div>
@@ -2398,10 +2411,14 @@ function Home() {
                       />
                     </label>
                     {editor.bankLinked && <p className="dw-mute">This balance comes from the bank. Editing the payment plan keeps it unchanged.</p>}
-                    <label className="dw-field">Payment frequency<select value={editor.frequency || "monthly"} onChange={e=>setEditor({...editor,frequency:e.target.value})}><option value="monthly">Monthly</option><option value="biweekly">Every two weeks</option><option value="weekly">Weekly</option></select></label>
+                    <label className="dw-field">Payment frequency<select value={editor.frequency || "monthly"} disabled={!!editor.catchUp} onChange={e=>setEditor({...editor,frequency:e.target.value})}><option value="monthly">Monthly</option><option value="biweekly">Every two weeks</option><option value="weekly">Weekly</option></select></label>
                     <label className="dw-field">Minimum each payment<input type="number" min="0" step="0.01" value={editor.minimum || ""} onChange={e=>setEditor({...editor,minimum:e.target.value})}/></label>
                     <label className="dw-field">APR %, optional<input type="number" min="0" max="1000" step="0.01" value={editor.apr || ""} onChange={e=>setEditor({...editor,apr:e.target.value})}/></label>
                     <label className="dw-field">Debt type<select value={editor.debtType || "loan"} onChange={e=>setEditor({...editor,debtType:e.target.value})}><option value="loan">Loan</option><option value="card">Credit card</option></select></label>
+                    {editor.debtType==='card' && <>
+                      <label className="dw-field"><span><input type="checkbox" aria-label="Temporary card catch-up plan" checked={!!editor.catchUp} onChange={e=>setEditor({...editor,frequency:e.target.checked?'monthly':editor.frequency,catchUp:e.target.checked ? {amount:0,first_due:editor.firstDate || '',count:3,source:''}:null})}/> Temporary catch-up plan</span></label>
+                      {editor.catchUp && <CatchUpPlanFields value={editor.catchUp} onChange={catchUp=>setEditor({...editor,catchUp})}/>}
+                    </>}
                     <label className="dw-field">
                       First due date
                       <input
@@ -2438,9 +2455,9 @@ function Home() {
             {extraPayment && (
               <form onSubmit={saveExtra}>
                 <p className="dw-mute" style={{ margin: "8px 0 0" }}>
-                  Extra payment on {extraPayment.name}. This only lowers the balance. The monthly
-                  payment stays the same.
+                  Record a completed payment on {extraPayment.name}. This does not send money. Select an installment to track its progress; an extra payment leaves the agreed schedule unchanged.
                 </p>
+                {extraPayment.planDates?.length>0 && <label className="dw-field">Apply to<select aria-label="Apply card payment to" value={extraPayment.planDue} onChange={e=>setExtraPayment({...extraPayment,planDue:e.target.value})}><option value="">Extra payment, outside catch-up plan</option>{extraPayment.planDates.filter(p=>p.remaining>0).map(p=><option key={p.due} value={p.due}>{p.due} · {moneyFull(p.remaining)} remaining</option>)}</select></label>}
                 <label className="dw-field">
                   Amount
                   <input

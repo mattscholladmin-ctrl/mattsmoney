@@ -1,4 +1,5 @@
 import { billFields, OUTSTANDING_KEYS } from './bill-write.js'
+import { catchUpSchedule, validateCatchUpPlan } from './card-catch-up.js'
 import { unpricedBillCosts } from './purchase-check.js'
 import { fetchUserRows } from './fetch-user-rows.js'
 import { applyPreferences } from './app-preferences.js'
@@ -129,7 +130,7 @@ async function snapshot(db, uid) {
     db.from('budgets').select('id,category,monthly_limit').eq('user_id', uid),
     db.from('credit_scores').select('id,bureau,score,model,source,checked_on,note').eq('user_id', uid).order('checked_on', { ascending: false }).limit(12),
     db.from('phases').select('id,name,starts_on,ends_on').eq('user_id', uid).order('starts_on'),
-    db.from('debt_payments').select('debt_id,paid_on').eq('user_id', uid),
+    db.from('debt_payments').select('debt_id,paid_on,amount,note').eq('user_id', uid),
     db.from('app_preferences').select('preferences,revision,updated_at').eq('user_id', uid).maybeSingle(),
     db.from('buckets').select('*').eq('user_id', uid),
   ])
@@ -170,6 +171,7 @@ async function snapshot(db, uid) {
   const plan = computePaycheckPlan({ data: {
     accounts: acctRows, balances: balances.data || [], bills: billRows,
     debts: debtRows, goals: goalRows, income: incomeRows, transactions: txnRows,
+    debtPayments: payRows,
     budgets: budgetRows, setAsides: setAsideRows, settings: settings.data, buckets: buckets.data || [],
   }, todayIso: today, state: savedPreferences })
   const spendable = plan.safeToSpend
@@ -212,6 +214,8 @@ async function snapshot(db, uid) {
         apr: d.apr,
         active: d.active !== false,
         autopay: !!d.autopay,
+        catch_up_plan: d.catch_up_plan || null,
+        catch_up_status: catchUpSchedule(d,today,payRows,90),
       })),
     debts: debtRows
       .filter((d) => d.kind !== 'card')
@@ -426,7 +430,8 @@ export async function runGrokAction(body = {}) {
 
   if (action === 'add_debt' || action === 'add_card') {
     if (!body.name) return { ok: false, error: 'need name' }
-    const row = pick(body, ['name', 'balance', 'apr', 'plan_payment', 'min_payment', 'due_day', 'kind', 'original_balance', 'credit_limit', 'next_payment_date', 'start_date'])
+    const row = pick(body, ['name', 'balance', 'apr', 'plan_payment', 'min_payment', 'due_day', 'kind', 'original_balance', 'credit_limit', 'next_payment_date', 'start_date', 'catch_up_plan'])
+    if (row.catch_up_plan!==undefined) row.catch_up_plan=validateCatchUpPlan(row.catch_up_plan)
     row.kind = row.kind || (action === 'add_card' ? 'card' : 'loan')
     row.active = true
     const data = await insert(db, 'debts', uid, row)
@@ -438,7 +443,7 @@ export async function runGrokAction(body = {}) {
       'debts',
       uid,
       body.id,
-      pick(body, ['name', 'balance', 'apr', 'plan_payment', 'min_payment', 'due_day', 'kind', 'credit_limit', 'autopay', 'active', 'next_payment_date', 'start_date'])
+      {...pick(body, ['name', 'balance', 'apr', 'plan_payment', 'min_payment', 'due_day', 'kind', 'credit_limit', 'autopay', 'active', 'next_payment_date', 'start_date']), ...(body.catch_up_plan!==undefined ? {catch_up_plan:validateCatchUpPlan(body.catch_up_plan)} : {})}
     )
   }
   if (action === 'delete_debt' || action === 'delete_card') return remove(db, 'debts', uid, body.id)

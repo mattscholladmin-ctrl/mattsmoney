@@ -5,6 +5,7 @@ import { monthlyInterest, totalMonthlyInterest, payoffPlan, debtBar, debtPayment
 import { EditPlanModal } from './GoalsCard'
 import { addDebt, updateDebt, updateDebtBalance, decrementDebtBalance, addDebtPayment, deleteDebtPayment, deleteDebt, setDebtSmooth, setDebtActive } from '../lib/api'
 import Modal from './Modal'
+import { catchUpSchedule } from '../lib/card-catch-up.js'
 
 // The kinds of debt you can track. Only "card" drives the utilization bar (when a
 // credit limit is known); every other type shows payoff progress toward the
@@ -22,6 +23,7 @@ const debtTypeLabel = (k) => DEBT_TYPES.find((t) => t.value === k)?.label || 'Ot
 
 // "$75/mo" / "$75 every 2 wks" / "$75/wk" — how much and how often you pay.
 function paymentSummary(d) {
+  if(d.catch_up_plan) return `${money(d.catch_up_plan.amount)}/mo catch-up plan`
   const pay = Math.max(Number(d.plan_payment || 0), Number(d.min_payment || 0))
   if (pay <= 0) return ''
   const f = d.pay_frequency || 'monthly'
@@ -50,7 +52,7 @@ export default function DebtsCard({ debts, goals = [], debtPayments = [], ppy = 
   }
   const total = debts.reduce((s, d) => s + Number(d.balance || 0), 0)
   const interest = totalMonthlyInterest(debts)
-  const plan = debts.length ? payoffPlan(debts, 0, 'avalanche', goals) : null
+  const plan = debts.length && !debts.some(d=>d.catch_up_plan) ? payoffPlan(debts, 0, 'avalanche', goals) : null
   const monthYear = (iso) =>
     new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
 
@@ -90,7 +92,7 @@ export default function DebtsCard({ debts, goals = [], debtPayments = [], ppy = 
               const payPlan = planByDebtId[d.id] || null
               const bar = debtBar(d, payPlan)
               const po = singleDebtPayoff(d)
-              const nextDue = nextDueDate(d)
+              const nextDue = catchUpSchedule(d,isoDate(),debtPayments)?.next_due || nextDueDate(d)
               const sched = obligationSchedule(d)
               const payAmt = obligationAmount(d)
               const pays = debtPayments
@@ -190,6 +192,8 @@ export default function DebtsCard({ debts, goals = [], debtPayments = [], ppy = 
                   <p className="mt-1.5 text-xs text-slate-400">
                     {d.active === false
                       ? 'Inactive — sits out of your bills, forecast, safe to spend, and payoff plan.'
+                      : d.catch_up_plan
+                      ? 'Temporary catch-up schedule; remaining balance continues as a credit card. Confirm the new statement minimum afterward.'
                       : po.done
                       ? 'Paid off 🎉'
                       : po.months

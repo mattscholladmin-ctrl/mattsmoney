@@ -19,9 +19,11 @@ async function verify() {
     const context=vm.createContext({console,Date,URL,process:{env:{}}});
     const helper=new vm.SourceTextModule(await readFile(new URL('../src/lib/bill-write.js',import.meta.url),'utf8'),{context});
     await helper.link(()=>{});await helper.evaluate();
+    const cardHelper=new vm.SourceTextModule(await readFile(new URL('../src/lib/card-catch-up.js',import.meta.url),'utf8'),{context});await cardHelper.link(()=>{});await cardHelper.evaluate();
     const api=new vm.SourceTextModule(await readFile(new URL(`../src/lib/${filename}`,import.meta.url),'utf8'),{context});
     await api.link(async spec=>{
       if(spec.includes('bill-write'))return helper;
+      if(spec.includes('card-catch-up'))return cardHelper;
       const names=spec.includes('supabase') ? ['supabase','isSupabaseConfigured'] : [];
       return new vm.SyntheticModule(names,function(){for(const name of names)this.setExport(name,name==='supabase'?supabase:true)},{context});
     });await api.evaluate();

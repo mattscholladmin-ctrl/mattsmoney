@@ -12,6 +12,7 @@ import {
   goalSpent,
 } from "./budget.js";
 import { isoDate } from "./format.js";
+import { catchUpSchedule } from './card-catch-up.js';
 
 const cents = (/** @type {any} */ n) => Math.round(Number(n || 0) * 100);
 const dayAfter = (/** @type {string} */ day, /** @type {number} */ days) => {
@@ -48,9 +49,10 @@ export function forecastCash({
   const debts = (data.debts || [])
     .filter((/** @type {any} */ d) => d.active !== false && !state.planOff?.[`d-${d.id}`])
     .map((/** @type {any} */ d) => ({ ...d, smooth: false }));
-  const scheduled = [...(data.bills || []), ...debtsAsBills(debts)];
+  const scheduled = [...(data.bills || []), ...debtsAsBills(debts.filter((/** @type {any} */ d)=>!d.catch_up_plan))];
   const transactions = data.transactions || [];
   const bills = [
+    ...debts.filter((/** @type {any} */ d)=>d.catch_up_plan).flatMap((/** @type {any} */ d)=>(catchUpSchedule(d,today,data.debtPayments || [],days)?.items || []).map(p=>({...p,billId:`debt-${d.id}`,overdue:p.originalDate<today}))),
     ...unpaidBills(scheduled, transactions, today, days).filter(
       (b) => /** @type {any} */ (b).overdue,
     ),

@@ -5,6 +5,18 @@ const str = { type: 'string' }
 const num = { type: 'number' }
 const integer = { type: 'number' }
 const bool = { type: 'boolean' }
+const catchUpPlan = {type:['object','null'],properties:{amount:num,first_due:str,count:{type:'integer'},source:str,regular_minimum_verified_on:{type:['string','null']}},required:['amount','first_due','count','source'],additionalProperties:false}
+
+/** @param {any} value @param {any} schema @returns {boolean} */
+export function validToolValue(value,schema) {
+  if (!schema) return false
+  if (Array.isArray(schema.type)) return schema.type.some((/** @type {string} */ type)=>validToolValue(value,{...schema,type}))
+  if (schema.type==='null') return value===null
+  if (schema.type==='integer') return Number.isInteger(value)
+  if (schema.type==='number') return typeof value==='number' && Number.isFinite(value)
+  if (schema.type==='object') return value!=null && typeof value==='object' && !Array.isArray(value) && (schema.required || []).every((/** @type {string} */ k)=>Object.prototype.hasOwnProperty.call(value,k)) && Object.entries(value).every(([k,v])=>validToolValue(v,schema.properties?.[k]))
+  return typeof value===schema.type
+}
 
 /** @param {string} name @param {string} description @param {Record<string,any>} [properties] @param {string[]} [required] */
 function tool(name, description, properties = {}, required = []) {
@@ -36,9 +48,9 @@ const TOOLS = [
   tool('delete_goal', 'Delete a goal.', { id: str }, ['id']),
   tool('pause_goal', 'Pause a goal (not reserved). Requires id.', { id: str }, ['id']),
   tool('unpause_goal', 'Unpause a goal (reserved again). Requires id.', { id: str }, ['id']),
-  tool('add_card', 'Add a credit card.', { name: str, balance: num, credit_limit: num, min_payment: num, plan_payment: num, due_day: integer, apr: num }, ['name']),
+  tool('add_card', 'Add a credit card. An optional finite monthly catch_up_plan overrides the normal minimum on its agreed dates; retain the full card balance and normal APR.', { name: str, balance: num, credit_limit: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, catch_up_plan: catchUpPlan }, ['name']),
   tool('add_debt', 'Add a loan or other debt. start_date is first payment (YYYY-MM-DD).', { name: str, kind: str, balance: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, start_date: str }, ['name']),
-  tool('update_card', 'Update a credit card. Requires id.', { id: str, name: str, balance: num, credit_limit: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, autopay: bool, active: bool }, ['id']),
+  tool('update_card', 'Update a credit card. Requires id. A catch_up_plan is temporary; ending it does not pay off the card. Confirm the next regular statement minimum.', { id: str, name: str, balance: num, credit_limit: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, autopay: bool, active: bool, catch_up_plan: catchUpPlan }, ['id']),
   tool('update_debt', 'Update a loan/debt. Requires id. start_date is first payment (YYYY-MM-DD); other fields only change if sent.', { id: str, name: str, kind: str, balance: num, min_payment: num, plan_payment: num, due_day: integer, apr: num, active: bool, start_date: str }, ['id']),
   tool('delete_card', 'Delete a credit card.', { id: str }, ['id']),
   tool('delete_debt', 'Delete a loan/debt.', { id: str }, ['id']),
@@ -125,7 +137,7 @@ async function dispatch(msg) {
     }
     for (const [key,value] of Object.entries(args)) {
       const schema = definition?.inputSchema.properties[key]
-      if (!schema || typeof value !== schema.type || (schema.type === 'number' && !Number.isFinite(value))) {
+      if (!validToolValue(value,schema)) {
         return rpcResult(id,{content:[{type:'text',text:`Invalid argument: ${key}`}],isError:true})
       }
     }

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { billFields, expectBill, BILL_CONFLICT } from './bill-write.js'
+import { validateCatchUpPlan } from './card-catch-up.js'
 // Single data client for Matt's Money.
 //
 // Backend is chosen once at load:
@@ -686,7 +687,7 @@ async function live_deleteGoal(id) {
 }
 
 // ---- Debts (credit cards + loan) -------------------------------------------
-async function live_addDebt({ name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date, start_date }) {
+async function live_addDebt({ name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date, start_date, catch_up_plan }) {
   const row = {
     name,
     balance,
@@ -707,6 +708,8 @@ async function live_addDebt({ name, balance, apr, plan_payment, min_payment, due
   if (pay_frequency) row.pay_frequency = pay_frequency
   if (next_payment_date) row.next_payment_date = next_payment_date
   if (start_date) row.start_date = start_date
+  if (catch_up_plan != null && row.kind !== 'card') throw new Error('Temporary catch-up plans belong to credit cards.')
+  if (catch_up_plan !== undefined) row.catch_up_plan = validateCatchUpPlan(catch_up_plan)
   let { error } = await supabase.from('debts').insert(row)
   // pay_frequency / next_payment_date / is_collection not migrated yet? drop
   // and retry.
@@ -766,7 +769,7 @@ async function live_toggleCreditTask(id, done) {
   if (error) throw error
 }
 
-async function live_updateDebt(id, { name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date, start_date }) {
+async function live_updateDebt(id, { name, balance, apr, plan_payment, min_payment, due_day, kind, original_balance, pay_frequency, next_payment_date, start_date, catch_up_plan }) {
   const fields = {
     name,
     apr: apr === undefined ? 0 : apr,
@@ -785,6 +788,8 @@ async function live_updateDebt(id, { name, balance, apr, plan_payment, min_payme
   if (pay_frequency !== undefined) fields.pay_frequency = pay_frequency
   if (next_payment_date !== undefined) fields.next_payment_date = next_payment_date || null
   if (start_date !== undefined) fields.start_date = start_date || null
+  if (catch_up_plan != null && fields.kind !== 'card') throw new Error('Temporary catch-up plans belong to credit cards.')
+  if (catch_up_plan !== undefined) fields.catch_up_plan = validateCatchUpPlan(catch_up_plan)
   let { error } = await supabase.from('debts').update(fields).eq('id', id)
   // pay_frequency / next_payment_date / is_collection columns not migrated
   // yet? drop and retry.

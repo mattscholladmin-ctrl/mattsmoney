@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { billFields, checkBillSnapshot } from './bill-write.js';
+import { validateCatchUpPlan, validatePlanPayment } from './card-catch-up.js';
 import {applyDemoAppleMatch} from "./apple-bill-match.js";
 // In-memory store for the preview mock. Same function names as the live
 // Supabase API so every screen stays interactive.
@@ -325,6 +326,10 @@ export async function addDebtPayment({ debt_id, amount, paid_on, note, request_i
     return prior;
   }
   const effect = debt.plaid_account_id || debt.plaid_item_id ? 0 : amt;
+  if (String(note || '').startsWith('catch-up:')) {
+    if(day>isoDate()) throw new Error('Record a plan payment only after it has completed.');
+    validatePlanPayment(debt,note.slice(9),amt,list('debtPayments'));
+  }
   if(effect>Number(debt.balance || 0)) throw new Error("Payment exceeds the recorded balance");
   const row = {id:request_id || nid(),debt_id,amount:amt,balance_effect:effect,paid_on:day,note:note || null};
   list("debtPayments").push(row);
@@ -352,6 +357,8 @@ export async function deleteGoal(id) {
 }
 
 export async function addDebt(fields) {
+  if(fields.catch_up_plan && fields.kind!=='card') throw new Error('Temporary catch-up plans belong to credit cards.');
+  if(fields.catch_up_plan!==undefined) fields={...fields,catch_up_plan:validateCatchUpPlan(fields.catch_up_plan)};
   add("debts", { active: true, ...fields });
 }
 export async function updateDebtBalance(id, balance) {
@@ -377,6 +384,8 @@ export async function toggleCreditTask(id, done) {
   else add("creditTasks", { id, done });
 }
 export async function updateDebt(id, fields) {
+  if(fields.catch_up_plan && (fields.kind || list('debts').find(d=>d.id===id)?.kind)!=='card') throw new Error('Temporary catch-up plans belong to credit cards.');
+  if(fields.catch_up_plan!==undefined) fields={...fields,catch_up_plan:validateCatchUpPlan(fields.catch_up_plan)};
   upd("debts", id, fields);
 }
 export async function deleteDebt(id) {

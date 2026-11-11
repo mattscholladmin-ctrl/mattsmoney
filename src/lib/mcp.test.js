@@ -1,8 +1,16 @@
 // @ts-nocheck
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {handleMcpRequest} from './grokMcp.js'
+import {handleMcpRequest,validToolValue} from './grokMcp.js'
 const call=(payload,accept='application/json')=>handleMcpRequest(new Request('https://example.test/mcp',{method:'POST',headers:{'Content-Type':'application/json',Accept:accept},body:JSON.stringify(payload)}))
+test('MCP accepts only the declared structured plan fields and rejects nested argument injection',async()=>{
+ const response=await call({jsonrpc:'2.0',id:9,method:'tools/list'}),body=await response.json()
+ const schema=body.result.tools.find(t=>t.name==='add_card').inputSchema.properties.catch_up_plan
+ const plan={amount:80,first_due:'2027-03-17',count:3,source:'Confirmed enrollment'}
+ assert.equal(validToolValue(plan,schema),true)
+ assert.equal(validToolValue(null,schema),true)
+ for(const value of [{...plan,action:'delete_debt'},{...plan,count:2.5},{...plan,amount:Infinity},{...plan,source:{}},[],{amount:80}]) assert.equal(validToolValue(value,schema),false)
+})
 test('MCP advertises read-only snapshot and approval-requiring mutation tools',async()=>{
  const response=await call({jsonrpc:'2.0',id:1,method:'tools/list'})
  const {result}=await response.json()

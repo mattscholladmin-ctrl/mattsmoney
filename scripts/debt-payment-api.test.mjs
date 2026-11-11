@@ -10,9 +10,11 @@ async function verify(){
     const supabase={from(){throw new Error('Payment must not issue a separate table write')},async rpc(name,args){calls.push({name,args});return failure?{error:new Error('history unavailable')}:{data:{id:args.p_request_id || args.p_payment_id},error:null}}};
     const context=vm.createContext({console,Date,crypto:{randomUUID:()=> 'generated-request'},URL,process:{env:{}}});
     const helper=new vm.SourceTextModule(await readFile(new URL('../src/lib/bill-write.js',import.meta.url),'utf8'),{context});await helper.link(()=>{});await helper.evaluate();
+    const cardHelper=new vm.SourceTextModule(await readFile(new URL('../src/lib/card-catch-up.js',import.meta.url),'utf8'),{context});await cardHelper.link(()=>{});await cardHelper.evaluate();
     const api=new vm.SourceTextModule(await readFile(new URL(`../src/lib/${filename}`,import.meta.url),'utf8'),{context});
     await api.link(async spec=>{
       if(spec.includes('bill-write'))return helper;
+      if(spec.includes('card-catch-up'))return cardHelper;
       const names=spec.includes('supabase')?['supabase','isSupabaseConfigured']:[];
       return new vm.SyntheticModule(names,function(){for(const n of names)this.setExport(n,n==='supabase'?supabase:true)},{context});
     });await api.evaluate();
