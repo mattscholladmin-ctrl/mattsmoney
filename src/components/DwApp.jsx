@@ -2306,7 +2306,7 @@ function Home() {
                         <span className="grow">
                           <b>{r.name}</b>
                           <em>{r.note}</em>
-                          {r.catchUp && <em>{r.catchUp.installments.map(p=>`${p.due}: ${p.remaining<=0?'recorded':`${moneyFull(p.remaining)} left`}`).join(' · ')}<br/>After the plan, confirm the latest regular statement minimum; the card is not paid off.</em>}
+                          {r.catchUp && <em>{r.catchUp.installments.map(p=>`${p.due}: ${p.remaining<=0?'recorded':`${moneyFull(p.remaining)} left`}`).join(' · ')}<br/>{r.catchUp.autopayActive?'AutoPay confirmed for the plan only. ':''}After the plan, confirm the latest regular statement minimum; the card is not paid off.</em>}
                         </span>
                         <span className="dw-amt">{moneyFull(r.share)}</span>
                         <button

@@ -10,7 +10,7 @@ export function validateCatchUpPlan(plan) {
   if (typeof plan!=='object' || Array.isArray(plan)) throw new Error('Enter a valid temporary card plan.')
   const {amount,first_due,count,source,regular_minimum_verified_on=null}=plan
   if (typeof amount!=='number' || !Number.isFinite(amount) || amount<=0 || !Number.isSafeInteger(Math.round(amount*100)) || Math.abs(amount*100-Math.round(amount*100))>0.000001 || !Number.isInteger(count) || count<1 || count>60 || !dateOk(first_due) || typeof source!=='string' || !source.trim() || source.length>1500 || (regular_minimum_verified_on!=null && !dateOk(regular_minimum_verified_on))) throw new Error('A card plan needs a positive amount, first due date, 1–60 payments, and its source.')
-  return {amount,first_due,count,source:source.trim(),regular_minimum_verified_on}
+  return {amount,first_due,count,source:source.trim(),regular_minimum_verified_on,autopay:plan.autopay===true}
 }
 /** @param {any} debt @param {string} today @param {any[]} payments @param {number} horizonDays */
 export function catchUpSchedule(debt,today,payments=[],horizonDays=90) {
@@ -48,7 +48,7 @@ export function catchUpSchedule(debt,today,payments=[],horizonDays=90) {
   const next=installments.find(p=>p.remaining>0)
   const monthly=next ? plan.amount:regular
   const nextDue=next?.due || items.find(p=>!p.temporary)?.originalDate || regularStart
-  return {plan,installments,items,completed:installments.filter(p=>p.remaining<=0).length,scheduledEnd:last,regularStart,regularMinimumEstimated:!verified,needsMinimumReview:today>last && !verified,monthly,next_due:nextDue,status:nextDue<today?'late':nextDue>today&&today<plan.first_due?'pre_start':'due'}
+  return {plan,installments,items,completed:installments.filter(p=>p.remaining<=0).length,scheduledEnd:last,regularStart,autopayActive:plan.autopay && today<=last,regularMinimumEstimated:!verified,needsMinimumReview:today>last && !verified,monthly,next_due:nextDue,status:nextDue<today?'late':nextDue>today&&today<plan.first_due?'pre_start':'due'}
 }
 
 /** @param {any} debt @param {string} due @param {number} amount @param {any[]} payments */

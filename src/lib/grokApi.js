@@ -203,7 +203,9 @@ async function snapshot(db, uid) {
     })),
     cards: debtRows
       .filter((d) => d.kind === 'card')
-      .map((d) => ({
+      .map((d) => {
+        const temporary=catchUpSchedule(d,today,payRows,90)
+        return {
         id: d.id,
         name: d.name,
         balance: Number(d.balance || 0),
@@ -213,10 +215,10 @@ async function snapshot(db, uid) {
         due_day: d.due_day,
         apr: d.apr,
         active: d.active !== false,
-        autopay: !!d.autopay,
+        autopay: !!d.autopay || !!temporary?.autopayActive,
         catch_up_plan: d.catch_up_plan || null,
-        catch_up_status: catchUpSchedule(d,today,payRows,90),
-      })),
+        catch_up_status: temporary,
+      }}),
     debts: debtRows
       .filter((d) => d.kind !== 'card')
       .map((d) => {

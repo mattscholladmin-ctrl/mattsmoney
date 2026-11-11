@@ -61,3 +61,9 @@ test('invalid plan values and invalid payment allocations are rejected',()=>{
  for(const n of [-1,0,81,NaN,Infinity,0.001])assert.throws(()=>validatePlanPayment(venture,'2027-03-17',n))
  assert.equal(validateCatchUpPlan(null),null)
 })
+test('plan AutoPay does not imply regular AutoPay after the scheduled end',()=>{
+ const card={...venture,catch_up_plan:{...venture.catch_up_plan,autopay:true}}
+ assert.equal(catchUpSchedule(card,'2027-03-10').autopayActive,true)
+ assert.equal(catchUpSchedule(card,'2027-05-18').autopayActive,false)
+ assert.equal(catchUpSchedule(venture,'2027-03-10').autopayActive,false)
+})

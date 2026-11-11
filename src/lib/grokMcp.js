@@ -5,7 +5,7 @@ const str = { type: 'string' }
 const num = { type: 'number' }
 const integer = { type: 'number' }
 const bool = { type: 'boolean' }
-const catchUpPlan = {type:['object','null'],properties:{amount:num,first_due:str,count:{type:'integer'},source:str,regular_minimum_verified_on:{type:['string','null']}},required:['amount','first_due','count','source'],additionalProperties:false}
+const catchUpPlan = {type:['object','null'],properties:{amount:num,first_due:str,count:{type:'integer'},source:str,autopay:bool,regular_minimum_verified_on:{type:['string','null']}},required:['amount','first_due','count','source'],additionalProperties:false}
 
 /** @param {any} value @param {any} schema @returns {boolean} */
 export function validToolValue(value,schema) {
