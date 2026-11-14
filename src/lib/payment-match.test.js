@@ -50,3 +50,16 @@ test('card installments accept multiple identified partial payments, guard manua
   assert.equal(catchUpSchedule(data.debts[0],today,data.debtPayments).completed,1)
   assert.deepEqual(paymentSuggestions(data,today),[])
 })
+
+test('bank review keeps separate services and one-off orders out of subscription matches', () => {
+  const bills = ['Amazon Prime', 'Google AI Pro', 'Google One', 'YouTube Premium'].map((name, id) => ({...bill,id:String(id),name}))
+  const transactions = [
+    tx('video','Amazon Prime Video',35), tx('store','Amazon Marketplace',35),
+    tx('prime','Amazon Prime Membership',35), tx('google','Google Play',35),
+    tx('ai','Google One AI Premium',35), tx('storage','Google One',35),
+    tx('rental','YouTube Premium Movie Rental',35), tx('youtube','Google YouTube Premium',35),
+  ]
+  assert.deepEqual(paymentSuggestions({bills,transactions},today).map(row => [row.txn.id,row.options.map(o=>o.label)]), [
+    ['prime',['Amazon Prime']], ['ai',['Google AI Pro']], ['storage',['Google One']], ['youtube',['YouTube Premium']],
+  ])
+})

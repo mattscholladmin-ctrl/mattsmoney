@@ -62,9 +62,14 @@ describe('bill payment matcher', () => {
 })
 
 describe('amazon prime payment', () => {
-  it('counts a same-day Amazon charge as Prime paid', () => {
+  it('requires the Prime membership descriptor even when another Amazon charge has the same amount', () => {
     const occ = { billId: 'ap', name: 'Amazon Prime', amount: 16.32, date: '2026-09-17' }
-    const txns = [{ id: 'a', merchant: 'Amazon', amount: 16.32, txn_date: '2026-09-17' }]
+    for (const merchant of ['Amazon', 'Amazon Prime Video', 'AMZN Mktp', 'Amazon Prime Video Rental']) {
+      const txns = [{ id: 'a', merchant, amount: 16.32, txn_date: '2026-09-17' }]
+      assert.equal(isBillOccurrencePaid(occ, txns, '2026-09-17'), false)
+      assert.equal(suggestBillPayment(occ, txns, '2026-09-17'), null)
+    }
+    const txns = [{ id: 'a', merchant: 'AMZNPrime', amount: 16.32, txn_date: '2026-09-17' }]
     assert.equal(isBillOccurrencePaid(occ, txns, '2026-09-17'), true)
   })
 })

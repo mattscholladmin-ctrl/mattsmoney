@@ -2187,8 +2187,6 @@ const BILL_PAYEE_ALIASES = {
   icloud: ['icloud'],
   applecare: ['applecare', 'applecare+'],
   apple: ['apple'],
-  amazon: ['amazon', 'prime'],
-  prime: ['amazon', 'prime'],
   instagram: ['instagram', 'meta', 'facebook'],
   netflix: ['netflix'],
   starlink: ['starlink', 'spacex'],
@@ -2267,6 +2265,21 @@ export function merchantMatchesBill(billName, merchant) {
   const billKeys = billPayeeKeys(billName)
   const merch = normalizeMerchant(merchant || '')
   if (!billKeys.size || !merch) return false
+
+  // Bank descriptions for these services share a parent brand. Require a
+  // service identifier before suggesting or inferring a subscription payment.
+  const bill = normalizeMerchant(billName)
+  const primeVideo = /\b(?:prime video|amazon video|amzn video)\b/
+  const primeMembership = /\b(?:amazon prime|amzn prime|amazonprime|amznprime|prime membership|prime subscription)\b/
+  const purchase = /\b(?:rental|rentals|rent|purchase|purchases|order|marketplace|digital|channels|add on|add ons|amzn mktp)\b/
+  if (primeVideo.test(bill)) return primeVideo.test(merch) && !purchase.test(merch)
+  if (primeMembership.test(bill)) return primeMembership.test(merch) && !primeVideo.test(merch) && !purchase.test(merch)
+
+  const googleAi = /\b(?:google ai|google one ai|gemini)\b/
+  const googleStorage = /\bgoogle one\b/
+  if (googleAi.test(bill)) return googleAi.test(merch) && !purchase.test(merch)
+  if (googleStorage.test(bill)) return googleStorage.test(merch) && !googleAi.test(merch) && !purchase.test(merch)
+  if (/\byoutube premium\b/.test(bill)) return /\byoutube premium\b/.test(merch) && !purchase.test(merch)
   const merchWords = new Set([...significantWords(merchant || ''), ...merch.split(' ').filter((w) => w.length >= 4)])
   for (const w of merchWords) {
     if (billKeys.has(w)) return true
