@@ -932,3 +932,10 @@ export async function confirmAppleBillMatch(payload) {
  if(error)throw error
  return data
 }
+
+export async function confirmPaymentMatch(payload) {
+  if (!useLive) return demoBackend.confirmPaymentMatch(payload)
+  const { data, error } = await supabase.rpc('confirm_payment_match', payload)
+  if (error) throw error
+  return data
+}

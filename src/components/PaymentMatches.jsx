@@ -1,0 +1,79 @@
+import { useMemo, useRef, useState } from 'react'
+import { confirmPaymentMatch } from '../lib/api.js'
+import { paymentSnapshot, paymentSuggestions } from '../lib/payment-match.js'
+import { moneyFull } from '../lib/dw-product.js'
+
+/** @typedef {{kind:string,id:string,due:string,label:string,remaining:number,asOf?:string}} MatchOption */
+/** @param {{data:Record<string,any>,today:string,onSaved:()=>Promise<void>|void}} props */
+export default function PaymentMatches({ data, today, onSaved }) {
+  /** @type {{txn:Record<string,any>,options:MatchOption[]}[]} */
+  const suggestions = useMemo(() => paymentSuggestions(data,today), [data,today])
+  const [passed,setPassed] = useState(/** @type {string[]} */ ([]))
+  const [choice,setChoice] = useState(/** @type {{id:string,option:MatchOption}|null} */ (null))
+  const [busy,setBusy] = useState(false)
+  const [message,setMessage] = useState('')
+  const inFlight = useRef(false)
+  const row = suggestions.find(({txn}) => !passed.includes(txn.id))
+  const chosen = choice?.id === row?.txn.id ? choice?.option : null
+
+  async function save() {
+    if (!row || !chosen || inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
+    setMessage('')
+    const {txn} = row
+    try {
+      await confirmPaymentMatch({
+        p_transaction_id:txn.id,
+        p_expected_transaction:paymentSnapshot(txn),
+        p_target:{kind:chosen.kind,id:chosen.id,due:chosen.due,remaining:chosen.remaining,as_of:chosen.asOf || null},
+      })
+      setPassed(ids => [...ids,txn.id])
+      setChoice(null)
+      setMessage('Payment matched.')
+      await onSaved()
+    } catch (error) {
+      setMessage(error && typeof error==='object' && 'message' in error ? String(error.message) : 'Could not confirm the payment. Reload and check before retrying.')
+    } finally {
+      inFlight.current = false
+      setBusy(false)
+    }
+  }
+
+  if (!row && !message && !passed.length) return null
+  return (
+    <section className="dw-card">
+      <div className="dw-k">Match a bank payment</div>
+      {row && <>
+        <p className="dw-mute">{row.txn.merchant} · {moneyFull(Number(row.txn.amount))} · {row.txn.txn_date}</p>
+        <label className="dw-field">
+          Apply to
+          <select key={row.txn.id} value={chosen ? String(row.options.findIndex(o=>o.kind===chosen.kind && o.id===chosen.id && o.due===chosen.due)) : ''} disabled={busy}
+            onChange={event => {
+              const option = event.target.value === '' ? null : row.options[Number(event.target.value)]
+              setChoice(option ? {id:row.txn.id,option} : null)
+              setMessage('')
+            }}>
+            <option value="">Choose bill or card installment</option>
+            {row.options.map((option,i) => (
+              <option value={i} key={`${option.kind}:${option.id}:${option.due}`}>
+                {option.label} · {option.kind==='balance' ? 'Outstanding balance' : option.due} · {moneyFull(option.remaining)} owed
+              </option>
+            ))}
+          </select>
+        </label>
+        {chosen && <p className="dw-mute">{moneyFull(Math.max(0,chosen.remaining-Number(row.txn.amount)))} will remain on this {chosen.kind==='card' ? 'installment' : 'bill'}.</p>}
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <button className="dw-ctl-btn" type="button" disabled={busy || !chosen} onClick={save}>Confirm match</button>
+          <button className="dw-ctl-btn" type="button" disabled={busy} onClick={() => {
+            setPassed(ids => [...ids,row.txn.id])
+            setChoice(null)
+            setMessage('')
+          }}>Review later</button>
+        </div>
+      </>}
+      {!row && passed.length>0 && <button className="dw-text" type="button" onClick={() => setPassed([])}>Check for remaining suggestions</button>}
+      {message && <p className="dw-mute" role="status">{message}</p>}
+    </section>
+  )
+}

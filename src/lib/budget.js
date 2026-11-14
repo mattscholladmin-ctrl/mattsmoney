@@ -1936,7 +1936,12 @@ export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(
   return transactions.some((t) => {
     if (t.pending) return false
     const d = t.txn_date || ''
-    if (d < from || d > todayIso) return false
+    if (d > todayIso) return false
+    if (t.payment_match) {
+      const match = t.payment_match
+      return match.kind === 'bill' && match.id === billId && match.due === due && match.complete
+    }
+    if (d < from) return false
     const note = String(t.note || '')
     const exactMarker = `paid:${billId}@${due}`
     const hasDatedMarker = billId && note.includes(`paid:${billId}@`)
@@ -1950,7 +1955,7 @@ export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(
       if (d < earliest || d > latest) return false
     }
     // Apple groups unrelated purchases. Only an explicit dated match proves which bill was paid.
-    if (isAppleMerchant(t.merchant)) return false
+    if (occ.partialPaid > 0 || isAppleMerchant(t.merchant)) return false
     const ta = Number(t.amount || 0)
     if (ta <= 0) return false
     if (Math.abs(ta - amt) > Math.max(0.5, amt * 0.02)) return false
@@ -2288,7 +2293,7 @@ export function suggestBillPayment(occ, transactions = [], todayIso = isoDate(),
   let best = null
   let bestScore = 0
   for (const t of transactions) {
-    if (t.pending) continue
+    if (t.pending || t.payment_match || t.bill_id || /(?:^|\s)(?:paid:|apple-(?:split|paid|reviewed):)/.test(t.note || '')) continue
     const ta = Number(t.amount || 0)
     if (ta <= 0) continue
     const d = t.txn_date || ''

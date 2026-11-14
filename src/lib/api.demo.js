@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { applyDemoPaymentMatch } from "./payment-match.js";
+
 import { billFields, checkBillSnapshot } from './bill-write.js';
 import { validateCatchUpPlan, validatePlanPayment } from './card-catch-up.js';
 import {applyDemoAppleMatch} from "./apple-bill-match.js";
@@ -346,6 +348,8 @@ export async function deleteDebtPayment(id, _options = {}) {
   if(effect && (debt.plaid_account_id || debt.plaid_item_id)) throw new Error("This debt is now bank-linked; its bank balance cannot be restored manually");
   debt.balance=Number(debt.balance || 0)+effect;
   get().debtPayments=list("debtPayments").filter(p=>p.id!==id);
+  const linked = list("transactions").find(t => t.id===id && t.payment_match?.kind==="card");
+  if (linked) linked.payment_match = null;
   save();
   return true;
 }
@@ -412,3 +416,9 @@ export async function deleteBucket(id) {
 }
 
 export async function confirmAppleBillMatch(payload) { store=applyDemoAppleMatch(get(),payload);save();return {ok:true}; }
+
+export async function confirmPaymentMatch(payload) {
+  store = applyDemoPaymentMatch(get(), payload)
+  save()
+  return { ok:true }
+}

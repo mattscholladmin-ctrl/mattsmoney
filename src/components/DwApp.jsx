@@ -17,6 +17,7 @@ import ShopPage from "./ShopPage";
 import PlanningPanel from "./PlanningPanel.jsx";
 import GuideCard from "./GuideCard";
 import AppleBillMatcher from "./AppleBillMatcher.jsx";
+import PaymentMatches from "./PaymentMatches.jsx";
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   updateTransaction,
@@ -48,7 +49,6 @@ import RecurringBillsCard from "./RecurringBillsCard";
 import IncomeCard from "./IncomeCard";
 import {
   upcomingIncome,
-  suggestBillPayment,
   unpaidBills,
   obligationSchedule,
 } from "../lib/budget";
@@ -294,21 +294,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
     } catch(err) { setPaymentError(err.message || 'Could not save payment.'); return false; }
     finally { balancePaymentInFlight.current=false; }
   }
-  const payMatch = (() => {
-    if (state.matchSkip) return null;
-    const bills = [...(pay.info.windowItems || []), ...(pay.info.laterItems || [])];
-    for (const b of bills) {
-      if (b.outstandingBalance) continue;
-      const txn = suggestBillPayment(
-        { name: b.name, amount: b.fullAmount || b.amount, date: b.due || isoDate(), billId: b.id },
-        data.transactions || [],
-        isoDate(),
-      );
-      if (txn) return { bill: b, txn };
-    }
-    return null;
-  })();
-
   async function markPaid(bill) {
     const due = bill.due || isoDate();
     setPaymentError("");
@@ -316,7 +301,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
       if (bill.outstandingBalance) {
         return await recordBalancePayment(bill,bill.amount);
       } else await markBillPaid(bill.id, due);
-      patchState({ matchSkip: true });
       await load();
       return true;
     } catch (err) {
@@ -605,7 +589,6 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
     windowSpend,
     session,
     load,
-    payMatch,
     markPaid,
     patchState,
     planRows,
@@ -1901,7 +1884,6 @@ function Home() {
     load,
     refreshError,
     setPage,
-    payMatch,
     markPaid,
     patchState,
     planRows,
@@ -2216,24 +2198,7 @@ function Home() {
             </div>
           </section>
 
-          {payMatch && (
-            <section className="dw-card">
-              <div className="dw-k">This looks like a bill payment</div>
-              <p className="dw-mute" style={{ margin: "8px 0 0" }}>
-                {payMatch.txn.merchant} · {moneyFull(Math.abs(Number(payMatch.txn.amount || 0)))}
-                {payMatch.txn.txn_date ? ` · ${shortDate(payMatch.txn.txn_date)}` : ""}. Mark{" "}
-                {payMatch.bill.name} paid?
-              </p>
-              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                <button className="dw-ctl-btn" onClick={() => markPaid(payMatch.bill)}>
-                  Yes, mark paid
-                </button>
-                <button className="dw-ctl-btn" onClick={() => patchState({ matchSkip: true })}>
-                  Not this
-                </button>
-              </div>
-            </section>
-          )}
+          <PaymentMatches data={data} today={isoDate()} onSaved={load} />
 
           <section className="dw-card">
             <div className="dw-row-head">
@@ -2948,8 +2913,10 @@ function SpendBreakdown() {
 }
 
 function TxSheet({ t, onClose }) {
-  const { transactionError, classify, reviewBusy, setCat, setVisibility } = useContext(DwContext);
+  const { transactionError, classify, reviewBusy, setCat, setVisibility, data } = useContext(DwContext);
   if (!t) return null;
+  const match = t.payment_match;
+  const target = match && (match.kind === 'card' ? data.debts : data.bills)?.find(row => row.id === match.id);
   return (
     <div className="dw-sheet-dim" onClick={onClose}>
       <aside className="dw-sheet dw-sheet-lg" onClick={(e) => e.stopPropagation()}>
@@ -2964,6 +2931,7 @@ function TxSheet({ t, onClose }) {
         </div>
         <p className="dw-mute">{t.txn_date}</p>
         {t.pending && <span className="dw-chip">PENDING</span>}
+        {match && <p className="dw-mute">Matched to {target?.name || 'a saved payment'} · {match.kind === 'balance' ? 'Outstanding balance' : match.due}</p>}
         {transactionError && (
           <p className="dw-mute" role="alert">
             {transactionError}
