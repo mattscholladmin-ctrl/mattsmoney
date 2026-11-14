@@ -59,7 +59,19 @@ test('bank review keeps separate services and one-off orders out of subscription
     tx('ai','Google One AI Premium',35), tx('storage','Google One',35),
     tx('rental','YouTube Premium Movie Rental',35), tx('youtube','Google YouTube Premium',35),
   ]
-  assert.deepEqual(paymentSuggestions({bills,transactions},today).map(row => [row.txn.id,row.options.map(o=>o.label)]), [
+  assert.deepEqual(paymentSuggestions({bills,transactions},today).filter(row => row.options.length).map(row => [row.txn.id,row.options.map(o=>o.label)]), [
     ['prime',['Amazon Prime']], ['ai',['Google AI Pro']], ['storage',['Google One']], ['youtube',['YouTube Premium']],
   ])
+})
+
+test('a changed amount from a newly tracked vendor prompts once even without an applicable match', () => {
+  const higher = tx('higher','Example Telecom',130)
+  const normal = tx('usual','Example Telecom',100)
+  const pending = tx('pending','Example Telecom',130,{pending:true})
+  const data = {bills:[bill],transactions:[higher,normal,pending]}
+  const rows = paymentSuggestions(data,today)
+  assert.deepEqual(rows.find(row => row.txn.id==='higher').differentBills,[{name:bill.name,amount:100}])
+  assert.deepEqual(rows.find(row => row.txn.id==='higher').options,[])
+  assert.deepEqual(rows.find(row => row.txn.id==='usual').differentBills,[])
+  assert.deepEqual(paymentSuggestions({...data,transactions:[{...higher,note:'payment-review:one-off'},pending]},today),[])
 })

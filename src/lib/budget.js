@@ -1943,6 +1943,7 @@ export function isBillOccurrencePaid(occ, transactions = [], todayIso = isoDate(
     }
     if (d < from) return false
     const note = String(t.note || '')
+    if (/\bpayment-review:one-off\b/.test(note)) return false
     const exactMarker = `paid:${billId}@${due}`
     const hasDatedMarker = billId && note.includes(`paid:${billId}@`)
     if (hasDatedMarker) return note.includes(exactMarker)
@@ -2306,7 +2307,7 @@ export function suggestBillPayment(occ, transactions = [], todayIso = isoDate(),
   let best = null
   let bestScore = 0
   for (const t of transactions) {
-    if (t.pending || t.payment_match || t.bill_id || /(?:^|\s)(?:paid:|apple-(?:split|paid|reviewed):)/.test(t.note || '')) continue
+    if (t.pending || t.payment_match || t.bill_id || /(?:^|\s)(?:paid:|payment-review:one-off|apple-(?:split|paid|reviewed):)/.test(t.note || '')) continue
     const ta = Number(t.amount || 0)
     if (ta <= 0) continue
     const d = t.txn_date || ''

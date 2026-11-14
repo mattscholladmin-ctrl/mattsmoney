@@ -1,12 +1,12 @@
 // @ts-nocheck
-import { billOccurrences, isAppleMerchant, merchantMatchesBill } from './budget.js'
+import { billOccurrences, isAppleMerchant, merchantMatchesBill, normalizeMerchant } from './budget.js'
 import { catchUpSchedule, validatePlanPayment } from './card-catch-up.js'
 import { isoDate } from './format.js'
 
 const day = 86400000
 const cents = n => Math.round(Number(n) * 100)
 const distance = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / day
-export const paymentUsed = t => !!(t.payment_match || t.bill_id || /(?:^|\s)(?:paid:|apple-(?:split|paid|reviewed):)/.test(t.note || ''))
+export const paymentUsed = t => !!(t.payment_match || t.bill_id || /(?:^|\s)(?:paid:|payment-review:one-off|apple-(?:split|paid|reviewed):)/.test(t.note || ''))
 const eligible = (t, today) => t.source === 'plaid' && t.pending === false && t.txn_date <= today &&
   Number.isFinite(Date.parse(t.txn_date)) && distance(t.txn_date, today) <= 60 &&
   Number(t.amount) > 0 && !paymentUsed(t) && !isAppleMerchant(t.merchant)
@@ -49,11 +49,31 @@ export function paymentMatchOptions(data, t, today = isoDate()) {
   return options
 }
 
+// A saved bill supplies the usual amount. A previously confirmed payment
+// can also identify the bank's descriptor when it differs from the bill name.
+function differentRecurringCharges(data, txn) {
+  const merchant = normalizeMerchant(txn.merchant)
+  if (!merchant) return []
+  return (data.bills || []).filter(bill => {
+    const usual = Number(bill.amount)
+    if (bill.active === false || txn.txn_date <= (bill.outstanding_as_of || '') || !(usual > 0) || Math.abs(Number(txn.amount)-usual) <= Math.max(0.5,usual*0.03)) return false
+    return merchant === normalizeMerchant(bill.name) || (data.transactions || []).some(previous =>
+      previous.pending === false && previous.txn_date < txn.txn_date &&
+      previous.payment_match?.kind === 'bill' && previous.payment_match.id === bill.id &&
+      merchant === normalizeMerchant(previous.merchant)
+    )
+  }).map(bill => ({name:bill.name,amount:Number(bill.amount)}))
+}
+
 export function paymentSuggestions(data, today = isoDate()) {
   return (data.transactions || []).filter(t => eligible(t,today))
     .slice().sort((a,b) => b.txn_date.localeCompare(a.txn_date))
-    .map(t => ({ txn:t, options:paymentMatchOptions(data,t,today) }))
-    .filter(row => row.options.length)
+    .map(txn => ({
+      txn,
+      options:paymentMatchOptions(data,txn,today),
+      differentBills:differentRecurringCharges(data,txn),
+    }))
+    .filter(row => row.options.length || row.differentBills.length)
 }
 
 export function applyDemoPaymentMatch(data, payload, today = isoDate()) {
