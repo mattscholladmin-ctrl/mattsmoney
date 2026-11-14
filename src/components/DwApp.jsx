@@ -17,6 +17,7 @@ import ShopPage from "./ShopPage";
 import PlanningPanel from "./PlanningPanel.jsx";
 import GuideCard from "./GuideCard";
 import AppleBillMatcher from "./AppleBillMatcher.jsx";
+import { paymentSuggestions } from "../lib/payment-match.js";
 import PaymentMatches from "./PaymentMatches.jsx";
 import SubscriptionReview from "./SubscriptionReview.jsx";
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -1912,6 +1913,13 @@ function Home() {
   const [partialId, setPartialId] = useState(null);
   const [partialAmt, setPartialAmt] = useState("");
   const dueNow = pay.info.windowItems || [];
+  const matches = useMemo(() => paymentSuggestions(data,pay.today), [data,pay.today]);
+  const priorities = [
+    ...dueNow.map(b=>({...b,action:'Bills',target:'home-bills'})),
+    ...planRows.filter(row=>!state.planOff?.[row.id]).flatMap(row=>(row.duePayments || []).map(payment=>({
+      ...payment,id:row.id,action:'Debt payments',target:'home-debts',
+    }))),
+  ].sort((a,b)=>String(a.due).localeCompare(String(b.due)));
   const payday = pay.nextIncome?.date;
   const shares = (pay.info.laterItems || []).filter((b) => b.due && payday && b.due > payday);
   const upcomingBills = unpaidBills(data.bills || [], data.transactions || [], isoDate(), 90)
@@ -2135,6 +2143,22 @@ function Home() {
       <div className="dw-2col">
         <div className="dw-col-stack">
           <section className="dw-card">
+            <div className="dw-k">{pay.nextIncome ? 'Before payday' : 'Payments to review'}</div>
+            {pay.nextIncome && <p className="dw-mute">Through {shortDate(pay.nextIncome.date)}</p>}
+            {!priorities.length && !matches.length && <p className="dw-mute">No payments to review in this window.</p>}
+            {priorities.map(item=>(
+              <div className="dw-stat-row" key={`${item.target}:${item.id}:${item.due}:${!!item.outstandingBalance}`}>
+                <span>{item.name} · {item.outstandingBalance ? 'Overdue balance' : `${item.due<pay.today ? 'Overdue' : 'Due'} ${shortDate(item.due)}`}</span>
+                <b>{moneyFull(item.amount)}</b>
+                <button type="button" className="dw-link" onClick={()=>document.getElementById(item.target)?.scrollIntoView({block:"nearest"})}>{item.action}</button>
+              </div>
+            ))}
+            {matches.length>0 && <div className="dw-stat-row">
+              <span>{matches[0].txn.merchant} · {moneyFull(Number(matches[0].txn.amount))} · {shortDate(matches[0].txn.txn_date)}</span>
+              <button type="button" className="dw-link" onClick={()=>document.getElementById("home-payment-matches")?.scrollIntoView({block:"nearest"})}>Review bank payments ({matches.length})</button>
+            </div>}
+          </section>
+          <section className="dw-card">
             <div className="dw-row-head">
               <div className="dw-k">This paycheck's spending plan</div>
               {next && pay.daysLeft != null && (
@@ -2147,7 +2171,7 @@ function Home() {
               <span className="dw-big-n">{moneyFull(safeShown)}</span>
               <span className="dw-vs">from the accounts you include</span>
             </div>
-            <details className="dw-phone-only">
+            <details>
               <summary className="dw-link">How this is calculated</summary>
               <SpendBreakdown />
             </details>
@@ -2204,9 +2228,9 @@ function Home() {
             </div>
           </section>
 
-          <PaymentMatches data={data} today={isoDate()} onSaved={load} />
+          <div id="home-payment-matches"><PaymentMatches onSaved={load} suggestions={matches} /></div>
 
-          <section className="dw-card">
+          <section className="dw-card" id="home-debts">
             <div className="dw-row-head">
               <div className="dw-k">Goals and debts</div>
             </div>
@@ -2468,7 +2492,7 @@ function Home() {
 
           <AppleBillMatcher data={data} onSaved={load} />
 
-          <section className="dw-card">
+          <section className="dw-card" id="home-bills">
             <div className="dw-plan-sec">
               <span>Bills</span>
               <button
@@ -2882,7 +2906,7 @@ function Sidebar() {
 }
 
 function SpendBreakdown() {
-  const { pay, spreadOn, safeShown } = useContext(DwContext);
+  const { pay, spreadOn, safeShown, state } = useContext(DwContext);
   return (
     <div className="dw-pop">
       <p>
@@ -2908,6 +2932,16 @@ function SpendBreakdown() {
           <b>{moneyFull(amount)}</b>
         </div>
       ))}
+      <BankFreshness />
+      <details>
+        <summary>Individual bills and reserves</summary>
+        {[...pay.info.windowItems.map(b=>({id:`due-${b.id}-${b.due}`,name:b.name,detail:b.due,amount:b.amount})), ...(spreadOn ? pay.info.laterItems.map(b=>({id:`later-${b.id}-${b.due}`,name:b.name,detail:b.due,amount:b.share})) : [])].map(line=>(
+          <div className="dw-stat-row" key={line.id}><span>{line.name} · {line.detail}</span><b>{moneyFull(line.amount)}</b></div>
+        ))}
+        {pay.planRows.filter(row=>!state.planOff?.[row.id]).map(row=>(
+          <div className="dw-stat-row" key={row.id}><span>{row.name} · {row.kind}</span><b>{moneyFull(row.share)}</b></div>
+        ))}
+      </details>
       {safeShown < 0 && (
         <p>
           Your commitments exceed the included cash. Review the breakdown and your optional

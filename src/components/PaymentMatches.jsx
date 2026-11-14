@@ -1,13 +1,11 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { confirmPaymentMatch, updateTransaction } from '../lib/api.js'
-import { paymentSnapshot, paymentSuggestions } from '../lib/payment-match.js'
+import { paymentSnapshot } from '../lib/payment-match.js'
 import { moneyFull } from '../lib/dw-product.js'
 
 /** @typedef {{kind:string,id:string,due:string,label:string,remaining:number,asOf?:string}} MatchOption */
-/** @param {{data:Record<string,any>,today:string,onSaved:()=>Promise<void>|void}} props */
-export default function PaymentMatches({ data, today, onSaved }) {
-  /** @type {{txn:Record<string,any>,options:MatchOption[],differentBills:{name:string,amount:number}[]}[]} */
-  const suggestions = useMemo(() => paymentSuggestions(data,today), [data,today])
+/** @param {{onSaved:()=>Promise<void>|void,suggestions:{txn:Record<string,any>,options:MatchOption[],differentBills:{name:string,amount:number}[]}[]}} props */
+export default function PaymentMatches({ onSaved, suggestions }) {
   const [passed,setPassed] = useState(/** @type {string[]} */ ([]))
   const [choice,setChoice] = useState(/** @type {{id:string,option:MatchOption}|null} */ (null))
   const [busy,setBusy] = useState(false)

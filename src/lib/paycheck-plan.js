@@ -81,7 +81,7 @@ export function computePaycheckPlan({ data, todayIso, state = {} } = {}) {
       const cardWindowEnd=nextPay?.date || new Date(Date.parse(today+'T12:00:00Z')+31*86400000).toISOString().slice(0,10)
       const dueTotal=temporary.items.filter(p=>p.originalDate<=cardWindowEnd).reduce((n,p)=>n+p.amount,0)
       const share=Math.round(Math.min(Math.max(0,Number(debt.balance || 0)),Math.max(temporary.monthly*12/ppy,dueTotal))*100)/100
-      if(share>0) planRows.push({id:`d-${debt.id}`,name:debt.name,share,kind:'Debt',note:`${temporary.completed}/${temporary.plan.count} catch-up payments recorded · ${temporary.needsMinimumReview?'Review regular statement minimum':`$${temporary.plan.amount.toFixed(2)} monthly through ${temporary.scheduledEnd}`}`,catchUp:temporary})
+      if(share>0) planRows.push({id:`d-${debt.id}`,name:debt.name,share,kind:'Debt',note:`${temporary.completed}/${temporary.plan.count} catch-up payments recorded · ${temporary.needsMinimumReview?'Review regular statement minimum':`$${temporary.plan.amount.toFixed(2)} monthly through ${temporary.scheduledEnd}`}`,catchUp:temporary,duePayments:temporary.items.filter(p=>p.originalDate<=cardWindowEnd).map(p=>({due:p.originalDate,amount:p.amount,name:p.name}))})
       continue
     }
     // The regular share prepares for later payments. An actual due payment
@@ -90,7 +90,7 @@ export function computePaycheckPlan({ data, todayIso, state = {} } = {}) {
     const due = spendableToday(0, { bills: asBills, incomes, transactions, fromIso: today })
     const remaining = Math.max(0, Number(debt.balance || 0))
     const share = Math.min(remaining, Math.max(debtPaycheckShare(debt, ppy), due.billsBeforePay + due.laterShare))
-    if (share > 0) planRows.push({ id: `d-${debt.id}`, name: debt.name, share, kind: 'Debt', note: debt.start_date > today ? `Starts ${debt.start_date} · saving now` : due.billsBeforePay > 0 ? 'Includes payment due before payday' : 'Each paycheck' })
+    if (share > 0) planRows.push({ id: `d-${debt.id}`, name: debt.name, share, kind: 'Debt', duePayments:due.windowItems, note: debt.start_date > today ? `Starts ${debt.start_date} · saving now` : due.billsBeforePay > 0 ? 'Includes payment due before payday' : 'Each paycheck' })
   }
   const goalReserve = planRows.filter((r) => r.kind === 'Goal' && !state.planOff?.[r.id]).reduce((n, r) => n + r.share, 0)
   const debtReserve = planRows.filter((r) => r.kind === 'Debt' && !state.planOff?.[r.id]).reduce((n, r) => n + r.share, 0)
