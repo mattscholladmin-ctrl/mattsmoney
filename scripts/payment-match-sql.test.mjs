@@ -24,7 +24,7 @@ test('confirm payment RPC checks ownership, transaction snapshot, duplicate use 
       create policy own on public.debts to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());
       grant select,update on public.debts,public.transactions,public.recurring_bills to authenticated;
     `)
-    for(const migration of ['20261109141527_debt_history_biweekly_bills','20261109182427_bill_outstanding_balances','20261110152107_card_catch_up_plans','20261114032606_confirm_payment_match']) {
+    for(const migration of ['20261109141527_debt_history_biweekly_bills','20261109182427_bill_outstanding_balances','20261110152107_card_catch_up_plans','20261114032606_confirm_payment_match','20261114165402_undo_payment_match']) {
       await db.exec(await readFile(new URL(`../supabase/migrations/${migration}.sql`,import.meta.url),'utf8'))
     }
     const {rows:[{date,due_day:day}]}=await db.query('select current_date::text date, extract(day from current_date)::int as due_day')
@@ -43,21 +43,32 @@ test('confirm payment RPC checks ownership, transaction snapshot, duplicate use 
     await assert.rejects(match(pending,10,bill,'bill',100),/posted/)
     await assert.rejects(match(foreign,10,bill,'bill',100),/unavailable/)
     await assert.rejects(match(first,34,bill,'bill',100),/changed/)
+    const undo = async id => {
+      const {rows:[row]}=await db.query('select payment_match from public.transactions where id=$1',[id])
+      return db.query('select public.undo_payment_match($1,$2)',[id,JSON.stringify(row.payment_match)])
+    }
     await match(first,35,bill,'bill',100)
     await match(first,35,bill,'bill',100)
     await assert.rejects(match(first,35,debt,'card',90),/already matched/)
     await assert.rejects(match(second,65,bill,'bill',100),/changed/)
     await match(second,65,bill,'bill',65)
     await assert.rejects(match(third,90,bill,'bill',100),/already paid/)
+    await assert.rejects(undo(first),/Undo newer/)
+    await undo(second)
+    assert.equal(Number((await db.query('select partial_paid from public.recurring_bills where id=$1',[bill])).rows[0].partial_paid),35)
+    await undo(first)
+    assert.equal((await db.query('select partial_paid from public.recurring_bills where id=$1',[bill])).rows[0].partial_paid,null)
     await match(third,90,debt,'card',90)
     await match(third,90,debt,'card',90)
     assert.equal(Number((await db.query('select balance from public.debts')).rows[0].balance),410)
     assert.equal((await db.query('select count(*)::int n from public.debt_payments')).rows[0].n,1)
-    await db.query('select public.remove_debt_payment($1)',[third])
+    await undo(third)
     assert.equal((await db.query('select payment_match from public.transactions where id=$1',[third])).rows[0].payment_match,null)
     assert.equal(Number((await db.query('select balance from public.debts')).rows[0].balance),500)
     const {rows:[dates]}=await db.query("select (current_date-1)::text as as_of,(current_date-10)::text as due")
     await match(balanceTxn,100,arrears,'balance',180,dates)
     assert.equal(Number((await db.query('select outstanding_amount from public.recurring_bills where id=$1',[arrears])).rows[0].outstanding_amount),80)
+    await undo(balanceTxn)
+    assert.equal(Number((await db.query('select outstanding_amount from public.recurring_bills where id=$1',[arrears])).rows[0].outstanding_amount),180)
   } finally {await db.close()}
 })

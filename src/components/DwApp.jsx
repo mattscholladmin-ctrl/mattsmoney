@@ -21,6 +21,7 @@ import PaymentMatches from "./PaymentMatches.jsx";
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   updateTransaction,
+  undoPaymentMatch,
   addTransaction,
   upsertBudget,
   updateAccount,
@@ -706,6 +707,7 @@ export default function DwApp({ data, setData, load, session, demo, syncing, ref
         </nav>
         {sheet && (
           <TxSheet
+            key={sheet.id}
             t={product.txns.find((t) => t.id === sheet.id) || sheet}
             onClose={() => setSheet(null)}
           />
@@ -2913,10 +2915,33 @@ function SpendBreakdown() {
 }
 
 function TxSheet({ t, onClose }) {
-  const { transactionError, classify, reviewBusy, setCat, setVisibility, data } = useContext(DwContext);
+  const { transactionError, classify, reviewBusy, setCat, setVisibility, data, load } = useContext(DwContext);
+  const [undoBusy,setUndoBusy] = useState(false);
+  const [undoMessage,setUndoMessage] = useState("");
+  const undoFlight = useRef(false);
   if (!t) return null;
   const match = t.payment_match;
   const target = match && (match.kind === 'card' ? data.debts : data.bills)?.find(row => row.id === match.id);
+  const oneOff = /\bpayment-review:one-off\b/.test(t.note || '');
+  async function undo() {
+    if (undoFlight.current) return;
+    undoFlight.current = true;
+    setUndoBusy(true);
+    setUndoMessage('');
+    try {
+      if (match) await undoPaymentMatch(t);
+      else await updateTransaction(t.id,{
+        note:String(t.note).replace(/(?:^|\s)payment-review:one-off(?=\s|$)/g,'').trim(),
+      },{expected_note:t.note});
+      await load();
+      setUndoMessage('Decision undone.');
+    } catch (error) {
+      setUndoMessage(error.message || 'Could not undo the decision. Reload and try again.');
+    } finally {
+      undoFlight.current = false;
+      setUndoBusy(false);
+    }
+  }
   return (
     <div className="dw-sheet-dim" onClick={onClose}>
       <aside className="dw-sheet dw-sheet-lg" onClick={(e) => e.stopPropagation()}>
@@ -2932,6 +2957,11 @@ function TxSheet({ t, onClose }) {
         <p className="dw-mute">{t.txn_date}</p>
         {t.pending && <span className="dw-chip">PENDING</span>}
         {match && <p className="dw-mute">Matched to {target?.name || 'a saved payment'} · {match.kind === 'balance' ? 'Outstanding balance' : match.due}</p>}
+        {oneOff && <p className="dw-mute">Marked as a one-off purchase</p>}
+        {(match || oneOff) && <button type="button" className="dw-ctl-btn" onClick={undo} disabled={undoBusy || reviewBusy}>
+          {match ? 'Undo payment match' : 'Undo one-off decision'}
+        </button>}
+        {undoMessage && <p className="dw-mute" role="status">{undoMessage}</p>}
         {transactionError && (
           <p className="dw-mute" role="alert">
             {transactionError}

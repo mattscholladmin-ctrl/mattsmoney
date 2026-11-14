@@ -939,3 +939,11 @@ export async function confirmPaymentMatch(payload) {
   if (error) throw error
   return data
 }
+
+export async function undoPaymentMatch(transaction) {
+  if (!useLive) return demoBackend.undoPaymentMatch(transaction)
+  const { error } = await supabase.rpc('undo_payment_match', {
+    p_transaction_id:transaction.id, p_expected_match:transaction.payment_match,
+  })
+  if (error) throw error
+}

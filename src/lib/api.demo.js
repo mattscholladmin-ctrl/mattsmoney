@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { applyDemoPaymentMatch } from "./payment-match.js";
+import { applyDemoPaymentMatch, paymentBillState } from "./payment-match.js";
 
 import { billFields, checkBillSnapshot } from './bill-write.js';
 import { validateCatchUpPlan, validatePlanPayment } from './card-catch-up.js';
@@ -421,4 +421,24 @@ export async function confirmPaymentMatch(payload) {
   store = applyDemoPaymentMatch(get(), payload)
   save()
   return { ok:true }
+}
+
+export async function undoPaymentMatch(transaction) {
+  const current = list('transactions').find(t => t.id === transaction.id)
+  const match = current?.payment_match
+  if (!match) return
+  if (JSON.stringify(match) !== JSON.stringify(transaction.payment_match)) throw new Error('The match changed. Reload before undoing it.')
+  if (match.kind === 'card') return deleteDebtPayment(current.id)
+  if (!match.before) throw new Error('This match was saved before Undo could capture the prior bill state.')
+  const bill = list('bills').find(b => b.id === match.id)
+  if (!bill || JSON.stringify(paymentBillState(bill,match.kind)) !== JSON.stringify(match.after) ||
+      list('transactions').some(t => t.payment_match?.id === match.id && t.payment_match.kind === match.kind && t.payment_match.confirmed_at > match.confirmed_at)) {
+    throw new Error('This bill changed after the match. Undo newer matches first or check the bill in Bills.')
+  }
+  const changed = match.kind === 'balance'
+    ? ['outstanding_amount','outstanding_note']
+    : ['partial_paid','partial_for']
+  for (const key of changed) bill[key] = match.before[key]
+  current.payment_match = null
+  save()
 }

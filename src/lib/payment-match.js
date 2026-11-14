@@ -76,6 +76,13 @@ export function paymentSuggestions(data, today = isoDate()) {
     .filter(row => row.options.length || row.differentBills.length)
 }
 
+export function paymentBillState(bill, kind) {
+  const keys = kind === 'balance'
+    ? ['outstanding_amount','outstanding_note','outstanding_as_of','outstanding_through','outstanding_due_date','outstanding_estimated']
+    : ['amount','cadence','due_day','start_date','paid_through','outstanding_through','partial_paid','partial_for']
+  return Object.fromEntries(keys.map(key => [key,bill[key] ?? null]))
+}
+
 export function applyDemoPaymentMatch(data, payload, today = isoDate()) {
   const t = data.transactions.find(row => row.id === payload.p_transaction_id)
   const {kind,id,due,remaining,as_of} = payload.p_target
@@ -87,6 +94,7 @@ export function applyDemoPaymentMatch(data, payload, today = isoDate()) {
   const tx = next.transactions.find(row => row.id === t.id)
   const amount = Number(tx.amount)
   const complete = cents(remaining) === cents(amount)
+  const match = {kind,id,due,amount,complete,confirmed_at:Date.now()}
   if (kind === 'card') {
     const debt = next.debts.find(d => d.id === id)
     const note = `catch-up:${due}`
@@ -98,6 +106,7 @@ export function applyDemoPaymentMatch(data, payload, today = isoDate()) {
     payments.push({id:tx.id,debt_id:id,paid_on:tx.txn_date,amount,note,balance_effect:effect})
   } else {
     const bill = next.bills.find(b => b.id === id)
+    match.before = paymentBillState(bill,kind)
     if (kind === 'balance') {
       bill.outstanding_amount = (cents(remaining) - cents(amount))/100
       bill.outstanding_note = `${bill.outstanding_note}\nBank payment of $${amount.toFixed(2)} matched on ${tx.txn_date}.`.slice(-1500)
@@ -106,7 +115,8 @@ export function applyDemoPaymentMatch(data, payload, today = isoDate()) {
       bill.partial_paid = complete ? null : (bill.partial_for === due ? cents(bill.partial_paid || 0) + cents(amount) : cents(amount))/100
       bill.partial_for = complete ? null : due
     }
+    match.after = paymentBillState(bill,kind)
   }
-  tx.payment_match = {kind,id,due,amount,complete}
+  tx.payment_match = match
   return next
 }
