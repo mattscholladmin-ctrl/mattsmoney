@@ -18,6 +18,7 @@ import PlanningPanel from "./PlanningPanel.jsx";
 import GuideCard from "./GuideCard";
 import AppleBillMatcher from "./AppleBillMatcher.jsx";
 import PaymentMatches from "./PaymentMatches.jsx";
+import SubscriptionReview from "./SubscriptionReview.jsx";
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   updateTransaction,
@@ -1041,6 +1042,7 @@ function Profile() {
 
 function Bills() {
   const { data, load, upcoming } = useContext(DwContext);
+  const today = useToday();
   return (
     <div className="dw-page">
       <header className="dw-page-h">
@@ -1051,6 +1053,8 @@ function Bills() {
           </p>
         </div>
       </header>
+      <SubscriptionReview bills={data.bills || []} transactions={data.transactions || []}
+        today={today} payday={upcoming.find(item=>item.date>today)?.date} onChanged={load} />
       <div className="dw-ins-2">
         <section className="dw-card dw-embed dw-bills-tile">
           <div className="dw-k" style={{ marginBottom: 8 }}>
